@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, Trophy, Calendar, Settings, BarChart3, TrendingUp, 
-  Calculator, Menu, X, ChevronRight, Wifi, WifiOff
-} from 'lucide-react';
+import { LayoutDashboard, Trophy, Calendar, Settings, BarChart3, TrendingUp, Calculator, Menu, X, ChevronRight, Wifi, WifiOff, Wallet } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -52,6 +49,7 @@ const Layout = ({ children }) => {
     { path: '/table/apl', icon: Trophy, label: 'Таблица' },
     { path: '/matches', icon: Calendar, label: 'Матчи' },
     { path: '/poisson', icon: Calculator, label: 'Пуассон' },
+    { path: '/bets', icon: Wallet, label: 'Ставки' },  // ← ВОТ ЭТО
     { path: '/admin', icon: Settings, label: 'Админка' },
   ];
 

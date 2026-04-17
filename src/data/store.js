@@ -43,7 +43,7 @@ const defaultData = {
   bets: [],
   bankroll: { initial: 10000, current: 10000 },
 
-  
+
   lastUpdated: new Date().toISOString(),
   version: '2.0'
 };
@@ -123,7 +123,20 @@ export const getData = () => {
     return initializeSampleData();
   }
   
-  return JSON.parse(data);
+  const parsedData = JSON.parse(data);
+  
+  // Добавляем bets и bankroll если их нет (для старых данных)
+  if (!parsedData.bets) {
+    parsedData.bets = [];
+  }
+  if (!parsedData.bankroll) {
+    parsedData.bankroll = { initial: 10000, current: 10000 };
+  }
+  
+  // Сохраняем обновлённые данные
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedData));
+  
+  return parsedData;
 };
 
 export const saveData = async (data) => {

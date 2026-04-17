@@ -1,19 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getData, saveData } from '../data/store';
 import { 
-  TrendingUp, TrendingDown, Wallet, Plus, Trash2, 
-  Check, X, Calendar, Target, Filter, ChevronDown,
-  BarChart3, PieChart, Trophy, Clock, Edit, Save
+  TrendingUp, Wallet, Plus, Trash2, 
+  Check, X, Target, ChevronDown,
+  BarChart3, Trophy, Clock, Edit
 } from 'lucide-react';
 
 const BetTracker = () => {
-  const [data, setData] = useState(getData());
+  const [data, setData] = useState(() => {
+    const d = getData();
+    if (!d.bets) d.bets = [];
+    if (!d.bankroll) d.bankroll = { initial: 10000, current: 10000 };
+    return d;
+  });
+  
   const [bets, setBets] = useState(data.bets || []);
   const [bankroll, setBankroll] = useState(data.bankroll || { initial: 10000, current: 10000 });
   const [showAddForm, setShowAddForm] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('all'); // all, won, lost, pending
+  const [filterStatus, setFilterStatus] = useState('all');
   const [filterLeague, setFilterLeague] = useState('all');
-  const [sortBy, setSortBy] = useState('date'); // date, profit, odds
+  const [sortBy, setSortBy] = useState('date');
   const [editingBankroll, setEditingBankroll] = useState(false);
   const [newBankroll, setNewBankroll] = useState(bankroll.current);
   
@@ -21,18 +27,17 @@ const BetTracker = () => {
     date: new Date().toISOString().split('T')[0],
     leagueId: data.leagues[0]?.id || '',
     match: '',
-    betType: 'total', // total, handicap, outcome
-    selection: 'over', // over, under, home, away
+    betType: 'total',
+    selection: 'over',
     total: 9.5,
     odds: 1.85,
     stake: 1000,
-    status: 'pending', // pending, won, lost
+    status: 'pending',
     profit: 0,
     notes: ''
   });
 
   const leagues = data.leagues;
-  const teams = data.teams;
 
   // Сохранение данных
   const saveBets = (newBets, newBankroll) => {
@@ -71,7 +76,6 @@ const BetTracker = () => {
     const updatedBets = [...bets, newBet];
     setBets(updatedBets);
     
-    // Обновляем банкролл
     const totalProfit = updatedBets.reduce((sum, bet) => sum + (bet.profit || 0), 0);
     const updatedBankroll = {
       ...bankroll,
@@ -81,7 +85,6 @@ const BetTracker = () => {
     
     saveBets(updatedBets, updatedBankroll);
     
-    // Сброс формы
     setBetForm({
       ...betForm,
       match: '',
@@ -142,26 +145,27 @@ const BetTracker = () => {
     });
 
   // Статистика
+  const totalStake = filteredBets.reduce((sum, b) => sum + b.stake, 0);
+  const totalProfit = filteredBets.reduce((sum, b) => sum + (b.profit || 0), 0);
+  
   const stats = {
     total: filteredBets.length,
     won: filteredBets.filter(b => b.status === 'won').length,
     lost: filteredBets.filter(b => b.status === 'lost').length,
     pending: filteredBets.filter(b => b.status === 'pending').length,
-    totalStake: filteredBets.reduce((sum, b) => sum + b.stake, 0),
-    totalProfit: filteredBets.reduce((sum, b) => sum + (b.profit || 0), 0),
+    totalStake: totalStake,
+    totalProfit: totalProfit,
     winRate: filteredBets.filter(b => b.status !== 'pending').length > 0 
       ? (filteredBets.filter(b => b.status === 'won').length / 
          filteredBets.filter(b => b.status !== 'pending').length * 100).toFixed(1)
       : 0,
-    roi: stats.totalStake > 0 
-      ? (stats.totalProfit / stats.totalStake * 100).toFixed(1)
-      : 0,
+    roi: totalStake > 0 ? (totalProfit / totalStake * 100).toFixed(1) : 0,
     avgOdds: filteredBets.length > 0
       ? (filteredBets.reduce((sum, b) => sum + b.odds, 0) / filteredBets.length).toFixed(2)
       : 0
   };
 
-  const totalProfit = bankroll.current - bankroll.initial;
+  const overallProfit = bankroll.current - bankroll.initial;
   const roiTotal = ((bankroll.current - bankroll.initial) / bankroll.initial * 100).toFixed(1);
 
   return (
@@ -201,7 +205,7 @@ const BetTracker = () => {
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <span className={`text-2xl md:text-3xl font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <span className={`text-2xl md:text-3xl font-bold ${overallProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {bankroll.current.toLocaleString()} ₽
                   </span>
                   <button
@@ -215,8 +219,8 @@ const BetTracker = () => {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-400">Прибыль</p>
-              <p className={`text-xl font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {totalProfit >= 0 ? '+' : ''}{totalProfit.toLocaleString()} ₽
+              <p className={`text-xl font-bold ${overallProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {overallProfit >= 0 ? '+' : ''}{overallProfit.toLocaleString()} ₽
               </p>
               <p className={`text-sm ${roiTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 ROI: {roiTotal}%
@@ -236,7 +240,7 @@ const BetTracker = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
         <StatCard icon={BarChart3} label="Win Rate" value={`${stats.winRate}%`} color="purple" />
-        <StatCard icon={TrendingUp} label="ROI" value={`${stats.roi}%`} color={stats.roi >= 0 ? 'green' : 'red'} />
+        <StatCard icon={TrendingUp} label="ROI" value={`${stats.roi}%`} color={parseFloat(stats.roi) >= 0 ? 'green' : 'red'} />
         <StatCard icon={Wallet} label="Оборот" value={`${(stats.totalStake / 1000).toFixed(0)}k ₽`} color="gray" />
         <StatCard icon={Trophy} label="Прибыль" value={`${stats.totalProfit >= 0 ? '+' : ''}${stats.totalProfit.toLocaleString()} ₽`} color={stats.totalProfit >= 0 ? 'green' : 'red'} />
         <StatCard icon={Target} label="Ср. кэф" value={stats.avgOdds} color="blue" />
