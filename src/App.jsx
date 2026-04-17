@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -6,6 +7,7 @@ import LeagueTable from './pages/LeagueTable';
 import Matches from './pages/Matches';
 import Admin from './pages/Admin';
 import PoissonCalculator from './pages/PoissonCalculator';
+import { getDataAsync } from './data/store';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +31,7 @@ function App() {
   }
 
   return (
-    <HashRouter>  {/* Заменил BrowserRouter на HashRouter */}
+    <HashRouter>
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
