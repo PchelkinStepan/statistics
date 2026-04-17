@@ -8,6 +8,7 @@ import Matches from './pages/Matches';
 import Admin from './pages/Admin';
 import PoissonCalculator from './pages/PoissonCalculator';
 import { getData } from './data/store';
+import BetTracker from './pages/BetTracker';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -37,6 +38,7 @@ function App() {
           <Route path="/table/:leagueId" element={<LeagueTable />} />
           <Route path="/table" element={<LeagueTable />} />
           <Route path="/matches" element={<Matches />} />
+          <Route path="/bets" element={<BetTracker />} />
           <Route path="/poisson" element={<PoissonCalculator />} />
           <Route 
             path="/admin" 

@@ -39,6 +39,11 @@ const defaultData = {
   ],
   
   matches: [],
+
+  bets: [],
+  bankroll: { initial: 10000, current: 10000 },
+
+  
   lastUpdated: new Date().toISOString(),
   version: '2.0'
 };
