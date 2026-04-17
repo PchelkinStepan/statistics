@@ -5,3 +5,16 @@
     @apply bg-gray-900 text-gray-100;
   }
 }
+
+@layer utilities {
+  /* Улучшенный скролл для мобилок */
+  .overflow-auto, .overflow-y-auto, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Отключаем зум на инпутах для iOS */
+  input, select, textarea {
+    @apply text-base;
+    font-size: 16px !important;
+  }
+}
