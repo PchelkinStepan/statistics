@@ -7,15 +7,14 @@ import LeagueTable from './pages/LeagueTable';
 import Matches from './pages/Matches';
 import Admin from './pages/Admin';
 import PoissonCalculator from './pages/PoissonCalculator';
-import { getDataAsync } from './data/store';
+import { getData } from './data/store';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    getDataAsync().then(() => {
-      setIsLoading(false);
-    });
+    getData();
+    setTimeout(() => setIsLoading(false), 500);
   }, []);
 
   if (isLoading) {
