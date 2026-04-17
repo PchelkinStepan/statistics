@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Trophy, Calendar, Settings, BarChart3, TrendingUp, Calculator } from 'lucide-react';
 
