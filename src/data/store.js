@@ -285,158 +285,80 @@ export const getTeamStats = (teamId, matchesCount = 10) => {
   };
 };
 
-export const predictMatch = (homeTeamId, awayTeamId, leagueId) => {
+export const predictMatch = (homeTeamId, awayTeamId, leagueId, selectedTotal = 9.5) => {
   const data = getData();
   const league = data.leagues.find(l => l.id === leagueId);
   const homeStats = getTeamStats(homeTeamId);
   const awayStats = getTeamStats(awayTeamId);
   
-  if (!homeStats || !awayStats || !league) {
-    console.error('Нет данных для прогноза');
-    return null;
-  }
+  if (!homeStats || !awayStats || !league) return null;
   
-  // Безопасное деление (защита от NaN)
+  // Безопасное деление
   const safeDivide = (a, b, fallback = 1) => {
     if (!b || b === 0 || isNaN(a) || isNaN(b)) return fallback;
     const result = a / b;
     return isNaN(result) || !isFinite(result) ? fallback : result;
   };
   
-  // Безопасные факторы (всегда числа!)
   const homeCornerRating = Math.max(0.3, safeDivide(homeStats.avgCornersFor, league.avgCornersHome, 1));
-  const homePossessionFactor = Math.max(0.5, safeDivide((homeStats.avgPossession1H + homeStats.avgPossession2H) / 2, 50, 1));
-  const homeXGFactor = Math.max(0.3, safeDivide(homeStats.avgXG, league.avgXG, 1));
-  const homeShotsFactor = Math.max(0.3, safeDivide(homeStats.avgShotsInsideBox, league.avgShotsInsideBox, 1));
-  
   const awayDefenseCorner = Math.max(0.3, safeDivide(awayStats.avgCornersAgainst, league.avgCornersAway, 1));
-  const awayDefenseXG = Math.max(0.3, safeDivide(awayStats.avgXGA, league.avgXG, 1));
-  const awayDefenseShots = Math.max(0.3, safeDivide(awayStats.avgShotsInsideBoxAgainst, league.avgShotsInsideBox, 1));
   
-  // Базовая формула (упрощённая, без сложных весов)
   let homeExpected = league.avgCornersHome * homeCornerRating * awayDefenseCorner;
-  
-  // Проверка на NaN
-  if (isNaN(homeExpected) || !isFinite(homeExpected) || homeExpected < 1) {
-    homeExpected = league.avgCornersHome;
-  }
+  if (isNaN(homeExpected) || homeExpected < 1) homeExpected = league.avgCornersHome;
   if (homeExpected > 15) homeExpected = 12;
   
   const awayCornerRating = Math.max(0.3, safeDivide(awayStats.avgCornersFor, league.avgCornersAway, 1));
-  const awayPossessionFactor = Math.max(0.5, safeDivide((awayStats.avgPossession1H + awayStats.avgPossession2H) / 2, 50, 1));
-  const awayXGFactor = Math.max(0.3, safeDivide(awayStats.avgXG, league.avgXG, 1));
-  const awayShotsFactor = Math.max(0.3, safeDivide(awayStats.avgShotsInsideBox, league.avgShotsInsideBox, 1));
-  
   const homeDefenseCorner = Math.max(0.3, safeDivide(homeStats.avgCornersAgainst, league.avgCornersHome, 1));
-  const homeDefenseXG = Math.max(0.3, safeDivide(homeStats.avgXGA, league.avgXG, 1));
-  const homeDefenseShots = Math.max(0.3, safeDivide(homeStats.avgShotsInsideBoxAgainst, league.avgShotsInsideBox, 1));
   
   let awayExpected = league.avgCornersAway * awayCornerRating * homeDefenseCorner;
-  
-  if (isNaN(awayExpected) || !isFinite(awayExpected) || awayExpected < 0.5) {
-    awayExpected = league.avgCornersAway;
-  }
+  if (isNaN(awayExpected) || awayExpected < 0.5) awayExpected = league.avgCornersAway;
   if (awayExpected > 12) awayExpected = 10;
   
-  // Округляем до 2 знаков
   homeExpected = Math.round(homeExpected * 100) / 100;
   awayExpected = Math.round(awayExpected * 100) / 100;
   const totalExpected = homeExpected + awayExpected;
   
-  console.log('📊 Прогноз:', { homeExpected, awayExpected, totalExpected });
+  // Расчёт вероятности для выбранного тотала
+  let totalProbability = 50;
+  let recommendation = '';
   
-  // Простой расчёт вероятностей (без сложной математики)
-  const probabilities = {
+  if (totalExpected > selectedTotal + 2) {
+    totalProbability = 85;
+    recommendation = `🔥 СИЛЬНЫЙ СИГНАЛ: ТБ ${selectedTotal} угловых`;
+  } else if (totalExpected > selectedTotal + 1.5) {
+    totalProbability = 75;
+    recommendation = `🔥 СИЛЬНЫЙ СИГНАЛ: ТБ ${selectedTotal} угловых`;
+  } else if (totalExpected > selectedTotal + 1) {
+    totalProbability = 68;
+    recommendation = `✅ ХОРОШИЙ СИГНАЛ: ТБ ${selectedTotal} угловых`;
+  } else if (totalExpected > selectedTotal + 0.5) {
+    totalProbability = 60;
+    recommendation = `👍 СИГНАЛ: ТБ ${selectedTotal} угловых`;
+  } else if (totalExpected > selectedTotal - 0.5) {
+    totalProbability = 52;
+    recommendation = `⚖️ Нет явного сигнала (близко к ${selectedTotal})`;
+  } else if (totalExpected > selectedTotal - 1) {
+    totalProbability = 42;
+    recommendation = `❄️ СИГНАЛ: Рассмотри ТМ ${selectedTotal} угловых`;
+  } else if (totalExpected > selectedTotal - 1.5) {
+    totalProbability = 35;
+    recommendation = `❄️ ХОРОШИЙ СИГНАЛ: ТМ ${selectedTotal} угловых`;
+  } else {
+    totalProbability = 25;
+    recommendation = `🧊 СИЛЬНЫЙ СИГНАЛ: ТМ ${selectedTotal} угловых`;
+  }
+  
+  const underProbability = 100 - totalProbability;
+  
+  return {
     homeExpected: homeExpected.toFixed(2),
     awayExpected: awayExpected.toFixed(2),
     totalExpected: totalExpected.toFixed(2),
-    
-    over8_5: 0,
-    over9_5: 0,
-    over10_5: 0,
-    over11_5: 0,
-    
-    homeWin: 0,
-    draw: 0,
-    awayWin: 0,
-    
-    recommendation: '',
-    fairOdds: {},
-    valueBets: []
+    totalProbability,
+    underProbability,
+    recommendation,
+    selectedTotal
   };
-  
-  // Простой расчёт тоталов (без Пуассона пока, чтобы заработало)
-  if (totalExpected > 11) {
-    probabilities.over8_5 = 85;
-    probabilities.over9_5 = 75;
-    probabilities.over10_5 = 60;
-    probabilities.over11_5 = 45;
-    probabilities.recommendation = '🔥 СИЛЬНЫЙ СИГНАЛ: ТБ 9.5 угловых';
-  } else if (totalExpected > 10) {
-    probabilities.over8_5 = 75;
-    probabilities.over9_5 = 65;
-    probabilities.over10_5 = 50;
-    probabilities.over11_5 = 35;
-    probabilities.recommendation = '✅ ХОРОШИЙ СИГНАЛ: Рассмотри ТБ 9.5';
-  } else if (totalExpected > 9) {
-    probabilities.over8_5 = 65;
-    probabilities.over9_5 = 55;
-    probabilities.over10_5 = 40;
-    probabilities.over11_5 = 25;
-    probabilities.recommendation = '⚖️ Нет явного сигнала, пропусти';
-  } else if (totalExpected > 8) {
-    probabilities.over8_5 = 55;
-    probabilities.over9_5 = 45;
-    probabilities.over10_5 = 30;
-    probabilities.over11_5 = 15;
-    probabilities.recommendation = '⚖️ Нет явного сигнала, пропусти';
-  } else {
-    probabilities.over8_5 = 40;
-    probabilities.over9_5 = 30;
-    probabilities.over10_5 = 15;
-    probabilities.over11_5 = 5;
-    probabilities.recommendation = '❄️ СИГНАЛ: Рассмотри ТМ 9.5 угловых';
-  }
-  
-  // Исходы
-  if (homeExpected > awayExpected + 2) {
-    probabilities.homeWin = 60;
-    probabilities.draw = 25;
-    probabilities.awayWin = 15;
-  } else if (homeExpected > awayExpected + 1) {
-    probabilities.homeWin = 50;
-    probabilities.draw = 30;
-    probabilities.awayWin = 20;
-  } else if (Math.abs(homeExpected - awayExpected) <= 1) {
-    probabilities.homeWin = 35;
-    probabilities.draw = 35;
-    probabilities.awayWin = 30;
-  } else if (awayExpected > homeExpected + 1) {
-    probabilities.homeWin = 20;
-    probabilities.draw = 30;
-    probabilities.awayWin = 50;
-  } else {
-    probabilities.homeWin = 15;
-    probabilities.draw = 25;
-    probabilities.awayWin = 60;
-  }
-  
-  // Честные коэффициенты
-  probabilities.fairOdds = {
-    over9_5: (100 / probabilities.over9_5).toFixed(2),
-    over10_5: (100 / probabilities.over10_5).toFixed(2),
-    homeWin: (100 / probabilities.homeWin).toFixed(2)
-  };
-  
-  if (probabilities.over9_5 > 65) {
-    probabilities.valueBets.push({ bet: 'ТБ 9.5', confidence: 'Высокая', minOdds: probabilities.fairOdds.over9_5 });
-  } else if (probabilities.over9_5 > 60) {
-    probabilities.valueBets.push({ bet: 'ТБ 9.5', confidence: 'Средняя', minOdds: probabilities.fairOdds.over9_5 });
-  } else if (probabilities.over9_5 < 40) {
-    probabilities.valueBets.push({ bet: 'ТМ 9.5', confidence: 'Средняя', maxOdds: (100 / (100 - probabilities.over9_5)).toFixed(2) });
-  }
-  
-  return probabilities;
 };
 
 export const calculatePoissonProbability = (lambda, k) => {
