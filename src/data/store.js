@@ -3,6 +3,7 @@ import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 // Определение сезона по дате (РПЛ: июль-май)
 const getSeasonFromDate = (dateStr) => {
+  if (!dateStr) return '2024/25';
   const date = new Date(dateStr);
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
@@ -16,7 +17,11 @@ const getSeasonFromDate = (dateStr) => {
 
 // Получение предыдущего сезона
 const getLastSeason = (season) => {
-  const [start] = season.split('/').map(Number);
+  if (!season) return '2023/24';
+  const parts = season.split('/');
+  if (parts.length !== 2) return '2023/24';
+  const start = parseInt(parts[0]);
+  if (isNaN(start)) return '2023/24';
   return `${start - 1}/${start}`;
 };
 
@@ -66,6 +71,16 @@ export const initStore = (callback) => {
   unsubscribeFirestore = onSnapshot(docRef, async (snapshot) => {
     if (snapshot.exists()) {
       currentData = snapshot.data();
+      
+      // Проверяем и инициализируем структуру seasons если её нет
+      if (currentData.leagues) {
+        currentData.leagues = currentData.leagues.map(league => {
+          if (!league.seasons) league.seasons = {};
+          if (!league.currentSeason) league.currentSeason = '2024/25';
+          return league;
+        });
+      }
+      
       console.log('☁️ Данные из облака:', currentData.matches?.length || 0, 'матчей');
     } else {
       currentData = { ...DEFAULT_DATA, lastUpdated: new Date().toISOString() };
@@ -91,6 +106,16 @@ export const initStore = (callback) => {
 };
 
 export const getData = () => {
+  if (currentData) {
+    // Проверяем структуру при каждом получении
+    if (currentData.leagues) {
+      currentData.leagues = currentData.leagues.map(league => {
+        if (!league.seasons) league.seasons = {};
+        if (!league.currentSeason) league.currentSeason = '2024/25';
+        return league;
+      });
+    }
+  }
   return currentData || DEFAULT_DATA;
 };
 
@@ -126,25 +151,27 @@ const checkAndRollSeason = (leagueId, matchDate) => {
   const league = data.leagues.find(l => l.id === leagueId);
   if (!league) return;
   
+  // Инициализируем если нужно
+  if (!league.seasons) league.seasons = {};
+  if (!league.currentSeason) league.currentSeason = '2024/25';
+  
   const season = getSeasonFromDate(matchDate);
   
   if (season !== league.currentSeason) {
     console.log(`🔄 Сезон изменился: ${league.currentSeason} → ${season}`);
     
     // Сохраняем старый сезон
-    const updatedSeasons = {
-      ...league.seasons,
-      [league.currentSeason]: {
-        avgTotalCorners: league.avgTotalCorners,
-        avgCornersHome: league.avgCornersHome,
-        avgCornersAway: league.avgCornersAway,
-        avgXG: league.avgXG,
-        avgShotsInsideBox: league.avgShotsInsideBox
-      }
+    league.seasons[league.currentSeason] = {
+      avgTotalCorners: league.avgTotalCorners || 9,
+      avgCornersHome: league.avgCornersHome || 5,
+      avgCornersAway: league.avgCornersAway || 4,
+      avgXG: league.avgXG || 1.2,
+      avgShotsInsideBox: league.avgShotsInsideBox || 7
     };
     
     // Берём данные прошлого сезона или дефолт
-    const lastSeasonData = updatedSeasons[season] || league.seasons[getLastSeason(season)] || {
+    const lastSeasonKey = getLastSeason(season);
+    const lastSeasonData = league.seasons[lastSeasonKey] || {
       avgTotalCorners: 9.0,
       avgCornersHome: 5.0,
       avgCornersAway: 4.0,
@@ -155,7 +182,7 @@ const checkAndRollSeason = (leagueId, matchDate) => {
     const updatedLeague = {
       ...league,
       currentSeason: season,
-      seasons: updatedSeasons,
+      seasons: league.seasons,
       avgTotalCorners: lastSeasonData.avgTotalCorners,
       avgCornersHome: lastSeasonData.avgCornersHome,
       avgCornersAway: lastSeasonData.avgCornersAway,
@@ -170,6 +197,7 @@ const checkAndRollSeason = (leagueId, matchDate) => {
     
     currentData = updatedData;
     localStorage.setItem('football_cache', JSON.stringify(updatedData));
+    saveData(updatedData);
   }
 };
 
@@ -178,6 +206,10 @@ export const getLeagueAverages = (leagueId) => {
   const data = getData();
   const league = data.leagues.find(l => l.id === leagueId);
   if (!league) return null;
+  
+  // Инициализируем если нужно
+  if (!league.seasons) league.seasons = {};
+  if (!league.currentSeason) league.currentSeason = '2024/25';
   
   const currentSeasonMatches = data.matches.filter(m => 
     m.leagueId === leagueId && 
@@ -190,11 +222,11 @@ export const getLeagueAverages = (leagueId) => {
   if (n < 30) {
     const lastSeasonKey = getLastSeason(league.currentSeason);
     const lastSeason = league.seasons[lastSeasonKey] || {
-      avgTotalCorners: league.avgTotalCorners,
-      avgCornersHome: league.avgCornersHome,
-      avgCornersAway: league.avgCornersAway,
-      avgXG: league.avgXG,
-      avgShotsInsideBox: league.avgShotsInsideBox
+      avgTotalCorners: league.avgTotalCorners || 9,
+      avgCornersHome: league.avgCornersHome || 5,
+      avgCornersAway: league.avgCornersAway || 4,
+      avgXG: league.avgXG || 1.2,
+      avgShotsInsideBox: league.avgShotsInsideBox || 7
     };
     
     const weight = Math.min(n / 30, 1);
@@ -247,8 +279,12 @@ export const getLeagueAverages = (leagueId) => {
 export const addMatch = async (match) => {
   const data = getData();
   
-  // Проверяем сезон
-  checkAndRollSeason(match.leagueId, match.date);
+  // Проверяем сезон (с защитой)
+  try {
+    checkAndRollSeason(match.leagueId, match.date);
+  } catch (error) {
+    console.error('Ошибка проверки сезона:', error);
+  }
   
   const newMatch = { ...match, id: Date.now().toString() };
   const updatedData = { ...data, matches: [...data.matches, newMatch] };
@@ -623,6 +659,10 @@ export const updateLeagueAverages = async (leagueId) => {
   
   const averages = getLeagueAverages(leagueId);
   if (!averages) return null;
+  
+  // Инициализируем seasons если нет
+  if (!league.seasons) league.seasons = {};
+  if (!league.currentSeason) league.currentSeason = '2024/25';
   
   const updatedLeague = {
     ...league,
