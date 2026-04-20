@@ -298,6 +298,7 @@ const Admin = () => {
 
   // Обработчики для числовых полей
   const handleIntChange = (field, value) => {
+    value = value.replace(',', '.');
     const val = value.replace(/[^0-9]/g, '');
     setMatchForm({...matchForm, [field]: val === '' ? 0 : parseInt(val)});
   };
