@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react';
-import { getData, addMatch, addLeague, addTeam, deleteMatch, deleteLeague, deleteTeam, subscribe } from '../data/store';
-import { Save, Trash2, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
+import { getData, addMatch, addLeague, addTeam, deleteMatch, deleteLeague, deleteTeam, subscribe, saveData, updateLeagueAverages } from '../data/store';
+import { Save, Trash2, ChevronDown, ChevronUp, Plus, X, Edit, Search, RefreshCw } from 'lucide-react';
+
+// Хук для определения мобильного устройства
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return isMobile;
+};
 
 const Admin = () => {
   const [data, setData] = useState(getData());
@@ -8,78 +19,67 @@ const Admin = () => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showByHalf, setShowByHalf] = useState(false);
   const [showMobileForm, setShowMobileForm] = useState(false);
-  const isMobile = window.innerWidth < 768;
+  const [editingMatch, setEditingMatch] = useState(null);
+  const [editingLeague, setEditingLeague] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('all');
+  const isMobile = useIsMobile();
   
-  const [matchForm, setMatchForm] = useState({
+  // Начальное состояние формы матча
+  const getInitialMatchForm = () => ({
     leagueId: 'rpl',
     homeTeamId: '',
     awayTeamId: '',
     date: new Date().toISOString().split('T')[0],
-    
-    // Счёт
     homeScore: 0,
     awayScore: 0,
-    
-    // Угловые
     homeCorners: 0,
     awayCorners: 0,
     homeCorners1H: 0,
     awayCorners1H: 0,
     homeCorners2H: 0,
     awayCorners2H: 0,
-    
-    // xG
     homeXG: 0,
     awayXG: 0,
     homeXG1H: 0,
     awayXG1H: 0,
     homeXG2H: 0,
     awayXG2H: 0,
-    
-    // Удары из штрафной
     homeShotsInsideBox: 0,
     awayShotsInsideBox: 0,
     homeShotsInsideBox1H: 0,
     awayShotsInsideBox1H: 0,
     homeShotsInsideBox2H: 0,
     awayShotsInsideBox2H: 0,
-    
-    // Всего ударов
     homeTotalShots: 0,
     awayTotalShots: 0,
     homeTotalShots1H: 0,
     awayTotalShots1H: 0,
     homeTotalShots2H: 0,
     awayTotalShots2H: 0,
-    
-    // Удары в створ
     homeShotsOnTarget: 0,
     awayShotsOnTarget: 0,
     homeShotsOnTarget1H: 0,
     awayShotsOnTarget1H: 0,
     homeShotsOnTarget2H: 0,
     awayShotsOnTarget2H: 0,
-    
-    // Владение
     homePossession: 50,
     awayPossession: 50,
     homePossession1H: 50,
     awayPossession1H: 50,
     homePossession2H: 50,
     awayPossession2H: 50,
-    
-    // Сейвы
     homeSaves: 0,
     awaySaves: 0,
     homeSaves1H: 0,
     awaySaves1H: 0,
     homeSaves2H: 0,
     awaySaves2H: 0,
-    
-    // Жёлтые карточки
     homeYellowCards: 0,
     awayYellowCards: 0,
   });
+  
+  const [matchForm, setMatchForm] = useState(getInitialMatchForm());
   
   const [leagueForm, setLeagueForm] = useState({
     name: '',
@@ -109,6 +109,66 @@ const Admin = () => {
     setData(getData());
   };
 
+  // Загрузка матча в форму для редактирования
+  const handleEditMatch = (match) => {
+    setEditingMatch(match);
+    setMatchForm({
+      leagueId: match.leagueId || 'rpl',
+      homeTeamId: match.homeTeamId || '',
+      awayTeamId: match.awayTeamId || '',
+      date: match.date || new Date().toISOString().split('T')[0],
+      homeScore: match.homeScore || 0,
+      awayScore: match.awayScore || 0,
+      homeCorners: match.homeCorners || 0,
+      awayCorners: match.awayCorners || 0,
+      homeCorners1H: match.homeCorners1H || 0,
+      awayCorners1H: match.awayCorners1H || 0,
+      homeCorners2H: match.homeCorners2H || 0,
+      awayCorners2H: match.awayCorners2H || 0,
+      homeXG: match.homeXG || 0,
+      awayXG: match.awayXG || 0,
+      homeXG1H: match.homeXG1H || 0,
+      awayXG1H: match.awayXG1H || 0,
+      homeXG2H: match.homeXG2H || 0,
+      awayXG2H: match.awayXG2H || 0,
+      homeShotsInsideBox: match.homeShotsInsideBox || 0,
+      awayShotsInsideBox: match.awayShotsInsideBox || 0,
+      homeShotsInsideBox1H: match.homeShotsInsideBox1H || 0,
+      awayShotsInsideBox1H: match.awayShotsInsideBox1H || 0,
+      homeShotsInsideBox2H: match.homeShotsInsideBox2H || 0,
+      awayShotsInsideBox2H: match.awayShotsInsideBox2H || 0,
+      homeTotalShots: match.homeTotalShots || 0,
+      awayTotalShots: match.awayTotalShots || 0,
+      homeTotalShots1H: match.homeTotalShots1H || 0,
+      awayTotalShots1H: match.awayTotalShots1H || 0,
+      homeTotalShots2H: match.homeTotalShots2H || 0,
+      awayTotalShots2H: match.awayTotalShots2H || 0,
+      homeShotsOnTarget: match.homeShotsOnTarget || 0,
+      awayShotsOnTarget: match.awayShotsOnTarget || 0,
+      homeShotsOnTarget1H: match.homeShotsOnTarget1H || 0,
+      awayShotsOnTarget1H: match.awayShotsOnTarget1H || 0,
+      homeShotsOnTarget2H: match.homeShotsOnTarget2H || 0,
+      awayShotsOnTarget2H: match.awayShotsOnTarget2H || 0,
+      homePossession: match.homePossession || 50,
+      awayPossession: match.awayPossession || 50,
+      homePossession1H: match.homePossession1H || 50,
+      awayPossession1H: match.awayPossession1H || 50,
+      homePossession2H: match.homePossession2H || 50,
+      awayPossession2H: match.awayPossession2H || 50,
+      homeSaves: match.homeSaves || 0,
+      awaySaves: match.awaySaves || 0,
+      homeSaves1H: match.homeSaves1H || 0,
+      awaySaves1H: match.awaySaves1H || 0,
+      homeSaves2H: match.homeSaves2H || 0,
+      awaySaves2H: match.awaySaves2H || 0,
+      homeYellowCards: match.homeYellowCards || 0,
+      awayYellowCards: match.awayYellowCards || 0,
+    });
+    setActiveTab('match');
+    setShowMobileForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleMatchSubmit = async (e) => {
     e.preventDefault();
     
@@ -121,31 +181,48 @@ const Admin = () => {
       formData.awayCorners2H = formData.awayCorners - formData.awayCorners1H;
     }
     
-    await addMatch(formData);
-    setMessage('✅ Матч добавлен!');
+    if (editingMatch) {
+      const updatedData = {
+        ...data,
+        matches: data.matches.map(m => 
+          m.id === editingMatch.id ? { ...formData, id: editingMatch.id } : m
+        )
+      };
+      await saveData(updatedData);
+      setMessage('✅ Матч обновлен!');
+    } else {
+      await addMatch(formData);
+      setMessage('✅ Матч добавлен!');
+    }
+    
     refreshData();
     setShowMobileForm(false);
-    
-    setMatchForm({
-      ...matchForm,
-      homeScore: 0, awayScore: 0,
-      homeCorners: 0, awayCorners: 0,
-      homeCorners1H: 0, awayCorners1H: 0,
-      homeCorners2H: 0, awayCorners2H: 0,
-      homeXG: 0, awayXG: 0,
-      homeShotsInsideBox: 0, awayShotsInsideBox: 0,
-      homeTotalShots: 0, awayTotalShots: 0,
-      homeShotsOnTarget: 0, awayShotsOnTarget: 0,
-      date: new Date().toISOString().split('T')[0]
-    });
+    setEditingMatch(null);
+    setMatchForm(getInitialMatchForm());
     
     setTimeout(() => setMessage(''), 3000);
   };
 
   const handleLeagueSubmit = async (e) => {
     e.preventDefault();
-    await addLeague(leagueForm);
-    setMessage('✅ Лига добавлена!');
+    
+    if (editingLeague) {
+      const updatedData = {
+        ...data,
+        leagues: data.leagues.map(l => 
+          l.id === editingLeague.id 
+            ? { ...leagueForm, id: editingLeague.id } 
+            : l
+        )
+      };
+      await saveData(updatedData);
+      setMessage('✅ Лига обновлена!');
+      setEditingLeague(null);
+    } else {
+      await addLeague(leagueForm);
+      setMessage('✅ Лига добавлена!');
+    }
+    
     refreshData();
     setLeagueForm({ name: '', country: '', avgTotalCorners: 9, avgCornersHome: 5, avgCornersAway: 4, avgXG: 1.2, avgShotsInsideBox: 7 });
     setTimeout(() => setMessage(''), 3000);
@@ -161,10 +238,12 @@ const Admin = () => {
   };
 
   const handleDeleteMatch = async (matchId) => {
-    await deleteMatch(matchId);
-    refreshData();
-    setMessage('🗑️ Матч удален');
-    setTimeout(() => setMessage(''), 3000);
+    if (window.confirm('Удалить матч?')) {
+      await deleteMatch(matchId);
+      refreshData();
+      setMessage('🗑️ Матч удален');
+      setTimeout(() => setMessage(''), 3000);
+    }
   };
 
   const handleDeleteLeague = async (leagueId) => {
@@ -174,10 +253,12 @@ const Admin = () => {
       setTimeout(() => setMessage(''), 3000);
       return;
     }
-    await deleteLeague(leagueId);
-    refreshData();
-    setMessage('🗑️ Лига удалена');
-    setTimeout(() => setMessage(''), 3000);
+    if (window.confirm('Удалить лигу?')) {
+      await deleteLeague(leagueId);
+      refreshData();
+      setMessage('🗑️ Лига удалена');
+      setTimeout(() => setMessage(''), 3000);
+    }
   };
 
   const handleDeleteTeam = async (teamId) => {
@@ -187,19 +268,61 @@ const Admin = () => {
       setTimeout(() => setMessage(''), 3000);
       return;
     }
-    await deleteTeam(teamId);
-    refreshData();
-    setMessage('🗑️ Команда удалена');
-    setTimeout(() => setMessage(''), 3000);
+    if (window.confirm('Удалить команду?')) {
+      await deleteTeam(teamId);
+      refreshData();
+      setMessage('🗑️ Команда удалена');
+      setTimeout(() => setMessage(''), 3000);
+    }
   };
 
   const teamsInLeague = data.teams.filter(t => t.leagueId === matchForm.leagueId);
 
+  // Фильтрация матчей
+  const getFilteredMatches = () => {
+    let matches = [...data.matches].reverse();
+    if (selectedLeagueFilter !== 'all') {
+      matches = matches.filter(m => m.leagueId === selectedLeagueFilter);
+    }
+    if (searchTerm) {
+      matches = matches.filter(m => {
+        const homeTeam = data.teams.find(t => t.id === m.homeTeamId)?.name || '';
+        const awayTeam = data.teams.find(t => t.id === m.awayTeamId)?.name || '';
+        return `${homeTeam} ${awayTeam}`.toLowerCase().includes(searchTerm.toLowerCase());
+      });
+    }
+    return matches;
+  };
+
+  const filteredMatches = getFilteredMatches();
+
+  // Обработчики для числовых полей
+  const handleIntChange = (field, value) => {
+    const val = value.replace(/[^0-9]/g, '');
+    setMatchForm({...matchForm, [field]: val === '' ? 0 : parseInt(val)});
+  };
+
+  const handleFloatChange = (field, value) => {
+    let val = value.replace(/[^0-9.]/g, '');
+    const parts = val.split('.');
+    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+    setMatchForm({...matchForm, [field]: val === '' ? 0 : parseFloat(val) || 0});
+  };
+
+  const handlePercentChange = (field, value) => {
+    let val = value.replace(/[^0-9]/g, '');
+    if (val !== '') {
+      const num = parseInt(val);
+      if (num > 100) val = '100';
+    }
+    setMatchForm({...matchForm, [field]: val === '' ? 50 : parseInt(val)});
+  };
+
   return (
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 3.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Полная статистика по таймам + синхронизация ☁️</p>
+        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 4.0 🔥</h2>
+        <p className="text-sm md:text-base text-gray-400">Авто-сезоны + умные инпуты</p>
       </div>
 
       {message && (
@@ -213,7 +336,7 @@ const Admin = () => {
       )}
 
       <div className="flex space-x-1 md:space-x-2 mb-4 md:mb-6 overflow-x-auto pb-2">
-        <TabButton active={activeTab === 'match'} onClick={() => setActiveTab('match')}>
+        <TabButton active={activeTab === 'match'} onClick={() => { setActiveTab('match'); setEditingMatch(null); }}>
           Матчи
         </TabButton>
         <TabButton active={activeTab === 'league'} onClick={() => setActiveTab('league')}>
@@ -224,7 +347,7 @@ const Admin = () => {
         </TabButton>
       </div>
 
-      {isMobile && activeTab === 'match' && (
+      {isMobile && activeTab === 'match' && !showMobileForm && (
         <button
           onClick={() => setShowMobileForm(true)}
           className="fixed bottom-6 right-6 z-20 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg"
@@ -234,383 +357,502 @@ const Admin = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        {(!isMobile || showMobileForm) && (
+        {/* Форма добавления/редактирования матча */}
+        {(!isMobile || showMobileForm) && activeTab === 'match' && (
           <div className={`${isMobile ? 'fixed inset-0 z-50 bg-gray-900 overflow-auto p-4' : 'lg:col-span-2'}`}>
             {isMobile && (
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Добавить матч</h3>
-                <button onClick={() => setShowMobileForm(false)} className="p-2 text-gray-400 hover:text-white">
+                <h3 className="text-xl font-bold">{editingMatch ? 'Редактировать матч' : 'Добавить матч'}</h3>
+                <button onClick={() => { setShowMobileForm(false); setEditingMatch(null); setMatchForm(getInitialMatchForm()); }} className="p-2 text-gray-400 hover:text-white">
                   <X size={24} />
                 </button>
               </div>
             )}
             
-            {activeTab === 'match' && (
-              <form onSubmit={handleMatchSubmit} className="bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-700 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Лига</label>
-                    <select value={matchForm.leagueId} onChange={(e) => setMatchForm({...matchForm, leagueId: e.target.value, homeTeamId: '', awayTeamId: ''})}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
-                      {data.leagues.map(league => (
-                        <option key={league.id} value={league.id}>{league.name}</option>
-                      ))}
-                    </select>
+            <form onSubmit={handleMatchSubmit} className="bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-700 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Лига</label>
+                  <select value={matchForm.leagueId} onChange={(e) => setMatchForm({...matchForm, leagueId: e.target.value, homeTeamId: '', awayTeamId: ''})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
+                    {data.leagues.map(league => (
+                      <option key={league.id} value={league.id}>{league.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Дата</label>
+                  <input type="date" value={matchForm.date} onChange={(e) => setMatchForm({...matchForm, date: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Хозяева</label>
+                  <select value={matchForm.homeTeamId} onChange={(e) => setMatchForm({...matchForm, homeTeamId: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
+                    <option value="">Выберите команду</option>
+                    {teamsInLeague.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Гости</label>
+                  <select value={matchForm.awayTeamId} onChange={(e) => setMatchForm({...matchForm, awayTeamId: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
+                    <option value="">Выберите команду</option>
+                    {teamsInLeague.filter(t => t.id !== matchForm.homeTeamId).map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Голы Х</label>
+                  <input type="text" inputMode="numeric" value={matchForm.homeScore} onFocus={(e) => e.target.select()}
+                    onChange={(e) => handleIntChange('homeScore', e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Голы Г</label>
+                  <input type="text" inputMode="numeric" value={matchForm.awayScore} onFocus={(e) => e.target.select()}
+                    onChange={(e) => handleIntChange('awayScore', e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Угл Х</label>
+                  <input type="text" inputMode="numeric" value={matchForm.homeCorners} onFocus={(e) => e.target.select()}
+                    onChange={(e) => handleIntChange('homeCorners', e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Угл Г</label>
+                  <input type="text" inputMode="numeric" value={matchForm.awayCorners} onFocus={(e) => e.target.select()}
+                    onChange={(e) => handleIntChange('awayCorners', e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                </div>
+              </div>
+
+              <button type="button" onClick={() => setShowByHalf(!showByHalf)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-purple-600/30 hover:bg-purple-600/50 rounded-lg text-sm border border-purple-700">
+                <span>⏱️ Разбивка по таймам</span>
+                {showByHalf ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
+
+              {showByHalf && (
+                <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg">
+                  <p className="text-xs text-purple-400 font-medium mb-2">1-й тайм</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Угл Х</label>
+                      <input type="text" inputMode="numeric" value={matchForm.homeCorners1H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('homeCorners1H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Угл Г</label>
+                      <input type="text" inputMode="numeric" value={matchForm.awayCorners1H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('awayCorners1H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
+                      <input type="text" inputMode="decimal" value={matchForm.homeXG1H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleFloatChange('homeXG1H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
+                      <input type="text" inputMode="decimal" value={matchForm.awayXG1H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleFloatChange('awayXG1H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Дата</label>
-                    <input type="date" value={matchForm.date} onChange={(e) => setMatchForm({...matchForm, date: e.target.value})}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm" />
+                  
+                  <p className="text-xs text-purple-400 font-medium mb-2 mt-3">2-й тайм</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Угл Х</label>
+                      <input type="text" inputMode="numeric" value={matchForm.homeCorners2H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('homeCorners2H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Угл Г</label>
+                      <input type="text" inputMode="numeric" value={matchForm.awayCorners2H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('awayCorners2H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
+                      <input type="text" inputMode="decimal" value={matchForm.homeXG2H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleFloatChange('homeXG2H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
+                      <input type="text" inputMode="decimal" value={matchForm.awayXG2H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleFloatChange('awayXG2H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
                   </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Хозяева</label>
-                    <select value={matchForm.homeTeamId} onChange={(e) => setMatchForm({...matchForm, homeTeamId: e.target.value})}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
-                      <option value="">Выберите команду</option>
-                      {teamsInLeague.map(team => (
-                        <option key={team.id} value={team.id}>{team.name}</option>
-                      ))}
-                    </select>
+              <button type="button" onClick={() => setShowAdvanced(!showAdvanced)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-gray-700/50 rounded-lg text-sm">
+                <span>🔥 Расширенные метрики</span>
+                {showAdvanced ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
+
+              {showAdvanced && (
+                <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg max-h-80 overflow-auto">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
+                      <input type="text" inputMode="decimal" value={matchForm.homeXG} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleFloatChange('homeXG', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
+                      <input type="text" inputMode="decimal" value={matchForm.awayXG} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleFloatChange('awayXG', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Гости</label>
-                    <select value={matchForm.awayTeamId} onChange={(e) => setMatchForm({...matchForm, awayTeamId: e.target.value})}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
-                      <option value="">Выберите команду</option>
-                      {teamsInLeague.filter(t => t.id !== matchForm.homeTeamId).map(team => (
-                        <option key={team.id} value={team.id}>{team.name}</option>
-                      ))}
-                    </select>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Удары из штрафной Х</label>
+                      <input type="text" inputMode="numeric" value={matchForm.homeShotsInsideBox} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('homeShotsInsideBox', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Удары из штрафной Г</label>
+                      <input type="text" inputMode="numeric" value={matchForm.awayShotsInsideBox} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('awayShotsInsideBox', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Всего ударов Х</label>
+                      <input type="text" inputMode="numeric" value={matchForm.homeTotalShots} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('homeTotalShots', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Всего ударов Г</label>
+                      <input type="text" inputMode="numeric" value={matchForm.awayTotalShots} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('awayTotalShots', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Удары в створ Х</label>
+                      <input type="text" inputMode="numeric" value={matchForm.homeShotsOnTarget} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('homeShotsOnTarget', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Удары в створ Г</label>
+                      <input type="text" inputMode="numeric" value={matchForm.awayShotsOnTarget} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('awayShotsOnTarget', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Владение Х (%)</label>
+                      <input type="text" inputMode="numeric" value={matchForm.homePossession} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handlePercentChange('homePossession', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Владение Г (%)</label>
+                      <input type="text" inputMode="numeric" value={matchForm.awayPossession} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handlePercentChange('awayPossession', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Сейвы Х</label>
+                      <input type="text" inputMode="numeric" value={matchForm.homeSaves} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('homeSaves', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Сейвы Г</label>
+                      <input type="text" inputMode="numeric" value={matchForm.awaySaves} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('awaySaves', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Жёлтые Х</label>
+                      <input type="text" inputMode="numeric" value={matchForm.homeYellowCards} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('homeYellowCards', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Жёлтые Г</label>
+                      <input type="text" inputMode="numeric" value={matchForm.awayYellowCards} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleIntChange('awayYellowCards', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
                   </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Голы Х</label>
-                    <input type="number" min="0" value={matchForm.homeScore} 
-                      onChange={(e) => setMatchForm({...matchForm, homeScore: parseInt(e.target.value) || 0})}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Голы Г</label>
-                    <input type="number" min="0" value={matchForm.awayScore}
-                      onChange={(e) => setMatchForm({...matchForm, awayScore: parseInt(e.target.value) || 0})}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Угл Х</label>
-                    <input type="number" min="0" value={matchForm.homeCorners}
-                      onChange={(e) => setMatchForm({...matchForm, homeCorners: parseInt(e.target.value) || 0})}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Угл Г</label>
-                    <input type="number" min="0" value={matchForm.awayCorners}
-                      onChange={(e) => setMatchForm({...matchForm, awayCorners: parseInt(e.target.value) || 0})}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowByHalf(!showByHalf)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-purple-600/30 hover:bg-purple-600/50 rounded-lg text-sm border border-purple-700"
-                >
-                  <span>⏱️ Разбивка по таймам</span>
-                  {showByHalf ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 rounded-lg text-sm flex items-center justify-center gap-2">
+                <Save size={18} />
+                {editingMatch ? 'Сохранить изменения' : 'Добавить матч'}
+              </button>
+              
+              {editingMatch && (
+                <button type="button" onClick={() => { setEditingMatch(null); setShowMobileForm(false); setMatchForm(getInitialMatchForm()); }}
+                  className="w-full bg-gray-700 text-white font-semibold py-3 rounded-lg text-sm">
+                  Отмена
                 </button>
-
-                {showByHalf && (
-                  <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg">
-                    <p className="text-xs text-purple-400 font-medium mb-2">1-й тайм</p>
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Угл Х 1Т</label>
-                        <input type="number" min="0" value={matchForm.homeCorners1H}
-                          onChange={(e) => setMatchForm({...matchForm, homeCorners1H: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Угл Г 1Т</label>
-                        <input type="number" min="0" value={matchForm.awayCorners1H}
-                          onChange={(e) => setMatchForm({...matchForm, awayCorners1H: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">xG Х 1Т</label>
-                        <input type="number" step="0.01" min="0" value={matchForm.homeXG1H}
-                          onChange={(e) => setMatchForm({...matchForm, homeXG1H: parseFloat(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">xG Г 1Т</label>
-                        <input type="number" step="0.01" min="0" value={matchForm.awayXG1H}
-                          onChange={(e) => setMatchForm({...matchForm, awayXG1H: parseFloat(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                      </div>
-                    </div>
-                    
-                    <p className="text-xs text-purple-400 font-medium mb-2 mt-3">2-й тайм</p>
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Угл Х 2Т</label>
-                        <input type="number" min="0" value={matchForm.homeCorners2H}
-                          onChange={(e) => setMatchForm({...matchForm, homeCorners2H: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Угл Г 2Т</label>
-                        <input type="number" min="0" value={matchForm.awayCorners2H}
-                          onChange={(e) => setMatchForm({...matchForm, awayCorners2H: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">xG Х 2Т</label>
-                        <input type="number" step="0.01" min="0" value={matchForm.homeXG2H}
-                          onChange={(e) => setMatchForm({...matchForm, homeXG2H: parseFloat(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">xG Г 2Т</label>
-                        <input type="number" step="0.01" min="0" value={matchForm.awayXG2H}
-                          onChange={(e) => setMatchForm({...matchForm, awayXG2H: parseFloat(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-700/50 rounded-lg text-sm"
-                >
-                  <span>🔥 Расширенные метрики</span>
-                  {showAdvanced ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              )}
+              
+              {isMobile && !editingMatch && (
+                <button type="button" onClick={() => { setShowMobileForm(false); setMatchForm(getInitialMatchForm()); }}
+                  className="w-full bg-gray-700 text-white font-semibold py-3 rounded-lg text-sm">
+                  Отмена
                 </button>
-
-                {showAdvanced && (
-                  <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">xG Хозяев</label>
-                        <input type="number" step="0.01" min="0" value={matchForm.homeXG}
-                          onChange={(e) => setMatchForm({...matchForm, homeXG: parseFloat(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">xG Гостей</label>
-                        <input type="number" step="0.01" min="0" value={matchForm.awayXG}
-                          onChange={(e) => setMatchForm({...matchForm, awayXG: parseFloat(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Удары из штрафной Х</label>
-                        <input type="number" min="0" value={matchForm.homeShotsInsideBox}
-                          onChange={(e) => setMatchForm({...matchForm, homeShotsInsideBox: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Удары из штрафной Г</label>
-                        <input type="number" min="0" value={matchForm.awayShotsInsideBox}
-                          onChange={(e) => setMatchForm({...matchForm, awayShotsInsideBox: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Всего ударов Х</label>
-                        <input type="number" min="0" value={matchForm.homeTotalShots}
-                          onChange={(e) => setMatchForm({...matchForm, homeTotalShots: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Всего ударов Г</label>
-                        <input type="number" min="0" value={matchForm.awayTotalShots}
-                          onChange={(e) => setMatchForm({...matchForm, awayTotalShots: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Удары в створ Х</label>
-                        <input type="number" min="0" value={matchForm.homeShotsOnTarget}
-                          onChange={(e) => setMatchForm({...matchForm, homeShotsOnTarget: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Удары в створ Г</label>
-                        <input type="number" min="0" value={matchForm.awayShotsOnTarget}
-                          onChange={(e) => setMatchForm({...matchForm, awayShotsOnTarget: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Владение Х (%)</label>
-                        <input type="number" min="0" max="100" value={matchForm.homePossession}
-                          onChange={(e) => setMatchForm({...matchForm, homePossession: parseInt(e.target.value) || 50})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Владение Г (%)</label>
-                        <input type="number" min="0" max="100" value={matchForm.awayPossession}
-                          onChange={(e) => setMatchForm({...matchForm, awayPossession: parseInt(e.target.value) || 50})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Сейвы Х</label>
-                        <input type="number" min="0" value={matchForm.homeSaves}
-                          onChange={(e) => setMatchForm({...matchForm, homeSaves: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Сейвы Г</label>
-                        <input type="number" min="0" value={matchForm.awaySaves}
-                          onChange={(e) => setMatchForm({...matchForm, awaySaves: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Жёлтые Х</label>
-                        <input type="number" min="0" value={matchForm.homeYellowCards}
-                          onChange={(e) => setMatchForm({...matchForm, homeYellowCards: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Жёлтые Г</label>
-                        <input type="number" min="0" value={matchForm.awayYellowCards}
-                          onChange={(e) => setMatchForm({...matchForm, awayYellowCards: parseInt(e.target.value) || 0})}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 rounded-lg text-sm flex items-center justify-center gap-2">
-                  <Save size={18} />
-                  Добавить матч
-                </button>
-                
-                {isMobile && (
-                  <button type="button" onClick={() => setShowMobileForm(false)}
-                    className="w-full bg-gray-700 text-white font-semibold py-3 rounded-lg text-sm">
-                    Отмена
-                  </button>
-                )}
-              </form>
-            )}
-
-            {activeTab === 'league' && (
-              <form onSubmit={handleLeagueSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
-                <h3 className="text-lg font-bold">Добавить лигу</h3>
-                <input type="text" value={leagueForm.name} placeholder="Название" required
-                  onChange={(e) => setLeagueForm({...leagueForm, name: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
-                <input type="text" value={leagueForm.country} placeholder="Страна" required
-                  onChange={(e) => setLeagueForm({...leagueForm, country: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
-                <div className="grid grid-cols-3 gap-2">
-                  <input type="number" step="0.1" value={leagueForm.avgTotalCorners} placeholder="Тотал"
-                    onChange={(e) => setLeagueForm({...leagueForm, avgTotalCorners: parseFloat(e.target.value)})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
-                  <input type="number" step="0.1" value={leagueForm.avgCornersHome} placeholder="Дома"
-                    onChange={(e) => setLeagueForm({...leagueForm, avgCornersHome: parseFloat(e.target.value)})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
-                  <input type="number" step="0.1" value={leagueForm.avgCornersAway} placeholder="В гостях"
-                    onChange={(e) => setLeagueForm({...leagueForm, avgCornersAway: parseFloat(e.target.value)})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
-                </div>
-                <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
-                  Добавить лигу
-                </button>
-              </form>
-            )}
-
-            {activeTab === 'team' && (
-              <form onSubmit={handleTeamSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
-                <h3 className="text-lg font-bold">Добавить команду</h3>
-                <input type="text" value={teamForm.name} placeholder="Название" required
-                  onChange={(e) => setTeamForm({...teamForm, name: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
-                <select value={teamForm.leagueId} onChange={(e) => setTeamForm({...teamForm, leagueId: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3">
-                  {data.leagues.map(league => (
-                    <option key={league.id} value={league.id}>{league.name}</option>
-                  ))}
-                </select>
-                <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
-                  Добавить команду
-                </button>
-              </form>
-            )}
+              )}
+            </form>
           </div>
         )}
 
-        {/* Список элементов */}
-        <div className={`bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-700 ${isMobile && activeTab === 'match' ? '' : 'lg:col-span-1'}`}>
-          {activeTab === 'match' && (
-            <>
-              <h3 className="text-lg font-bold mb-3">Последние матчи</h3>
-              <div className="space-y-2 max-h-96 overflow-auto">
-                {data.matches.slice().reverse().slice(0, 10).map(match => {
-                  const homeTeam = data.teams.find(t => t.id === match.homeTeamId);
-                  const awayTeam = data.teams.find(t => t.id === match.awayTeamId);
-                  const league = data.leagues.find(l => l.id === match.leagueId);
-                  
-                  return (
-                    <div key={match.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm truncate">{homeTeam?.name} vs {awayTeam?.name}</div>
-                        <div className="text-xs text-gray-400">{league?.name} • {match.date}</div>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteMatch(match.id)}
-                        className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg ml-2"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  );
-                })}
+        {/* Форма лиг */}
+        {activeTab === 'league' && (
+          <div className="lg:col-span-2 space-y-4">
+            <form onSubmit={handleLeagueSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
+              <h3 className="text-lg font-bold">{editingLeague ? 'Редактировать лигу' : 'Добавить лигу'}</h3>
+              <input type="text" value={leagueForm.name} placeholder="Название" required
+                onChange={(e) => setLeagueForm({...leagueForm, name: e.target.value})}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
+              <input type="text" value={leagueForm.country} placeholder="Страна" required
+                onChange={(e) => setLeagueForm({...leagueForm, country: e.target.value})}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Тотал</label>
+                  <input type="number" step="0.1" value={leagueForm.avgTotalCorners} 
+                    onChange={(e) => setLeagueForm({...leagueForm, avgTotalCorners: parseFloat(e.target.value) || 0})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Дома</label>
+                  <input type="number" step="0.1" value={leagueForm.avgCornersHome} 
+                    onChange={(e) => setLeagueForm({...leagueForm, avgCornersHome: parseFloat(e.target.value) || 0})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">В гостях</label>
+                  <input type="number" step="0.1" value={leagueForm.avgCornersAway} 
+                    onChange={(e) => setLeagueForm({...leagueForm, avgCornersAway: parseFloat(e.target.value) || 0})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                </div>
               </div>
-            </>
-          )}
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
+                  {editingLeague ? 'Сохранить' : 'Добавить лигу'}
+                </button>
+                {editingLeague && (
+                  <button type="button" onClick={() => { setEditingLeague(null); setLeagueForm({ name: '', country: '', avgTotalCorners: 9, avgCornersHome: 5, avgCornersAway: 4, avgXG: 1.2, avgShotsInsideBox: 7 }); }}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">
+                    Отмена
+                  </button>
+                )}
+              </div>
+            </form>
 
-          {activeTab === 'league' && (
-            <>
+            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
               <h3 className="text-lg font-bold mb-3">Все лиги</h3>
               <div className="space-y-2">
                 {data.leagues.map(league => (
                   <div key={league.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                    <div>
-                      <div className="text-sm">{league.name}</div>
-                      <div className="text-xs text-gray-400">{league.country}</div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">{league.name}</div>
+                      <div className="text-xs text-gray-400">
+                        {league.country} • Тотал: {league.avgTotalCorners?.toFixed(1)} • Дома: {league.avgCornersHome?.toFixed(1)} • В гостях: {league.avgCornersAway?.toFixed(1)}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteLeague(league.id)}
-                      className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={async () => {
+                          await updateLeagueAverages(league.id);
+                          refreshData();
+                          setMessage('✅ Средние обновлены по текущим матчам!');
+                          setTimeout(() => setMessage(''), 3000);
+                        }}
+                        className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"
+                        title="Обновить средние по матчам"
+                      >
+                        <RefreshCw size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingLeague(league);
+                          setLeagueForm({
+                            name: league.name,
+                            country: league.country,
+                            avgTotalCorners: league.avgTotalCorners,
+                            avgCornersHome: league.avgCornersHome,
+                            avgCornersAway: league.avgCornersAway,
+                            avgXG: league.avgXG || 1.2,
+                            avgShotsInsideBox: league.avgShotsInsideBox || 7
+                          });
+                        }}
+                        className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLeague(league.id)}
+                        className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Форма команд */}
+        {activeTab === 'team' && (
+          <div className="lg:col-span-2">
+            <form onSubmit={handleTeamSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
+              <h3 className="text-lg font-bold">Добавить команду</h3>
+              <input type="text" value={teamForm.name} placeholder="Название" required
+                onChange={(e) => setTeamForm({...teamForm, name: e.target.value})}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
+              <select value={teamForm.leagueId} onChange={(e) => setTeamForm({...teamForm, leagueId: e.target.value})}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3">
+                {data.leagues.map(league => (
+                  <option key={league.id} value={league.id}>{league.name}</option>
+                ))}
+              </select>
+              <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
+                Добавить команду
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Список матчей с поиском */}
+        <div className={`bg-gray-800 rounded-xl p-4 border border-gray-700 ${activeTab === 'match' && !isMobile ? '' : 'lg:col-span-1'}`}>
+          {activeTab === 'match' && (
+            <>
+              <h3 className="text-lg font-bold mb-3">Матчи ({filteredMatches.length})</h3>
+              
+              <div className="space-y-2 mb-3">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Поиск по командам..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm"
+                  />
+                </div>
+                <select
+                  value={selectedLeagueFilter}
+                  onChange={(e) => setSelectedLeagueFilter(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="all">Все лиги</option>
+                  {data.leagues.map(league => (
+                    <option key={league.id} value={league.id}>{league.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5 max-h-[500px] overflow-auto">
+                {filteredMatches.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">Нет матчей</p>
+                ) : (
+                  filteredMatches.map(match => {
+                    const homeTeam = data.teams.find(t => t.id === match.homeTeamId);
+                    const awayTeam = data.teams.find(t => t.id === match.awayTeamId);
+                    const league = data.leagues.find(l => l.id === match.leagueId);
+                    
+                    return (
+                      <div key={match.id} className="flex items-center justify-between p-2.5 bg-gray-700/50 rounded-lg group">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-xs text-gray-400">{match.date}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 bg-gray-600 rounded text-gray-300">
+                              {league?.name}
+                            </span>
+                          </div>
+                          <div className="text-sm truncate">
+                            {homeTeam?.name} {match.homeScore}:{match.awayScore} {awayTeam?.name}
+                          </div>
+                          <div className="text-[10px] text-gray-400">
+                            Угл: {match.homeCorners}-{match.awayCorners}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 ml-2">
+                          <button
+                            onClick={() => handleEditMatch(match)}
+                            className="p-1.5 text-blue-400 hover:bg-blue-600/20 rounded-lg transition"
+                            title="Редактировать"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMatch(match.id)}
+                            className="p-1.5 text-red-400 hover:bg-red-600/20 rounded-lg transition"
+                            title="Удалить"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              
+              {!isMobile && (
+                <button
+                  onClick={() => { setEditingMatch(null); setMatchForm(getInitialMatchForm()); setShowMobileForm(true); }}
+                  className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg text-sm flex items-center justify-center gap-2"
+                >
+                  <Plus size={16} />
+                  Добавить матч
+                </button>
+              )}
             </>
+          )}
+
+          {activeTab === 'league' && (
+            <div className="lg:col-span-1">
+              <h3 className="text-lg font-bold mb-3">Статистика лиг</h3>
+              <p className="text-sm text-gray-400">Выберите лигу слева для редактирования</p>
+            </div>
           )}
 
           {activeTab === 'team' && (
