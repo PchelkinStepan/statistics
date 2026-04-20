@@ -6,6 +6,7 @@ const Admin = () => {
   const [data, setData] = useState(getData());
   const [activeTab, setActiveTab] = useState('match');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showByHalf, setShowByHalf] = useState(false);
   const [showMobileForm, setShowMobileForm] = useState(false);
   const isMobile = window.innerWidth < 768;
   
@@ -13,31 +14,71 @@ const Admin = () => {
     leagueId: 'rpl',
     homeTeamId: '',
     awayTeamId: '',
+    date: new Date().toISOString().split('T')[0],
+    
+    // Счёт
     homeScore: 0,
     awayScore: 0,
+    
+    // Угловые
     homeCorners: 0,
     awayCorners: 0,
     homeCorners1H: 0,
     awayCorners1H: 0,
     homeCorners2H: 0,
     awayCorners2H: 0,
+    
+    // xG
+    homeXG: 0,
+    awayXG: 0,
+    homeXG1H: 0,
+    awayXG1H: 0,
+    homeXG2H: 0,
+    awayXG2H: 0,
+    
+    // Удары из штрафной
+    homeShotsInsideBox: 0,
+    awayShotsInsideBox: 0,
+    homeShotsInsideBox1H: 0,
+    awayShotsInsideBox1H: 0,
+    homeShotsInsideBox2H: 0,
+    awayShotsInsideBox2H: 0,
+    
+    // Всего ударов
+    homeTotalShots: 0,
+    awayTotalShots: 0,
+    homeTotalShots1H: 0,
+    awayTotalShots1H: 0,
+    homeTotalShots2H: 0,
+    awayTotalShots2H: 0,
+    
+    // Удары в створ
+    homeShotsOnTarget: 0,
+    awayShotsOnTarget: 0,
+    homeShotsOnTarget1H: 0,
+    awayShotsOnTarget1H: 0,
+    homeShotsOnTarget2H: 0,
+    awayShotsOnTarget2H: 0,
+    
+    // Владение
+    homePossession: 50,
+    awayPossession: 50,
     homePossession1H: 50,
     awayPossession1H: 50,
     homePossession2H: 50,
     awayPossession2H: 50,
-    homeXG: 0,
-    awayXG: 0,
-    homeShotsInsideBox: 0,
-    awayShotsInsideBox: 0,
-    homeShotsOutsideBox: 0,
-    awayShotsOutsideBox: 0,
-    homeDangerousAttacks: 0,
-    awayDangerousAttacks: 0,
+    
+    // Сейвы
     homeSaves: 0,
     awaySaves: 0,
+    homeSaves1H: 0,
+    awaySaves1H: 0,
+    homeSaves2H: 0,
+    awaySaves2H: 0,
+    
+    // Жёлтые карточки
     homeYellowCards: 0,
     awayYellowCards: 0,
-    date: new Date().toISOString().split('T')[0]
   });
   
   const [leagueForm, setLeagueForm] = useState({
@@ -93,7 +134,8 @@ const Admin = () => {
       homeCorners2H: 0, awayCorners2H: 0,
       homeXG: 0, awayXG: 0,
       homeShotsInsideBox: 0, awayShotsInsideBox: 0,
-      homeDangerousAttacks: 0, awayDangerousAttacks: 0,
+      homeTotalShots: 0, awayTotalShots: 0,
+      homeShotsOnTarget: 0, awayShotsOnTarget: 0,
       date: new Date().toISOString().split('T')[0]
     });
     
@@ -156,8 +198,8 @@ const Admin = () => {
   return (
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель</h2>
-        <p className="text-sm md:text-base text-gray-400">Синхронизация в реальном времени ☁️</p>
+        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 3.0 🔥</h2>
+        <p className="text-sm md:text-base text-gray-400">Полная статистика по таймам + синхронизация ☁️</p>
       </div>
 
       {message && (
@@ -274,6 +316,75 @@ const Admin = () => {
 
                 <button
                   type="button"
+                  onClick={() => setShowByHalf(!showByHalf)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-purple-600/30 hover:bg-purple-600/50 rounded-lg text-sm border border-purple-700"
+                >
+                  <span>⏱️ Разбивка по таймам</span>
+                  {showByHalf ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+
+                {showByHalf && (
+                  <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg">
+                    <p className="text-xs text-purple-400 font-medium mb-2">1-й тайм</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Угл Х 1Т</label>
+                        <input type="number" min="0" value={matchForm.homeCorners1H}
+                          onChange={(e) => setMatchForm({...matchForm, homeCorners1H: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Угл Г 1Т</label>
+                        <input type="number" min="0" value={matchForm.awayCorners1H}
+                          onChange={(e) => setMatchForm({...matchForm, awayCorners1H: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">xG Х 1Т</label>
+                        <input type="number" step="0.01" min="0" value={matchForm.homeXG1H}
+                          onChange={(e) => setMatchForm({...matchForm, homeXG1H: parseFloat(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">xG Г 1Т</label>
+                        <input type="number" step="0.01" min="0" value={matchForm.awayXG1H}
+                          onChange={(e) => setMatchForm({...matchForm, awayXG1H: parseFloat(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-purple-400 font-medium mb-2 mt-3">2-й тайм</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Угл Х 2Т</label>
+                        <input type="number" min="0" value={matchForm.homeCorners2H}
+                          onChange={(e) => setMatchForm({...matchForm, homeCorners2H: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Угл Г 2Т</label>
+                        <input type="number" min="0" value={matchForm.awayCorners2H}
+                          onChange={(e) => setMatchForm({...matchForm, awayCorners2H: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">xG Х 2Т</label>
+                        <input type="number" step="0.01" min="0" value={matchForm.homeXG2H}
+                          onChange={(e) => setMatchForm({...matchForm, homeXG2H: parseFloat(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">xG Г 2Т</label>
+                        <input type="number" step="0.01" min="0" value={matchForm.awayXG2H}
+                          onChange={(e) => setMatchForm({...matchForm, awayXG2H: parseFloat(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-sm" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
                   onClick={() => setShowAdvanced(!showAdvanced)}
                   className="w-full flex items-center justify-between px-3 py-2 bg-gray-700/50 rounded-lg text-sm"
                 >
@@ -282,21 +393,22 @@ const Admin = () => {
                 </button>
 
                 {showAdvanced && (
-                  <div className="space-y-3">
+                  <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">xG Х</label>
+                        <label className="block text-xs text-gray-400 mb-1">xG Хозяев</label>
                         <input type="number" step="0.01" min="0" value={matchForm.homeXG}
                           onChange={(e) => setMatchForm({...matchForm, homeXG: parseFloat(e.target.value) || 0})}
                           className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">xG Г</label>
+                        <label className="block text-xs text-gray-400 mb-1">xG Гостей</label>
                         <input type="number" step="0.01" min="0" value={matchForm.awayXG}
                           onChange={(e) => setMatchForm({...matchForm, awayXG: parseFloat(e.target.value) || 0})}
                           className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
                       </div>
                     </div>
+                    
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Удары из штрафной Х</label>
@@ -308,6 +420,81 @@ const Admin = () => {
                         <label className="block text-xs text-gray-400 mb-1">Удары из штрафной Г</label>
                         <input type="number" min="0" value={matchForm.awayShotsInsideBox}
                           onChange={(e) => setMatchForm({...matchForm, awayShotsInsideBox: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Всего ударов Х</label>
+                        <input type="number" min="0" value={matchForm.homeTotalShots}
+                          onChange={(e) => setMatchForm({...matchForm, homeTotalShots: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Всего ударов Г</label>
+                        <input type="number" min="0" value={matchForm.awayTotalShots}
+                          onChange={(e) => setMatchForm({...matchForm, awayTotalShots: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Удары в створ Х</label>
+                        <input type="number" min="0" value={matchForm.homeShotsOnTarget}
+                          onChange={(e) => setMatchForm({...matchForm, homeShotsOnTarget: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Удары в створ Г</label>
+                        <input type="number" min="0" value={matchForm.awayShotsOnTarget}
+                          onChange={(e) => setMatchForm({...matchForm, awayShotsOnTarget: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Владение Х (%)</label>
+                        <input type="number" min="0" max="100" value={matchForm.homePossession}
+                          onChange={(e) => setMatchForm({...matchForm, homePossession: parseInt(e.target.value) || 50})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Владение Г (%)</label>
+                        <input type="number" min="0" max="100" value={matchForm.awayPossession}
+                          onChange={(e) => setMatchForm({...matchForm, awayPossession: parseInt(e.target.value) || 50})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Сейвы Х</label>
+                        <input type="number" min="0" value={matchForm.homeSaves}
+                          onChange={(e) => setMatchForm({...matchForm, homeSaves: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Сейвы Г</label>
+                        <input type="number" min="0" value={matchForm.awaySaves}
+                          onChange={(e) => setMatchForm({...matchForm, awaySaves: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Жёлтые Х</label>
+                        <input type="number" min="0" value={matchForm.homeYellowCards}
+                          onChange={(e) => setMatchForm({...matchForm, homeYellowCards: parseInt(e.target.value) || 0})}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Жёлтые Г</label>
+                        <input type="number" min="0" value={matchForm.awayYellowCards}
+                          onChange={(e) => setMatchForm({...matchForm, awayYellowCards: parseInt(e.target.value) || 0})}
                           className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
                       </div>
                     </div>
@@ -337,6 +524,17 @@ const Admin = () => {
                 <input type="text" value={leagueForm.country} placeholder="Страна" required
                   onChange={(e) => setLeagueForm({...leagueForm, country: e.target.value})}
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
+                <div className="grid grid-cols-3 gap-2">
+                  <input type="number" step="0.1" value={leagueForm.avgTotalCorners} placeholder="Тотал"
+                    onChange={(e) => setLeagueForm({...leagueForm, avgTotalCorners: parseFloat(e.target.value)})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                  <input type="number" step="0.1" value={leagueForm.avgCornersHome} placeholder="Дома"
+                    onChange={(e) => setLeagueForm({...leagueForm, avgCornersHome: parseFloat(e.target.value)})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                  <input type="number" step="0.1" value={leagueForm.avgCornersAway} placeholder="В гостях"
+                    onChange={(e) => setLeagueForm({...leagueForm, avgCornersAway: parseFloat(e.target.value)})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                </div>
                 <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
                   Добавить лигу
                 </button>
