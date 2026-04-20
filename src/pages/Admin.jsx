@@ -303,6 +303,7 @@ const Admin = () => {
   };
 
   const handleFloatChange = (field, value) => {
+    value = value.replace(',', '.');
     let val = value.replace(/[^0-9.]/g, '');
     const parts = val.split('.');
     if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
