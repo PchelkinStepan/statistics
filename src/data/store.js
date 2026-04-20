@@ -151,7 +151,7 @@ const checkAndRollSeason = (leagueId, matchDate) => {
   const league = data.leagues.find(l => l.id === leagueId);
   if (!league) return;
   
-  // Инициализируем если нужно
+  // Инициализируем если нужно (НЕ ТРОГАЕМ ОСТАЛЬНЫЕ ДАННЫЕ!)
   if (!league.seasons) league.seasons = {};
   if (!league.currentSeason) league.currentSeason = '2024/25';
   
@@ -169,7 +169,7 @@ const checkAndRollSeason = (leagueId, matchDate) => {
       avgShotsInsideBox: league.avgShotsInsideBox || 7
     };
     
-    // Берём данные прошлого сезона или дефолт
+    // Берём данные прошлого сезона
     const lastSeasonKey = getLastSeason(season);
     const lastSeasonData = league.seasons[lastSeasonKey] || {
       avgTotalCorners: 9.0,
@@ -179,10 +179,10 @@ const checkAndRollSeason = (leagueId, matchDate) => {
       avgShotsInsideBox: 7.0
     };
     
+    // Обновляем ТОЛЬКО эту лигу!
     const updatedLeague = {
       ...league,
       currentSeason: season,
-      seasons: league.seasons,
       avgTotalCorners: lastSeasonData.avgTotalCorners,
       avgCornersHome: lastSeasonData.avgCornersHome,
       avgCornersAway: lastSeasonData.avgCornersAway,
@@ -190,6 +190,7 @@ const checkAndRollSeason = (leagueId, matchDate) => {
       avgShotsInsideBox: lastSeasonData.avgShotsInsideBox
     };
     
+    // ВАЖНО: обновляем ТОЛЬКО лигу, остальные данные НЕ ТРОГАЕМ!
     const updatedData = {
       ...data,
       leagues: data.leagues.map(l => l.id === leagueId ? updatedLeague : l)
