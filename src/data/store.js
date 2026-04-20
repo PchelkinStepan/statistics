@@ -120,21 +120,26 @@ export const getData = () => {
   const data = localStorage.getItem(STORAGE_KEY);
   
   if (!data) {
-    return initializeSampleData();
+    // Если локально нет — пробуем загрузить из облака
+    loadFromCloud().then(cloudData => {
+      if (cloudData) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+        console.log('✅ Данные загружены из облака');
+        // Перезагружаем страницу чтобы обновить UI
+        window.location.reload();
+      } else {
+        // Если облако пустое — инициализируем дефолтные данные
+        initializeSampleData();
+      }
+    });
+    return defaultData;
   }
   
   const parsedData = JSON.parse(data);
   
-  // Добавляем bets и bankroll если их нет (для старых данных)
-  if (!parsedData.bets) {
-    parsedData.bets = [];
-  }
-  if (!parsedData.bankroll) {
-    parsedData.bankroll = { initial: 10000, current: 10000 };
-  }
-  
-  // Сохраняем обновлённые данные
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedData));
+  // Добавляем bets и bankroll если их нет
+  if (!parsedData.bets) parsedData.bets = [];
+  if (!parsedData.bankroll) parsedData.bankroll = { initial: 10000, current: 10000 };
   
   return parsedData;
 };
