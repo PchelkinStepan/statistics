@@ -303,10 +303,10 @@ const Admin = () => {
   };
 
   const handleFloatChange = (field, value) => {
+    // Разрешаем цифры, запятую и точку
+    let val = value.replace(/[^0-9.,]/g, '');
     // Заменяем запятую на точку (для iOS!)
-    let val = value.replace(/,/g, '.');
-    // Удаляем все кроме цифр и точки
-    val = val.replace(/[^0-9.]/g, '');
+    val = val.replace(/,/g, '.');
     // Оставляем только первую точку
     const parts = val.split('.');
     if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
@@ -315,11 +315,7 @@ const Admin = () => {
   };
 
   const handlePercentChange = (field, value) => {
-    // Заменяем запятую на точку
-    let val = value.replace(/,/g, '.');
-    // Оставляем только цифры
-    val = val.replace(/[^0-9]/g, '');
-    
+    let val = value.replace(/[^0-9]/g, '');
     if (val !== '') {
       const num = parseInt(val);
       if (num > 100) val = '100';
@@ -331,7 +327,7 @@ const Admin = () => {
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 4.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Авто-сезоны + iOS фикс (запятая→точка)</p>
+        <p className="text-sm md:text-base text-gray-400">Быстрый патч iOS: запятая → точка</p>
       </div>
 
       {message && (
@@ -470,13 +466,13 @@ const Admin = () => {
                     </div>
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
-                      <input type="text" inputMode="decimal" value={matchForm.homeXG1H} onFocus={(e) => e.target.select()}
+                      <input type="text" inputMode="text" value={matchForm.homeXG1H} onFocus={(e) => e.target.select()}
                         onChange={(e) => handleFloatChange('homeXG1H', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
-                      <input type="text" inputMode="decimal" value={matchForm.awayXG1H} onFocus={(e) => e.target.select()}
+                      <input type="text" inputMode="text" value={matchForm.awayXG1H} onFocus={(e) => e.target.select()}
                         onChange={(e) => handleFloatChange('awayXG1H', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
@@ -498,13 +494,13 @@ const Admin = () => {
                     </div>
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
-                      <input type="text" inputMode="decimal" value={matchForm.homeXG2H} onFocus={(e) => e.target.select()}
+                      <input type="text" inputMode="text" value={matchForm.homeXG2H} onFocus={(e) => e.target.select()}
                         onChange={(e) => handleFloatChange('homeXG2H', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
-                      <input type="text" inputMode="decimal" value={matchForm.awayXG2H} onFocus={(e) => e.target.select()}
+                      <input type="text" inputMode="text" value={matchForm.awayXG2H} onFocus={(e) => e.target.select()}
                         onChange={(e) => handleFloatChange('awayXG2H', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
@@ -523,13 +519,13 @@ const Admin = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
-                      <input type="text" inputMode="decimal" value={matchForm.homeXG} onFocus={(e) => e.target.select()}
+                      <input type="text" inputMode="text" value={matchForm.homeXG} onFocus={(e) => e.target.select()}
                         onChange={(e) => handleFloatChange('homeXG', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
-                      <input type="text" inputMode="decimal" value={matchForm.awayXG} onFocus={(e) => e.target.select()}
+                      <input type="text" inputMode="text" value={matchForm.awayXG} onFocus={(e) => e.target.select()}
                         onChange={(e) => handleFloatChange('awayXG', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
