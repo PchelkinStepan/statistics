@@ -43,6 +43,7 @@ const Admin = () => {
     homeTeamId: '',
     awayTeamId: '',
     date: new Date().toISOString().split('T')[0],
+    round: '',
     homeScore: '',
     awayScore: '',
     homeCorners: '',
@@ -110,6 +111,7 @@ const Admin = () => {
       homeTeamId: match.homeTeamId || '',
       awayTeamId: match.awayTeamId || '',
       date: match.date || new Date().toISOString().split('T')[0],
+      round: match.round?.toString() || '',
       homeScore: match.homeScore?.toString() || '',
       awayScore: match.awayScore?.toString() || '',
       homeCorners: match.homeCorners?.toString() || '',
@@ -318,7 +320,6 @@ const Admin = () => {
 
   const seasons = getSeasons(selectedLeagueFilter);
   
-  // ВАЖНО: получаем команды с защитой от пустого seasonId
   const teamsForSeason = (() => {
     const teams = getTeamsForSeason(matchForm.leagueId, matchForm.seasonId);
     if (teams.length === 0 && activeSeason) {
@@ -346,8 +347,8 @@ const Admin = () => {
   return (
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 6.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Сезоны + динамический leagueId</p>
+        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 7.0 🔥</h2>
+        <p className="text-sm md:text-base text-gray-400">Сезоны + Туры + динамический leagueId</p>
       </div>
 
       {message && (
@@ -432,10 +433,23 @@ const Admin = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Дата</label>
-                <input type="date" value={matchForm.date} onChange={(e) => setMatchForm({...matchForm, date: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Дата</label>
+                  <input type="date" value={matchForm.date} onChange={(e) => setMatchForm({...matchForm, date: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Тур</label>
+                  <input 
+                    type="text" 
+                    inputMode="numeric" 
+                    value={matchForm.round} 
+                    onChange={(e) => handleIntChange('round', e.target.value)}
+                    placeholder="1"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm" 
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-4 gap-2">
@@ -691,6 +705,7 @@ const Admin = () => {
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-xs text-gray-400">{match.date}</span>
                           <span className="text-[10px] px-1.5 py-0.5 bg-gray-600 rounded text-gray-300">{season?.name}</span>
+                          {match.round && <span className="text-[10px] px-1.5 py-0.5 bg-blue-600/30 rounded text-blue-300">{match.round} тур</span>}
                         </div>
                         <div className="text-sm truncate">{homeTeam?.name || '—'} {match.homeScore}:{match.awayScore} {awayTeam?.name || '—'}</div>
                         <div className="text-[10px] text-gray-400">Угл: {match.homeCorners}-{match.awayCorners}</div>
