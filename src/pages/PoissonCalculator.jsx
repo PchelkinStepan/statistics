@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { getData, predictMatch, getTeamStats } from '../data/store';
+import { getData, predictMatch, getTeamStats, getActiveSeason } from '../data/store';
 import { Calculator, TrendingUp, Target, Zap, AlertCircle, ChevronDown } from 'lucide-react';
 
 const PoissonCalculator = () => {
   const data = getData();
   const [selectedLeague, setSelectedLeague] = useState(data.leagues[0]?.id || '');
+  const activeSeason = getActiveSeason(selectedLeague)?.id;
   const [homeTeam, setHomeTeam] = useState('');
   const [awayTeam, setAwayTeam] = useState('');
   const [prediction, setPrediction] = useState(null);
@@ -22,16 +23,17 @@ const PoissonCalculator = () => {
 
   useEffect(() => {
     if (homeTeam) {
-      setHomeStats(getTeamStats(homeTeam));
+      setHomeStats(getTeamStats(homeTeam, activeSeason));
     }
     if (awayTeam) {
-      setAwayStats(getTeamStats(awayTeam));
+      setAwayStats(getTeamStats(awayTeam, activeSeason));
     }
-  }, [homeTeam, awayTeam]);
+  }, [homeTeam, awayTeam, activeSeason]);
 
   const handleCalculate = () => {
     if (homeTeam && awayTeam && selectedLeague) {
-      const result = predictMatch(homeTeam, awayTeam, selectedLeague, selectedTotal);
+      const result = predictMatch(homeTeam, awayTeam, selectedLeague, activeSeason, selectedTotal);
+      console.log('Результат:', result);
       setPrediction(result);
     }
   };
