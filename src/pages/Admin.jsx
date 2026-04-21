@@ -13,6 +13,52 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+// Компонент для ввода xG с кнопками +/- (100% решение для iOS и любых устройств!)
+const XGInput = ({ value, onChange, label }) => {
+  return (
+    <div>
+      <label className="block text-[10px] text-gray-400 mb-1">{label}</label>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            const newVal = Math.max(0, (parseFloat(value) || 0) - 0.1);
+            onChange(newVal.toFixed(1));
+          }}
+          className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm flex items-center justify-center flex-shrink-0"
+        >
+          −
+        </button>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            let val = e.target.value.replace(/,/g, '.');
+            val = val.replace(/[^0-9.]/g, '');
+            const parts = val.split('.');
+            if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+            const num = val === '' ? 0 : parseFloat(val) || 0;
+            onChange(Math.min(10, Math.max(0, num)).toFixed(1));
+          }}
+          className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-center"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const newVal = Math.min(10, (parseFloat(value) || 0) + 0.1);
+            onChange(newVal.toFixed(1));
+          }}
+          className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm flex items-center justify-center flex-shrink-0"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const Admin = () => {
   const [data, setData] = useState(getData());
   const [activeTab, setActiveTab] = useState('match');
@@ -296,22 +342,10 @@ const Admin = () => {
 
   const filteredMatches = getFilteredMatches();
 
-  // Обработчики для числовых полей (с фиксом для iOS - замена запятой на точку)
+  // Обработчики для целых чисел
   const handleIntChange = (field, value) => {
     const val = value.replace(/[^0-9]/g, '');
     setMatchForm({...matchForm, [field]: val === '' ? 0 : parseInt(val)});
-  };
-
-  const handleFloatChange = (field, value) => {
-    // Разрешаем цифры, запятую и точку
-    let val = value.replace(/[^0-9.,]/g, '');
-    // Заменяем запятую на точку (для iOS!)
-    val = val.replace(/,/g, '.');
-    // Оставляем только первую точку
-    const parts = val.split('.');
-    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
-    
-    setMatchForm({...matchForm, [field]: val === '' ? 0 : parseFloat(val) || 0});
   };
 
   const handlePercentChange = (field, value) => {
@@ -327,7 +361,7 @@ const Admin = () => {
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 4.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Быстрый патч iOS: запятая → точка</p>
+        <p className="text-sm md:text-base text-gray-400">Кнопки +/- для xG — работает везде!</p>
       </div>
 
       {message && (
@@ -451,7 +485,7 @@ const Admin = () => {
               {showByHalf && (
                 <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg">
                   <p className="text-xs text-purple-400 font-medium mb-2">1-й тайм</p>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">Угл Х</label>
                       <input type="text" inputMode="numeric" value={matchForm.homeCorners1H} onFocus={(e) => e.target.select()}
@@ -464,22 +498,22 @@ const Admin = () => {
                         onChange={(e) => handleIntChange('awayCorners1H', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
-                      <input type="text" inputMode="text" value={matchForm.homeXG1H} onFocus={(e) => e.target.select()}
-                        onChange={(e) => handleFloatChange('homeXG1H', e.target.value)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
-                      <input type="text" inputMode="text" value={matchForm.awayXG1H} onFocus={(e) => e.target.select()}
-                        onChange={(e) => handleFloatChange('awayXG1H', e.target.value)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
-                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <XGInput
+                      value={matchForm.homeXG1H}
+                      onChange={(val) => setMatchForm({...matchForm, homeXG1H: parseFloat(val)})}
+                      label="xG Х"
+                    />
+                    <XGInput
+                      value={matchForm.awayXG1H}
+                      onChange={(val) => setMatchForm({...matchForm, awayXG1H: parseFloat(val)})}
+                      label="xG Г"
+                    />
                   </div>
                   
                   <p className="text-xs text-purple-400 font-medium mb-2 mt-3">2-й тайм</p>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">Угл Х</label>
                       <input type="text" inputMode="numeric" value={matchForm.homeCorners2H} onFocus={(e) => e.target.select()}
@@ -492,18 +526,18 @@ const Admin = () => {
                         onChange={(e) => handleIntChange('awayCorners2H', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
-                      <input type="text" inputMode="text" value={matchForm.homeXG2H} onFocus={(e) => e.target.select()}
-                        onChange={(e) => handleFloatChange('homeXG2H', e.target.value)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
-                      <input type="text" inputMode="text" value={matchForm.awayXG2H} onFocus={(e) => e.target.select()}
-                        onChange={(e) => handleFloatChange('awayXG2H', e.target.value)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
-                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <XGInput
+                      value={matchForm.homeXG2H}
+                      onChange={(val) => setMatchForm({...matchForm, homeXG2H: parseFloat(val)})}
+                      label="xG Х"
+                    />
+                    <XGInput
+                      value={matchForm.awayXG2H}
+                      onChange={(val) => setMatchForm({...matchForm, awayXG2H: parseFloat(val)})}
+                      label="xG Г"
+                    />
                   </div>
                 </div>
               )}
@@ -517,18 +551,16 @@ const Admin = () => {
               {showAdvanced && (
                 <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg max-h-80 overflow-auto">
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
-                      <input type="text" inputMode="text" value={matchForm.homeXG} onFocus={(e) => e.target.select()}
-                        onChange={(e) => handleFloatChange('homeXG', e.target.value)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
-                      <input type="text" inputMode="text" value={matchForm.awayXG} onFocus={(e) => e.target.select()}
-                        onChange={(e) => handleFloatChange('awayXG', e.target.value)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
-                    </div>
+                    <XGInput
+                      value={matchForm.homeXG}
+                      onChange={(val) => setMatchForm({...matchForm, homeXG: parseFloat(val)})}
+                      label="xG Хозяев"
+                    />
+                    <XGInput
+                      value={matchForm.awayXG}
+                      onChange={(val) => setMatchForm({...matchForm, awayXG: parseFloat(val)})}
+                      label="xG Гостей"
+                    />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2">
