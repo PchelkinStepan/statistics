@@ -4,7 +4,9 @@ import { Calendar, X, ChevronRight } from 'lucide-react';
 
 const Matches = () => {
   const data = getData();
-  const [selectedLeague, setSelectedLeague] = useState('rpl');
+  const defaultLeagueId = data.leagues?.[0]?.id || 'rpl';
+  
+  const [selectedLeague, setSelectedLeague] = useState(defaultLeagueId);
   const [selectedSeason, setSelectedSeason] = useState('');
   const [selectedMatch, setSelectedMatch] = useState(null);
 
