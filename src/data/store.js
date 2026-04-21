@@ -9,9 +9,9 @@ const getSeasonFromDate = (dateStr) => {
   const month = date.getMonth() + 1;
   
   if (month >= 7) {
-    return `${year}/${year + 1}`;
+    return `${year}/${(year + 1).toString().slice(-2)}`;
   } else {
-    return `${year - 1}/${year}`;
+    return `${year - 1}/${year.toString().slice(-2)}`;
   }
 };
 
@@ -58,7 +58,7 @@ const DEFAULT_DATA = {
   bets: [],
   bankroll: { initial: 10000, current: 10000 },
   lastUpdated: new Date().toISOString(),
-  version: '4.0'
+  version: '5.0'
 };
 
 let subscribers = [];
@@ -72,7 +72,6 @@ export const initStore = (callback) => {
     if (snapshot.exists()) {
       currentData = snapshot.data();
       
-      // Проверяем и инициализируем структуру seasons если её нет
       if (currentData.leagues) {
         currentData.leagues = currentData.leagues.map(league => {
           if (!league.seasons) league.seasons = {};
@@ -107,7 +106,6 @@ export const initStore = (callback) => {
 
 export const getData = () => {
   if (currentData) {
-    // Проверяем структуру при каждом получении
     if (currentData.leagues) {
       currentData.leagues = currentData.leagues.map(league => {
         if (!league.seasons) league.seasons = {};
@@ -151,7 +149,6 @@ const checkAndRollSeason = (leagueId, matchDate) => {
   const league = data.leagues.find(l => l.id === leagueId);
   if (!league) return;
   
-  // Инициализируем если нужно (НЕ ТРОГАЕМ ОСТАЛЬНЫЕ ДАННЫЕ!)
   if (!league.seasons) league.seasons = {};
   if (!league.currentSeason) league.currentSeason = '2024/25';
   
@@ -160,7 +157,6 @@ const checkAndRollSeason = (leagueId, matchDate) => {
   if (season !== league.currentSeason) {
     console.log(`🔄 Сезон изменился: ${league.currentSeason} → ${season}`);
     
-    // Сохраняем старый сезон
     league.seasons[league.currentSeason] = {
       avgTotalCorners: league.avgTotalCorners || 9,
       avgCornersHome: league.avgCornersHome || 5,
@@ -169,7 +165,6 @@ const checkAndRollSeason = (leagueId, matchDate) => {
       avgShotsInsideBox: league.avgShotsInsideBox || 7
     };
     
-    // Берём данные прошлого сезона
     const lastSeasonKey = getLastSeason(season);
     const lastSeasonData = league.seasons[lastSeasonKey] || {
       avgTotalCorners: 9.0,
@@ -179,7 +174,6 @@ const checkAndRollSeason = (leagueId, matchDate) => {
       avgShotsInsideBox: 7.0
     };
     
-    // Обновляем ТОЛЬКО эту лигу!
     const updatedLeague = {
       ...league,
       currentSeason: season,
@@ -190,7 +184,6 @@ const checkAndRollSeason = (leagueId, matchDate) => {
       avgShotsInsideBox: lastSeasonData.avgShotsInsideBox
     };
     
-    // ВАЖНО: обновляем ТОЛЬКО лигу, остальные данные НЕ ТРОГАЕМ!
     const updatedData = {
       ...data,
       leagues: data.leagues.map(l => l.id === leagueId ? updatedLeague : l)
@@ -208,7 +201,6 @@ export const getLeagueAverages = (leagueId) => {
   const league = data.leagues.find(l => l.id === leagueId);
   if (!league) return null;
   
-  // Инициализируем если нужно
   if (!league.seasons) league.seasons = {};
   if (!league.currentSeason) league.currentSeason = '2024/25';
   
@@ -219,7 +211,6 @@ export const getLeagueAverages = (leagueId) => {
   
   const n = currentSeasonMatches.length;
   
-  // Если матчей мало — смешиваем с прошлым сезоном
   if (n < 30) {
     const lastSeasonKey = getLastSeason(league.currentSeason);
     const lastSeason = league.seasons[lastSeasonKey] || {
@@ -257,7 +248,6 @@ export const getLeagueAverages = (leagueId) => {
     };
   }
   
-  // Матчей достаточно — только текущий сезон
   let total = 0, home = 0, away = 0, xg = 0, shots = 0;
   
   currentSeasonMatches.forEach(match => {
@@ -280,7 +270,6 @@ export const getLeagueAverages = (leagueId) => {
 export const addMatch = async (match) => {
   const data = getData();
   
-  // Проверяем сезон (с защитой)
   try {
     checkAndRollSeason(match.leagueId, match.date);
   } catch (error) {
@@ -661,7 +650,6 @@ export const updateLeagueAverages = async (leagueId) => {
   const averages = getLeagueAverages(leagueId);
   if (!averages) return null;
   
-  // Инициализируем seasons если нет
   if (!league.seasons) league.seasons = {};
   if (!league.currentSeason) league.currentSeason = '2024/25';
   
@@ -691,4 +679,77 @@ export const updateLeagueAverages = async (leagueId) => {
   
   await saveData(updatedData);
   return updatedLeague;
+};
+
+// ===== НОВЫЕ ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СЕЗОНАМИ =====
+
+export const getSeasons = (leagueId) => {
+  const data = getData();
+  const league = data.leagues.find(l => l.id === leagueId);
+  return league?.seasons || {};
+};
+
+export const saveSeason = async (leagueId, seasonKey, seasonData) => {
+  const data = getData();
+  const league = data.leagues.find(l => l.id === leagueId);
+  if (!league) return false;
+  
+  if (!league.seasons) league.seasons = {};
+  
+  league.seasons[seasonKey] = {
+    avgTotalCorners: parseFloat(seasonData.avgTotalCorners) || 9,
+    avgCornersHome: parseFloat(seasonData.avgCornersHome) || 5,
+    avgCornersAway: parseFloat(seasonData.avgCornersAway) || 4,
+    avgXG: parseFloat(seasonData.avgXG) || 1.2,
+    avgShotsInsideBox: parseFloat(seasonData.avgShotsInsideBox) || 7
+  };
+  
+  const updatedData = {
+    ...data,
+    leagues: data.leagues.map(l => l.id === leagueId ? league : l)
+  };
+  
+  await saveData(updatedData);
+  return true;
+};
+
+export const deleteSeason = async (leagueId, seasonKey) => {
+  const data = getData();
+  const league = data.leagues.find(l => l.id === leagueId);
+  if (!league || !league.seasons) return false;
+  
+  delete league.seasons[seasonKey];
+  
+  const updatedData = {
+    ...data,
+    leagues: data.leagues.map(l => l.id === leagueId ? league : l)
+  };
+  
+  await saveData(updatedData);
+  return true;
+};
+
+export const setActiveSeason = async (leagueId, seasonKey) => {
+  const data = getData();
+  const league = data.leagues.find(l => l.id === leagueId);
+  if (!league) return false;
+  
+  league.currentSeason = seasonKey;
+  
+  const activeSeasonData = league.seasons[seasonKey];
+  if (activeSeasonData) {
+    league.avgTotalCorners = activeSeasonData.avgTotalCorners;
+    league.avgCornersHome = activeSeasonData.avgCornersHome;
+    league.avgCornersAway = activeSeasonData.avgCornersAway;
+    league.avgXG = activeSeasonData.avgXG;
+    league.avgShotsInsideBox = activeSeasonData.avgShotsInsideBox;
+  }
+  
+  const updatedData = {
+    ...data,
+    leagues: data.leagues.map(l => l.id === leagueId ? league : l)
+  };
+  
+  await saveData(updatedData);
+  return true;
 };

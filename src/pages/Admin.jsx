@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getData, addMatch, addLeague, addTeam, deleteMatch, deleteLeague, deleteTeam, subscribe, saveData, updateLeagueAverages } from '../data/store';
-import { Save, Trash2, ChevronDown, ChevronUp, Plus, X, Edit, Search, RefreshCw } from 'lucide-react';
+import { getData, addMatch, addLeague, addTeam, deleteMatch, deleteLeague, deleteTeam, subscribe, saveData, updateLeagueAverages, getSeasons, saveSeason, deleteSeason, setActiveSeason } from '../data/store';
+import { Save, Trash2, ChevronDown, ChevronUp, Plus, X, Edit, Search, RefreshCw, Calendar, CheckCircle } from 'lucide-react';
 
 // Хук для определения мобильного устройства
 const useIsMobile = () => {
@@ -23,6 +23,17 @@ const Admin = () => {
   const [editingLeague, setEditingLeague] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('all');
+  const [selectedLeagueForSeasons, setSelectedLeagueForSeasons] = useState('rpl');
+  const [showSeasonForm, setShowSeasonForm] = useState(false);
+  const [editingSeason, setEditingSeason] = useState(null);
+  const [seasonForm, setSeasonForm] = useState({
+    seasonKey: '',
+    avgTotalCorners: '',
+    avgCornersHome: '',
+    avgCornersAway: '',
+    avgXG: '',
+    avgShotsInsideBox: ''
+  });
   const isMobile = useIsMobile();
   
   // Начальное состояние формы матча
@@ -109,7 +120,6 @@ const Admin = () => {
     setData(getData());
   };
 
-  // Загрузка матча в форму для редактирования
   const handleEditMatch = (match) => {
     setEditingMatch(match);
     setMatchForm({
@@ -169,7 +179,6 @@ const Admin = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Универсальный обработчик для дробных чисел (xG)
   const handleFloatChange = (field, value) => {
     let val = value.replace(/,/g, '.');
     val = val.replace(/[^0-9.]/g, '');
@@ -178,7 +187,6 @@ const Admin = () => {
     setMatchForm({...matchForm, [field]: val});
   };
 
-  // Обработчик для целых чисел
   const handleIntChange = (field, value) => {
     const val = value.replace(/[^0-9]/g, '');
     setMatchForm({...matchForm, [field]: val});
@@ -332,8 +340,8 @@ const Admin = () => {
   return (
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 4.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">xG с точкой/запятой — полностью рабочее!</p>
+        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 5.0 🔥</h2>
+        <p className="text-sm md:text-base text-gray-400">Управление сезонами + xG с точкой/запятой</p>
       </div>
 
       {message && (
@@ -356,6 +364,9 @@ const Admin = () => {
         <TabButton active={activeTab === 'team'} onClick={() => setActiveTab('team')}>
           Команды
         </TabButton>
+        <TabButton active={activeTab === 'seasons'} onClick={() => setActiveTab('seasons')}>
+          Сезоны
+        </TabButton>
       </div>
 
       {isMobile && activeTab === 'match' && !showMobileForm && (
@@ -368,6 +379,7 @@ const Admin = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        {/* Форма добавления/редактирования матча */}
         {(!isMobile || showMobileForm) && activeTab === 'match' && (
           <div className={`${isMobile ? 'fixed inset-0 z-50 bg-gray-900 overflow-auto p-4' : 'lg:col-span-2'}`}>
             {isMobile && (
@@ -792,6 +804,183 @@ const Admin = () => {
           </div>
         )}
 
+        {/* Вкладка Сезоны */}
+        {activeTab === 'seasons' && (
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <label className="block text-xs text-gray-400 mb-2">Выберите лигу</label>
+              <select 
+                value={selectedLeagueForSeasons} 
+                onChange={(e) => setSelectedLeagueForSeasons(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3"
+              >
+                {data.leagues.map(league => (
+                  <option key={league.id} value={league.id}>{league.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {showSeasonForm && (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                await saveSeason(selectedLeagueForSeasons, seasonForm.seasonKey, seasonForm);
+                setMessage('✅ Сезон сохранён!');
+                setShowSeasonForm(false);
+                setEditingSeason(null);
+                setSeasonForm({ seasonKey: '', avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' });
+                refreshData();
+                setTimeout(() => setMessage(''), 3000);
+              }} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
+                <h3 className="text-lg font-bold">{editingSeason ? 'Редактировать сезон' : 'Добавить сезон'}</h3>
+                
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Сезон (например: 2025/26)</label>
+                  <input 
+                    type="text" 
+                    value={seasonForm.seasonKey} 
+                    placeholder="2025/26"
+                    required
+                    onChange={(e) => setSeasonForm({...seasonForm, seasonKey: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" 
+                  />
+                </div>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Тотал</label>
+                    <input type="text" inputMode="decimal" value={seasonForm.avgTotalCorners} 
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/,/g, '.');
+                        val = val.replace(/[^0-9.]/g, '');
+                        const parts = val.split('.');
+                        if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+                        setSeasonForm({...seasonForm, avgTotalCorners: val});
+                      }}
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Дома</label>
+                    <input type="text" inputMode="decimal" value={seasonForm.avgCornersHome} 
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/,/g, '.');
+                        val = val.replace(/[^0-9.]/g, '');
+                        const parts = val.split('.');
+                        if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+                        setSeasonForm({...seasonForm, avgCornersHome: val});
+                      }}
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">В гостях</label>
+                    <input type="text" inputMode="decimal" value={seasonForm.avgCornersAway} 
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/,/g, '.');
+                        val = val.replace(/[^0-9.]/g, '');
+                        const parts = val.split('.');
+                        if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+                        setSeasonForm({...seasonForm, avgCornersAway: val});
+                      }}
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
+                    {editingSeason ? 'Сохранить' : 'Добавить сезон'}
+                  </button>
+                  <button type="button" onClick={() => { setShowSeasonForm(false); setEditingSeason(null); }}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold">Сезоны</h3>
+                <button
+                  onClick={() => setShowSeasonForm(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"
+                >
+                  <Plus size={14} /> Добавить
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                {Object.entries(getSeasons(selectedLeagueForSeasons)).map(([key, season]) => {
+                  const league = data.leagues.find(l => l.id === selectedLeagueForSeasons);
+                  const isActive = league?.currentSeason === key;
+                  
+                  return (
+                    <div key={key} className={`flex items-center justify-between p-3 rounded-lg ${isActive ? 'bg-green-600/30 border border-green-600' : 'bg-gray-700/50'}`}>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{key}</span>
+                          {isActive && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-green-600 rounded text-white flex items-center gap-1">
+                              <CheckCircle size={10} /> Активный
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Тотал: {season.avgTotalCorners?.toFixed(1)} • Дома: {season.avgCornersHome?.toFixed(1)} • В гостях: {season.avgCornersAway?.toFixed(1)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {!isActive && (
+                          <button
+                            onClick={async () => {
+                              await setActiveSeason(selectedLeagueForSeasons, key);
+                              refreshData();
+                              setMessage(`✅ Сезон ${key} активирован!`);
+                              setTimeout(() => setMessage(''), 3000);
+                            }}
+                            className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"
+                            title="Сделать активным"
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setEditingSeason(key);
+                            setSeasonForm({
+                              seasonKey: key,
+                              avgTotalCorners: season.avgTotalCorners?.toString() || '',
+                              avgCornersHome: season.avgCornersHome?.toString() || '',
+                              avgCornersAway: season.avgCornersAway?.toString() || '',
+                              avgXG: season.avgXG?.toString() || '',
+                              avgShotsInsideBox: season.avgShotsInsideBox?.toString() || ''
+                            });
+                            setShowSeasonForm(true);
+                          }}
+                          className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`Удалить сезон ${key}?`)) {
+                              await deleteSeason(selectedLeagueForSeasons, key);
+                              refreshData();
+                              setMessage('🗑️ Сезон удалён');
+                              setTimeout(() => setMessage(''), 3000);
+                            }
+                          }}
+                          className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Список матчей с поиском */}
         <div className={`bg-gray-800 rounded-xl p-4 border border-gray-700 ${activeTab === 'match' && !isMobile ? '' : 'lg:col-span-1'}`}>
           {activeTab === 'match' && (
@@ -909,6 +1098,27 @@ const Admin = () => {
                 ))}
               </div>
             </>
+          )}
+
+          {activeTab === 'seasons' && (
+            <div className="lg:col-span-1">
+              <h3 className="text-lg font-bold mb-3">Информация</h3>
+              <div className="bg-gray-700/30 rounded-lg p-4">
+                <p className="text-sm text-gray-300 mb-3">
+                  <Calendar size={16} className="inline mr-1" />
+                  Сезоны определяются по дате матча:
+                </p>
+                <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
+                  <li>Июль - Май: сезон YYYY/YY</li>
+                  <li>Например: 18.07.2024 → 2024/25</li>
+                  <li>15.05.2025 → 2024/25</li>
+                  <li>20.07.2025 → 2025/26</li>
+                </ul>
+                <p className="text-xs text-gray-400 mt-3">
+                  Активный сезон используется для расчёта средних значений.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>
