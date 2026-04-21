@@ -14,6 +14,10 @@ const useIsMobile = () => {
 
 const Admin = () => {
   const [data, setData] = useState(getData());
+  
+  // Получаем реальный ID лиги (динамически!)
+  const defaultLeagueId = data.leagues?.[0]?.id || 'rpl';
+  
   const [activeTab, setActiveTab] = useState('match');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showByHalf, setShowByHalf] = useState(false);
@@ -22,9 +26,9 @@ const Admin = () => {
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('rpl');
+  const [selectedLeagueFilter, setSelectedLeagueFilter] = useState(defaultLeagueId);
   const [selectedSeasonFilter, setSelectedSeasonFilter] = useState('');
-  const [selectedLeagueForSeasons, setSelectedLeagueForSeasons] = useState('rpl');
+  const [selectedLeagueForSeasons, setSelectedLeagueForSeasons] = useState(defaultLeagueId);
   const [showSeasonForm, setShowSeasonForm] = useState(false);
   const [editingSeason, setEditingSeason] = useState(null);
   const [message, setMessage] = useState('');
@@ -34,7 +38,7 @@ const Admin = () => {
   const activeSeason = getActiveSeason(selectedLeagueFilter);
   
   const getInitialMatchForm = () => ({
-    leagueId: selectedLeagueFilter,
+    leagueId: selectedLeagueFilter || defaultLeagueId,
     seasonId: activeSeason?.id || '',
     homeTeamId: '',
     awayTeamId: '',
@@ -70,11 +74,11 @@ const Admin = () => {
   const [matchForm, setMatchForm] = useState(getInitialMatchForm());
   
   const [leagueForm, setLeagueForm] = useState({ name: '', country: '' });
-  const [teamForm, setTeamForm] = useState({ name: '', leagueId: 'rpl', seasonIds: [] });
+  const [teamForm, setTeamForm] = useState({ name: '', leagueId: defaultLeagueId, seasonIds: [] });
   const [seasonForm, setSeasonForm] = useState({
     id: '',
     name: '',
-    leagueId: 'rpl',
+    leagueId: defaultLeagueId,
     avgTotalCorners: '',
     avgCornersHome: '',
     avgCornersAway: '',
@@ -101,7 +105,7 @@ const Admin = () => {
   const handleEditMatch = (match) => {
     setEditingMatch(match);
     setMatchForm({
-      leagueId: match.leagueId || 'rpl',
+      leagueId: match.leagueId || defaultLeagueId,
       seasonId: match.seasonId || activeSeason?.id || '',
       homeTeamId: match.homeTeamId || '',
       awayTeamId: match.awayTeamId || '',
@@ -159,6 +163,11 @@ const Admin = () => {
     // ГАРАНТИРУЕМ что seasonId не пустой
     if (!formData.seasonId || formData.seasonId === '') {
       formData.seasonId = activeSeason?.id || '';
+    }
+    
+    // ГАРАНТИРУЕМ что leagueId правильный
+    if (!formData.leagueId) {
+      formData.leagueId = defaultLeagueId;
     }
     
     Object.keys(formData).forEach(key => {
@@ -225,7 +234,7 @@ const Admin = () => {
       setMessage('✅ Команда добавлена!');
     }
     refreshData();
-    setTeamForm({ name: '', leagueId: 'rpl', seasonIds: [] });
+    setTeamForm({ name: '', leagueId: defaultLeagueId, seasonIds: [] });
     setTimeout(() => setMessage(''), 3000);
   };
 
@@ -249,7 +258,7 @@ const Admin = () => {
     }
     refreshData();
     setShowSeasonForm(false);
-    setSeasonForm({ id: '', name: '', leagueId: 'rpl', avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' });
+    setSeasonForm({ id: '', name: '', leagueId: defaultLeagueId, avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' });
     setTimeout(() => setMessage(''), 3000);
   };
 
@@ -312,11 +321,9 @@ const Admin = () => {
   // ВАЖНО: получаем команды с защитой от пустого seasonId
   const teamsForSeason = (() => {
     const teams = getTeamsForSeason(matchForm.leagueId, matchForm.seasonId);
-    // Если команд нет, но есть активный сезон — пробуем получить команды для активного сезона
     if (teams.length === 0 && activeSeason) {
       return getTeamsForSeason(matchForm.leagueId, activeSeason.id);
     }
-    // Если всё равно нет — возвращаем все команды лиги
     if (teams.length === 0) {
       return data.teams?.filter(t => t.leagueId === matchForm.leagueId) || [];
     }
@@ -340,7 +347,7 @@ const Admin = () => {
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 6.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Сезоны + авто-заполнение seasonId</p>
+        <p className="text-sm md:text-base text-gray-400">Сезоны + динамический leagueId</p>
       </div>
 
       {message && (
@@ -578,7 +585,7 @@ const Admin = () => {
               
               <div className="flex gap-2">
                 <button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">{editingTeam ? 'Сохранить' : 'Добавить'}</button>
-                {editingTeam && <button type="button" onClick={() => { setEditingTeam(null); setTeamForm({ name: '', leagueId: 'rpl', seasonIds: [] }); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">Отмена</button>}
+                {editingTeam && <button type="button" onClick={() => { setEditingTeam(null); setTeamForm({ name: '', leagueId: defaultLeagueId, seasonIds: [] }); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">Отмена</button>}
               </div>
             </form>
 
