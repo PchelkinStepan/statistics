@@ -30,9 +30,12 @@ const Admin = () => {
   const [message, setMessage] = useState('');
   const isMobile = useIsMobile();
   
+  // Получаем активный сезон для выбранной лиги
+  const activeSeason = getActiveSeason(selectedLeagueFilter);
+  
   const getInitialMatchForm = () => ({
     leagueId: selectedLeagueFilter,
-    seasonId: getActiveSeason(selectedLeagueFilter)?.id || '',
+    seasonId: activeSeason?.id || '',
     homeTeamId: '',
     awayTeamId: '',
     date: new Date().toISOString().split('T')[0],
@@ -87,12 +90,11 @@ const Admin = () => {
   }, []);
 
   useEffect(() => {
-    const activeSeason = getActiveSeason(selectedLeagueFilter);
     if (activeSeason) {
       setSelectedSeasonFilter(activeSeason.id);
       setMatchForm(prev => ({ ...prev, seasonId: activeSeason.id, leagueId: selectedLeagueFilter }));
     }
-  }, [selectedLeagueFilter]);
+  }, [selectedLeagueFilter, activeSeason]);
 
   const refreshData = () => setData(getData());
 
@@ -100,7 +102,7 @@ const Admin = () => {
     setEditingMatch(match);
     setMatchForm({
       leagueId: match.leagueId || 'rpl',
-      seasonId: match.seasonId || '',
+      seasonId: match.seasonId || activeSeason?.id || '',
       homeTeamId: match.homeTeamId || '',
       awayTeamId: match.awayTeamId || '',
       date: match.date || new Date().toISOString().split('T')[0],
@@ -153,11 +155,12 @@ const Admin = () => {
     e.preventDefault();
     
     const formData = { ...matchForm };
-
+    
+    // ГАРАНТИРУЕМ что seasonId не пустой
     if (!formData.seasonId) {
-      formData.seasonId = getActiveSeason(formData.leagueId)?.id || '';
+      formData.seasonId = activeSeason?.id || '';
     }
-
+    
     Object.keys(formData).forEach(key => {
       if (typeof formData[key] === 'string' && key !== 'date' && key !== 'leagueId' && key !== 'seasonId' && key !== 'homeTeamId' && key !== 'awayTeamId') {
         if (key.includes('XG')) {
@@ -305,7 +308,21 @@ const Admin = () => {
   };
 
   const seasons = getSeasons(selectedLeagueFilter);
-  const teamsForSeason = getTeamsForSeason(matchForm.leagueId, matchForm.seasonId);
+  
+  // ВАЖНО: получаем команды с защитой от пустого seasonId
+  const teamsForSeason = (() => {
+    const teams = getTeamsForSeason(matchForm.leagueId, matchForm.seasonId);
+    // Если команд нет, но есть активный сезон — пробуем получить команды для активного сезона
+    if (teams.length === 0 && activeSeason) {
+      return getTeamsForSeason(matchForm.leagueId, activeSeason.id);
+    }
+    // Если всё равно нет — возвращаем все команды лиги
+    if (teams.length === 0) {
+      return data.teams?.filter(t => t.leagueId === matchForm.leagueId) || [];
+    }
+    return teams;
+  })();
+  
   const allTeams = data.teams || [];
   
   const filteredMatches = (data.matches || [])
@@ -323,7 +340,7 @@ const Admin = () => {
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 6.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Сезоны + привязка команд к сезонам</p>
+        <p className="text-sm md:text-base text-gray-400">Сезоны + авто-заполнение seasonId</p>
       </div>
 
       {message && (
@@ -365,8 +382,16 @@ const Admin = () => {
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Лига</label>
                   <select value={matchForm.leagueId} onChange={(e) => {
-                    setMatchForm({...matchForm, leagueId: e.target.value, seasonId: getActiveSeason(e.target.value)?.id || '', homeTeamId: '', awayTeamId: ''});
-                    setSelectedLeagueFilter(e.target.value);
+                    const newLeague = e.target.value;
+                    const newActiveSeason = getActiveSeason(newLeague);
+                    setMatchForm({
+                      ...matchForm, 
+                      leagueId: newLeague, 
+                      seasonId: newActiveSeason?.id || '', 
+                      homeTeamId: '', 
+                      awayTeamId: ''
+                    });
+                    setSelectedLeagueFilter(newLeague);
                   }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
                     {data.leagues?.map(league => <option key={league.id} value={league.id}>{league.name}</option>)}
                   </select>
@@ -375,6 +400,7 @@ const Admin = () => {
                   <label className="block text-xs text-gray-400 mb-1">Сезон</label>
                   <select value={matchForm.seasonId} onChange={(e) => setMatchForm({...matchForm, seasonId: e.target.value, homeTeamId: '', awayTeamId: ''})}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
+                    <option value="">Выберите сезон</option>
                     {seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
