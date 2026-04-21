@@ -157,7 +157,7 @@ const Admin = () => {
     const formData = { ...matchForm };
     
     // ГАРАНТИРУЕМ что seasonId не пустой
-    if (!formData.seasonId) {
+    if (!formData.seasonId || formData.seasonId === '') {
       formData.seasonId = activeSeason?.id || '';
     }
     
