@@ -13,52 +13,6 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// Компонент для ввода xG с кнопками +/- (100% решение для iOS и любых устройств!)
-const XGInput = ({ value, onChange, label }) => {
-  return (
-    <div>
-      <label className="block text-[10px] text-gray-400 mb-1">{label}</label>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => {
-            const newVal = Math.max(0, (parseFloat(value) || 0) - 0.1);
-            onChange(newVal.toFixed(1));
-          }}
-          className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm flex items-center justify-center flex-shrink-0"
-        >
-          −
-        </button>
-        <input
-          type="text"
-          inputMode="decimal"
-          value={value}
-          onFocus={(e) => e.target.select()}
-          onChange={(e) => {
-            let val = e.target.value.replace(/,/g, '.');
-            val = val.replace(/[^0-9.]/g, '');
-            const parts = val.split('.');
-            if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
-            const num = val === '' ? 0 : parseFloat(val) || 0;
-            onChange(Math.min(10, Math.max(0, num)).toFixed(1));
-          }}
-          className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-center"
-        />
-        <button
-          type="button"
-          onClick={() => {
-            const newVal = Math.min(10, (parseFloat(value) || 0) + 0.1);
-            onChange(newVal.toFixed(1));
-          }}
-          className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm flex items-center justify-center flex-shrink-0"
-        >
-          +
-        </button>
-      </div>
-    </div>
-  );
-};
-
 const Admin = () => {
   const [data, setData] = useState(getData());
   const [activeTab, setActiveTab] = useState('match');
@@ -85,44 +39,44 @@ const Admin = () => {
     awayCorners1H: 0,
     homeCorners2H: 0,
     awayCorners2H: 0,
-    homeXG: 0,
-    awayXG: 0,
-    homeXG1H: 0,
-    awayXG1H: 0,
-    homeXG2H: 0,
-    awayXG2H: 0,
-    homeShotsInsideBox: 0,
-    awayShotsInsideBox: 0,
-    homeShotsInsideBox1H: 0,
-    awayShotsInsideBox1H: 0,
-    homeShotsInsideBox2H: 0,
-    awayShotsInsideBox2H: 0,
-    homeTotalShots: 0,
-    awayTotalShots: 0,
-    homeTotalShots1H: 0,
-    awayTotalShots1H: 0,
-    homeTotalShots2H: 0,
-    awayTotalShots2H: 0,
-    homeShotsOnTarget: 0,
-    awayShotsOnTarget: 0,
-    homeShotsOnTarget1H: 0,
-    awayShotsOnTarget1H: 0,
-    homeShotsOnTarget2H: 0,
-    awayShotsOnTarget2H: 0,
-    homePossession: 50,
-    awayPossession: 50,
-    homePossession1H: 50,
-    awayPossession1H: 50,
-    homePossession2H: 50,
-    awayPossession2H: 50,
-    homeSaves: 0,
-    awaySaves: 0,
-    homeSaves1H: 0,
-    awaySaves1H: 0,
-    homeSaves2H: 0,
-    awaySaves2H: 0,
-    homeYellowCards: 0,
-    awayYellowCards: 0,
+    homeXG: '',
+    awayXG: '',
+    homeXG1H: '',
+    awayXG1H: '',
+    homeXG2H: '',
+    awayXG2H: '',
+    homeShotsInsideBox: '',
+    awayShotsInsideBox: '',
+    homeShotsInsideBox1H: '',
+    awayShotsInsideBox1H: '',
+    homeShotsInsideBox2H: '',
+    awayShotsInsideBox2H: '',
+    homeTotalShots: '',
+    awayTotalShots: '',
+    homeTotalShots1H: '',
+    awayTotalShots1H: '',
+    homeTotalShots2H: '',
+    awayTotalShots2H: '',
+    homeShotsOnTarget: '',
+    awayShotsOnTarget: '',
+    homeShotsOnTarget1H: '',
+    awayShotsOnTarget1H: '',
+    homeShotsOnTarget2H: '',
+    awayShotsOnTarget2H: '',
+    homePossession: '',
+    awayPossession: '',
+    homePossession1H: '',
+    awayPossession1H: '',
+    homePossession2H: '',
+    awayPossession2H: '',
+    homeSaves: '',
+    awaySaves: '',
+    homeSaves1H: '',
+    awaySaves1H: '',
+    homeSaves2H: '',
+    awaySaves2H: '',
+    homeYellowCards: '',
+    awayYellowCards: '',
   });
   
   const [matchForm, setMatchForm] = useState(getInitialMatchForm());
@@ -130,11 +84,11 @@ const Admin = () => {
   const [leagueForm, setLeagueForm] = useState({
     name: '',
     country: '',
-    avgTotalCorners: 9,
-    avgCornersHome: 5,
-    avgCornersAway: 4,
-    avgXG: 1.2,
-    avgShotsInsideBox: 7
+    avgTotalCorners: '',
+    avgCornersHome: '',
+    avgCornersAway: '',
+    avgXG: '',
+    avgShotsInsideBox: ''
   });
   
   const [teamForm, setTeamForm] = useState({
@@ -163,62 +117,89 @@ const Admin = () => {
       homeTeamId: match.homeTeamId || '',
       awayTeamId: match.awayTeamId || '',
       date: match.date || new Date().toISOString().split('T')[0],
-      homeScore: match.homeScore || 0,
-      awayScore: match.awayScore || 0,
-      homeCorners: match.homeCorners || 0,
-      awayCorners: match.awayCorners || 0,
-      homeCorners1H: match.homeCorners1H || 0,
-      awayCorners1H: match.awayCorners1H || 0,
-      homeCorners2H: match.homeCorners2H || 0,
-      awayCorners2H: match.awayCorners2H || 0,
-      homeXG: match.homeXG || 0,
-      awayXG: match.awayXG || 0,
-      homeXG1H: match.homeXG1H || 0,
-      awayXG1H: match.awayXG1H || 0,
-      homeXG2H: match.homeXG2H || 0,
-      awayXG2H: match.awayXG2H || 0,
-      homeShotsInsideBox: match.homeShotsInsideBox || 0,
-      awayShotsInsideBox: match.awayShotsInsideBox || 0,
-      homeShotsInsideBox1H: match.homeShotsInsideBox1H || 0,
-      awayShotsInsideBox1H: match.awayShotsInsideBox1H || 0,
-      homeShotsInsideBox2H: match.homeShotsInsideBox2H || 0,
-      awayShotsInsideBox2H: match.awayShotsInsideBox2H || 0,
-      homeTotalShots: match.homeTotalShots || 0,
-      awayTotalShots: match.awayTotalShots || 0,
-      homeTotalShots1H: match.homeTotalShots1H || 0,
-      awayTotalShots1H: match.awayTotalShots1H || 0,
-      homeTotalShots2H: match.homeTotalShots2H || 0,
-      awayTotalShots2H: match.awayTotalShots2H || 0,
-      homeShotsOnTarget: match.homeShotsOnTarget || 0,
-      awayShotsOnTarget: match.awayShotsOnTarget || 0,
-      homeShotsOnTarget1H: match.homeShotsOnTarget1H || 0,
-      awayShotsOnTarget1H: match.awayShotsOnTarget1H || 0,
-      homeShotsOnTarget2H: match.homeShotsOnTarget2H || 0,
-      awayShotsOnTarget2H: match.awayShotsOnTarget2H || 0,
-      homePossession: match.homePossession || 50,
-      awayPossession: match.awayPossession || 50,
-      homePossession1H: match.homePossession1H || 50,
-      awayPossession1H: match.awayPossession1H || 50,
-      homePossession2H: match.homePossession2H || 50,
-      awayPossession2H: match.awayPossession2H || 50,
-      homeSaves: match.homeSaves || 0,
-      awaySaves: match.awaySaves || 0,
-      homeSaves1H: match.homeSaves1H || 0,
-      awaySaves1H: match.awaySaves1H || 0,
-      homeSaves2H: match.homeSaves2H || 0,
-      awaySaves2H: match.awaySaves2H || 0,
-      homeYellowCards: match.homeYellowCards || 0,
-      awayYellowCards: match.awayYellowCards || 0,
+      homeScore: match.homeScore?.toString() || '',
+      awayScore: match.awayScore?.toString() || '',
+      homeCorners: match.homeCorners?.toString() || '',
+      awayCorners: match.awayCorners?.toString() || '',
+      homeCorners1H: match.homeCorners1H?.toString() || '',
+      awayCorners1H: match.awayCorners1H?.toString() || '',
+      homeCorners2H: match.homeCorners2H?.toString() || '',
+      awayCorners2H: match.awayCorners2H?.toString() || '',
+      homeXG: match.homeXG?.toString() || '',
+      awayXG: match.awayXG?.toString() || '',
+      homeXG1H: match.homeXG1H?.toString() || '',
+      awayXG1H: match.awayXG1H?.toString() || '',
+      homeXG2H: match.homeXG2H?.toString() || '',
+      awayXG2H: match.awayXG2H?.toString() || '',
+      homeShotsInsideBox: match.homeShotsInsideBox?.toString() || '',
+      awayShotsInsideBox: match.awayShotsInsideBox?.toString() || '',
+      homeShotsInsideBox1H: match.homeShotsInsideBox1H?.toString() || '',
+      awayShotsInsideBox1H: match.awayShotsInsideBox1H?.toString() || '',
+      homeShotsInsideBox2H: match.homeShotsInsideBox2H?.toString() || '',
+      awayShotsInsideBox2H: match.awayShotsInsideBox2H?.toString() || '',
+      homeTotalShots: match.homeTotalShots?.toString() || '',
+      awayTotalShots: match.awayTotalShots?.toString() || '',
+      homeTotalShots1H: match.homeTotalShots1H?.toString() || '',
+      awayTotalShots1H: match.awayTotalShots1H?.toString() || '',
+      homeTotalShots2H: match.homeTotalShots2H?.toString() || '',
+      awayTotalShots2H: match.awayTotalShots2H?.toString() || '',
+      homeShotsOnTarget: match.homeShotsOnTarget?.toString() || '',
+      awayShotsOnTarget: match.awayShotsOnTarget?.toString() || '',
+      homeShotsOnTarget1H: match.homeShotsOnTarget1H?.toString() || '',
+      awayShotsOnTarget1H: match.awayShotsOnTarget1H?.toString() || '',
+      homeShotsOnTarget2H: match.homeShotsOnTarget2H?.toString() || '',
+      awayShotsOnTarget2H: match.awayShotsOnTarget2H?.toString() || '',
+      homePossession: match.homePossession?.toString() || '',
+      awayPossession: match.awayPossession?.toString() || '',
+      homePossession1H: match.homePossession1H?.toString() || '',
+      awayPossession1H: match.awayPossession1H?.toString() || '',
+      homePossession2H: match.homePossession2H?.toString() || '',
+      awayPossession2H: match.awayPossession2H?.toString() || '',
+      homeSaves: match.homeSaves?.toString() || '',
+      awaySaves: match.awaySaves?.toString() || '',
+      homeSaves1H: match.homeSaves1H?.toString() || '',
+      awaySaves1H: match.awaySaves1H?.toString() || '',
+      homeSaves2H: match.homeSaves2H?.toString() || '',
+      awaySaves2H: match.awaySaves2H?.toString() || '',
+      homeYellowCards: match.homeYellowCards?.toString() || '',
+      awayYellowCards: match.awayYellowCards?.toString() || '',
     });
     setActiveTab('match');
     setShowMobileForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Универсальный обработчик для всех числовых полей
+  const handleNumberChange = (field, value) => {
+    // Разрешаем цифры, запятую, точку
+    let val = value.replace(/,/g, '.');
+    val = val.replace(/[^0-9.]/g, '');
+    // Оставляем только одну точку
+    const parts = val.split('.');
+    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+    setMatchForm({...matchForm, [field]: val});
+  };
+
+  // Обработчик для целых чисел (только цифры)
+  const handleIntChange = (field, value) => {
+    const val = value.replace(/[^0-9]/g, '');
+    setMatchForm({...matchForm, [field]: val});
+  };
+
   const handleMatchSubmit = async (e) => {
     e.preventDefault();
     
+    // Преобразуем пустые строки в 0
     const formData = { ...matchForm };
+    Object.keys(formData).forEach(key => {
+      if (typeof formData[key] === 'string') {
+        if (key.includes('XG') || key.includes('Possession')) {
+          formData[key] = formData[key] === '' ? 0 : parseFloat(formData[key]) || 0;
+        } else {
+          formData[key] = formData[key] === '' ? 0 : parseInt(formData[key]) || 0;
+        }
+      }
+    });
     
     if (!formData.homeCorners1H && !formData.awayCorners1H) {
       formData.homeCorners1H = Math.round(formData.homeCorners * 0.5);
@@ -252,25 +233,30 @@ const Admin = () => {
   const handleLeagueSubmit = async (e) => {
     e.preventDefault();
     
+    const formData = { ...leagueForm };
+    formData.avgTotalCorners = parseFloat(formData.avgTotalCorners) || 9;
+    formData.avgCornersHome = parseFloat(formData.avgCornersHome) || 5;
+    formData.avgCornersAway = parseFloat(formData.avgCornersAway) || 4;
+    formData.avgXG = parseFloat(formData.avgXG) || 1.2;
+    formData.avgShotsInsideBox = parseFloat(formData.avgShotsInsideBox) || 7;
+    
     if (editingLeague) {
       const updatedData = {
         ...data,
         leagues: data.leagues.map(l => 
-          l.id === editingLeague.id 
-            ? { ...leagueForm, id: editingLeague.id } 
-            : l
+          l.id === editingLeague.id ? { ...formData, id: editingLeague.id } : l
         )
       };
       await saveData(updatedData);
       setMessage('✅ Лига обновлена!');
       setEditingLeague(null);
     } else {
-      await addLeague(leagueForm);
+      await addLeague(formData);
       setMessage('✅ Лига добавлена!');
     }
     
     refreshData();
-    setLeagueForm({ name: '', country: '', avgTotalCorners: 9, avgCornersHome: 5, avgCornersAway: 4, avgXG: 1.2, avgShotsInsideBox: 7 });
+    setLeagueForm({ name: '', country: '', avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' });
     setTimeout(() => setMessage(''), 3000);
   };
 
@@ -342,26 +328,11 @@ const Admin = () => {
 
   const filteredMatches = getFilteredMatches();
 
-  // Обработчики для целых чисел
-  const handleIntChange = (field, value) => {
-    const val = value.replace(/[^0-9]/g, '');
-    setMatchForm({...matchForm, [field]: val === '' ? 0 : parseInt(val)});
-  };
-
-  const handlePercentChange = (field, value) => {
-    let val = value.replace(/[^0-9]/g, '');
-    if (val !== '') {
-      const num = parseInt(val);
-      if (num > 100) val = '100';
-    }
-    setMatchForm({...matchForm, [field]: val === '' ? 50 : parseInt(val)});
-  };
-
   return (
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 4.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Кнопки +/- для xG — работает везде!</p>
+        <p className="text-sm md:text-base text-gray-400">Чистые инпуты — точка и запятая работают!</p>
       </div>
 
       {message && (
@@ -500,16 +471,18 @@ const Admin = () => {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <XGInput
-                      value={matchForm.homeXG1H}
-                      onChange={(val) => setMatchForm({...matchForm, homeXG1H: parseFloat(val)})}
-                      label="xG Х"
-                    />
-                    <XGInput
-                      value={matchForm.awayXG1H}
-                      onChange={(val) => setMatchForm({...matchForm, awayXG1H: parseFloat(val)})}
-                      label="xG Г"
-                    />
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
+                      <input type="text" inputMode="decimal" value={matchForm.homeXG1H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleNumberChange('homeXG1H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
+                      <input type="text" inputMode="decimal" value={matchForm.awayXG1H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleNumberChange('awayXG1H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
                   </div>
                   
                   <p className="text-xs text-purple-400 font-medium mb-2 mt-3">2-й тайм</p>
@@ -528,16 +501,18 @@ const Admin = () => {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <XGInput
-                      value={matchForm.homeXG2H}
-                      onChange={(val) => setMatchForm({...matchForm, homeXG2H: parseFloat(val)})}
-                      label="xG Х"
-                    />
-                    <XGInput
-                      value={matchForm.awayXG2H}
-                      onChange={(val) => setMatchForm({...matchForm, awayXG2H: parseFloat(val)})}
-                      label="xG Г"
-                    />
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
+                      <input type="text" inputMode="decimal" value={matchForm.homeXG2H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleNumberChange('homeXG2H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
+                      <input type="text" inputMode="decimal" value={matchForm.awayXG2H} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleNumberChange('awayXG2H', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
                   </div>
                 </div>
               )}
@@ -551,16 +526,18 @@ const Admin = () => {
               {showAdvanced && (
                 <div className="space-y-3 p-3 bg-gray-700/30 rounded-lg max-h-80 overflow-auto">
                   <div className="grid grid-cols-2 gap-2">
-                    <XGInput
-                      value={matchForm.homeXG}
-                      onChange={(val) => setMatchForm({...matchForm, homeXG: parseFloat(val)})}
-                      label="xG Хозяев"
-                    />
-                    <XGInput
-                      value={matchForm.awayXG}
-                      onChange={(val) => setMatchForm({...matchForm, awayXG: parseFloat(val)})}
-                      label="xG Гостей"
-                    />
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Х</label>
+                      <input type="text" inputMode="decimal" value={matchForm.homeXG} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleNumberChange('homeXG', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">xG Г</label>
+                      <input type="text" inputMode="decimal" value={matchForm.awayXG} onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleNumberChange('awayXG', e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2">
@@ -612,13 +589,13 @@ const Admin = () => {
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">Владение Х (%)</label>
                       <input type="text" inputMode="numeric" value={matchForm.homePossession} onFocus={(e) => e.target.select()}
-                        onChange={(e) => handlePercentChange('homePossession', e.target.value)}
+                        onChange={(e) => handleIntChange('homePossession', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
                     <div>
                       <label className="block text-[10px] text-gray-400 mb-1">Владение Г (%)</label>
                       <input type="text" inputMode="numeric" value={matchForm.awayPossession} onFocus={(e) => e.target.select()}
-                        onChange={(e) => handlePercentChange('awayPossession', e.target.value)}
+                        onChange={(e) => handleIntChange('awayPossession', e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                     </div>
                   </div>
@@ -691,20 +668,38 @@ const Admin = () => {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Тотал</label>
-                  <input type="number" step="0.1" value={leagueForm.avgTotalCorners} 
-                    onChange={(e) => setLeagueForm({...leagueForm, avgTotalCorners: parseFloat(e.target.value) || 0})}
+                  <input type="text" inputMode="decimal" value={leagueForm.avgTotalCorners} 
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/,/g, '.');
+                      val = val.replace(/[^0-9.]/g, '');
+                      const parts = val.split('.');
+                      if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+                      setLeagueForm({...leagueForm, avgTotalCorners: val});
+                    }}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Дома</label>
-                  <input type="number" step="0.1" value={leagueForm.avgCornersHome} 
-                    onChange={(e) => setLeagueForm({...leagueForm, avgCornersHome: parseFloat(e.target.value) || 0})}
+                  <input type="text" inputMode="decimal" value={leagueForm.avgCornersHome} 
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/,/g, '.');
+                      val = val.replace(/[^0-9.]/g, '');
+                      const parts = val.split('.');
+                      if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+                      setLeagueForm({...leagueForm, avgCornersHome: val});
+                    }}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">В гостях</label>
-                  <input type="number" step="0.1" value={leagueForm.avgCornersAway} 
-                    onChange={(e) => setLeagueForm({...leagueForm, avgCornersAway: parseFloat(e.target.value) || 0})}
+                  <input type="text" inputMode="decimal" value={leagueForm.avgCornersAway} 
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/,/g, '.');
+                      val = val.replace(/[^0-9.]/g, '');
+                      const parts = val.split('.');
+                      if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+                      setLeagueForm({...leagueForm, avgCornersAway: val});
+                    }}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" />
                 </div>
               </div>
@@ -713,7 +708,7 @@ const Admin = () => {
                   {editingLeague ? 'Сохранить' : 'Добавить лигу'}
                 </button>
                 {editingLeague && (
-                  <button type="button" onClick={() => { setEditingLeague(null); setLeagueForm({ name: '', country: '', avgTotalCorners: 9, avgCornersHome: 5, avgCornersAway: 4, avgXG: 1.2, avgShotsInsideBox: 7 }); }}
+                  <button type="button" onClick={() => { setEditingLeague(null); setLeagueForm({ name: '', country: '', avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' }); }}
                     className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">
                     Отмена
                   </button>
@@ -751,11 +746,11 @@ const Admin = () => {
                           setLeagueForm({
                             name: league.name,
                             country: league.country,
-                            avgTotalCorners: league.avgTotalCorners,
-                            avgCornersHome: league.avgCornersHome,
-                            avgCornersAway: league.avgCornersAway,
-                            avgXG: league.avgXG || 1.2,
-                            avgShotsInsideBox: league.avgShotsInsideBox || 7
+                            avgTotalCorners: league.avgTotalCorners?.toString() || '',
+                            avgCornersHome: league.avgCornersHome?.toString() || '',
+                            avgCornersAway: league.avgCornersAway?.toString() || '',
+                            avgXG: league.avgXG?.toString() || '',
+                            avgShotsInsideBox: league.avgShotsInsideBox?.toString() || ''
                           });
                         }}
                         className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"
