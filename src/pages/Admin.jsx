@@ -296,21 +296,30 @@ const Admin = () => {
 
   const filteredMatches = getFilteredMatches();
 
-  // Обработчики для числовых полей
+  // Обработчики для числовых полей (с фиксом для iOS - замена запятой на точку)
   const handleIntChange = (field, value) => {
     const val = value.replace(/[^0-9]/g, '');
     setMatchForm({...matchForm, [field]: val === '' ? 0 : parseInt(val)});
   };
 
   const handleFloatChange = (field, value) => {
-    let val = value.replace(/[^0-9.]/g, '');
+    // Заменяем запятую на точку (для iOS!)
+    let val = value.replace(/,/g, '.');
+    // Удаляем все кроме цифр и точки
+    val = val.replace(/[^0-9.]/g, '');
+    // Оставляем только первую точку
     const parts = val.split('.');
     if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+    
     setMatchForm({...matchForm, [field]: val === '' ? 0 : parseFloat(val) || 0});
   };
 
   const handlePercentChange = (field, value) => {
-    let val = value.replace(/[^0-9]/g, '');
+    // Заменяем запятую на точку
+    let val = value.replace(/,/g, '.');
+    // Оставляем только цифры
+    val = val.replace(/[^0-9]/g, '');
+    
     if (val !== '') {
       const num = parseInt(val);
       if (num > 100) val = '100';
@@ -322,7 +331,7 @@ const Admin = () => {
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 4.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Авто-сезоны + умные инпуты</p>
+        <p className="text-sm md:text-base text-gray-400">Авто-сезоны + iOS фикс (запятая→точка)</p>
       </div>
 
       {message && (
