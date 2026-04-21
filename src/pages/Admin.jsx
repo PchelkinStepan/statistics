@@ -153,6 +153,11 @@ const Admin = () => {
     e.preventDefault();
     
     const formData = { ...matchForm };
+
+    if (!formData.seasonId) {
+      formData.seasonId = getActiveSeason(formData.leagueId)?.id || '';
+    }
+
     Object.keys(formData).forEach(key => {
       if (typeof formData[key] === 'string' && key !== 'date' && key !== 'leagueId' && key !== 'seasonId' && key !== 'homeTeamId' && key !== 'awayTeamId') {
         if (key.includes('XG')) {
