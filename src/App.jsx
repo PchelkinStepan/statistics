@@ -43,8 +43,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/neuro" element={<Neuro />} />
-          <Route path="/table/:leagueId" element={<LeagueTable />} />
           <Route path="/table" element={<LeagueTable />} />
+          <Route path="/table/:leagueId" element={<LeagueTable />} />
           <Route path="/matches" element={<Matches />} />
           <Route path="/bets" element={<BetTracker />} />
           <Route path="/poisson" element={<PoissonCalculator />} />

@@ -45,7 +45,7 @@ const Layout = ({ children }) => {
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Дашборд' },
-    { path: '/table/apl', icon: Trophy, label: 'Таблица' },
+    { path: '/table', icon: Trophy, label: 'Таблица' },
     { path: '/matches', icon: Calendar, label: 'Матчи' },
     { path: '/poisson', icon: Calculator, label: 'Пуассон' },
     { path: '/neuro', icon: Brain, label: 'Neuro AI' },
