@@ -248,7 +248,6 @@ const Admin = () => {
     setTimeout(() => setMessage(''), 3000);
   };
 
-  // ИСПРАВЛЕНО: после добавления сезона переключаем выпадашку на выбранную лигу
   const handleSeasonSubmit = async (e) => {
     e.preventDefault();
     const formData = { ...seasonForm };
@@ -268,7 +267,6 @@ const Admin = () => {
       setMessage('✅ Сезон добавлен!');
     }
     
-    // ВАЖНО: переключаем выпадашку на лигу, в которую добавили сезон
     setSelectedLeagueForSeasons(formData.leagueId);
     
     refreshData();
@@ -662,7 +660,7 @@ const Admin = () => {
                 <h3 className="text-lg font-bold">{editingSeason ? 'Редактировать' : 'Добавить сезон'}</h3>
                 <input type="text" value={seasonForm.id} placeholder="ID (2025/26)" required onChange={(e) => setSeasonForm({...seasonForm, id: e.target.value, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
                 
-                {/* ВАЖНО: выпадашка для выбора лиги */}
+                {/* ВЫПАДАШКА ВЫБОРА ЛИГИ */}
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Лига</label>
                   <select value={seasonForm.leagueId} onChange={(e) => setSeasonForm({...seasonForm, leagueId: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3">
