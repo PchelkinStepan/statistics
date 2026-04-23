@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getData, addMatch, updateMatch, addLeague, addTeam, updateTeam, deleteMatch, deleteLeague, deleteTeam, subscribe, saveData, getSeasons, addSeason, updateSeason, deleteSeason, setActiveSeason, getTeamsForSeason, updateSeasonAverages, getActiveSeason } from '../data/store';
-import { Save, Trash2, ChevronDown, ChevronUp, Plus, X, Edit, Search, RefreshCw, CheckCircle, Calendar } from 'lucide-react';
+import { Save, Trash2, ChevronDown, ChevronUp, Plus, X, Edit, Search, RefreshCw, CheckCircle, Calendar, Download } from 'lucide-react';
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -103,6 +103,20 @@ const Admin = () => {
 
   const refreshData = () => setData(getData());
 
+  // Функция экспорта базы данных
+  const exportData = () => {
+    const exportData = getData();
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `football-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setMessage('📥 База выгружена! Сохрани файл!');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
   const handleEditMatch = (match) => {
     setEditingMatch(match);
     setMatchForm({
@@ -162,12 +176,10 @@ const Admin = () => {
     
     const formData = { ...matchForm };
     
-    // ГАРАНТИРУЕМ что seasonId не пустой
     if (!formData.seasonId || formData.seasonId === '') {
       formData.seasonId = activeSeason?.id || '';
     }
     
-    // ГАРАНТИРУЕМ что leagueId правильный
     if (!formData.leagueId) {
       formData.leagueId = defaultLeagueId;
     }
@@ -346,9 +358,21 @@ const Admin = () => {
 
   return (
     <div className="max-w-7xl">
-      <div className="mb-4 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 7.0 🔥</h2>
-        <p className="text-sm md:text-base text-gray-400">Сезоны + Туры + динамический leagueId</p>
+      <div className="mb-4 md:mb-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 7.0 🔥</h2>
+          <p className="text-sm md:text-base text-gray-400">Сезоны + Туры + Экспорт</p>
+        </div>
+        
+        {/* Кнопка экспорта */}
+        <button
+          onClick={exportData}
+          className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition shadow-lg"
+          title="Выгрузить базу данных"
+        >
+          <Download size={18} />
+          <span className="hidden md:inline">Экспорт базы</span>
+        </button>
       </div>
 
       {message && (
