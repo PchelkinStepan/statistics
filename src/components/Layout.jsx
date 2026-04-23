@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Calendar, Settings, BarChart3, TrendingUp, Calculator, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain } from 'lucide-react';
+import { LayoutDashboard, Trophy, Calendar, Settings, Calculator, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -130,21 +130,6 @@ const Layout = ({ children }) => {
             );
           })}
         </nav>
-        
-        <div className="p-3 md:p-4 border-t border-gray-700 space-y-2">
-          <p className="text-xs text-gray-500 uppercase tracking-wider mb-2 px-2">
-            Инструменты
-          </p>
-          <a
-            href="https://www.soccerstats.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-gray-700/50 hover:text-white transition"
-          >
-            <BarChart3 size={22} />
-            <span className="text-base">Трекер ставок</span>
-          </a>
-        </div>
 
         <div className="p-4 border-t border-gray-700">
           <div className="flex items-center justify-between">
