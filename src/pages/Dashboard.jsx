@@ -77,16 +77,16 @@ const Dashboard = () => {
       <div>
         <h3 className="text-xl font-semibold mb-4">Лиги</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {data.leagues.map(league => (
-            <Link
-              key={league.id}
-              to={`/table/${league.id}`}
-              className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:bg-gray-700 transition"
-            >
-              <p className="font-semibold">{league.name}</p>
-              <p className="text-sm text-gray-400">{league.country}</p>
-            </Link>
-          ))}
+        {data.leagues.map(league => (
+  <Link
+    key={league.id}
+    to={`/table/${league.id}`}  // ← ВАЖНО! Передаём ID лиги!
+    className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:bg-gray-700 transition"
+  >
+    <p className="font-semibold">{league.name}</p>
+    <p className="text-sm text-gray-400">{league.country}</p>
+  </Link>
+))}
         </div>
       </div>
     </div>

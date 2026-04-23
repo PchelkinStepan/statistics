@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { getData, getSeasons, getLeagueTable, getActiveSeason } from '../data/store';
 
 const LeagueTable = () => {
+  const { leagueId } = useParams();
   const data = getData();
-  const defaultLeagueId = data.leagues?.[0]?.id || 'rpl';
+  const defaultLeagueId = leagueId || data.leagues?.[0]?.id || 'rpl';
   
   const [selectedLeague, setSelectedLeague] = useState(defaultLeagueId);
   const [selectedSeason, setSelectedSeason] = useState('');
+
+  useEffect(() => {
+    if (leagueId) {
+      setSelectedLeague(leagueId);
+    }
+  }, [leagueId]);
 
   useEffect(() => {
     const activeSeason = getActiveSeason(selectedLeague);
