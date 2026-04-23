@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Calendar, Settings, BarChart3, TrendingUp, Calculator, Menu, X, ChevronRight, Wifi, WifiOff, Wallet } from 'lucide-react';
+import { LayoutDashboard, Trophy, Calendar, Settings, BarChart3, TrendingUp, Calculator, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -25,7 +25,6 @@ const Layout = ({ children }) => {
     };
   }, []);
 
-  // Свайп для открытия/закрытия меню
   const handleTouchStart = (e) => {
     setTouchStart(e.touches[0].clientX);
   };
@@ -49,11 +48,22 @@ const Layout = ({ children }) => {
     { path: '/table/apl', icon: Trophy, label: 'Таблица' },
     { path: '/matches', icon: Calendar, label: 'Матчи' },
     { path: '/poisson', icon: Calculator, label: 'Пуассон' },
-    { path: '/bets', icon: Wallet, label: 'Ставки' },  // ← ВОТ ЭТО
+    { path: '/neuro', icon: Brain, label: 'Neuro AI' },
+    { path: '/bets', icon: Wallet, label: 'Ставки' },
     { path: '/admin', icon: Settings, label: 'Админка' },
   ];
 
   const closeSidebar = () => setSidebarOpen(false);
+
+  // Компонент логотипа с мячиком
+  const Logo = () => (
+    <div className="flex items-center gap-2">
+      <div className="text-2xl">⚽</div>
+      <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+        StatTracker
+      </h1>
+    </div>
+  );
 
   return (
     <div 
@@ -71,9 +81,7 @@ const Layout = ({ children }) => {
             >
               <Menu size={24} />
             </button>
-            <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-              ⚽ StatTracker
-            </h1>
+            <Logo />
             <div className="w-10" />
           </div>
         </div>
@@ -86,7 +94,6 @@ const Layout = ({ children }) => {
         ${isMobile ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
         ${isMobile ? 'w-72' : 'w-64'}
       `}>
-        {/* Кнопка закрытия на мобилке */}
         {isMobile && (
           <button
             onClick={closeSidebar}
@@ -97,9 +104,7 @@ const Layout = ({ children }) => {
         )}
 
         <div className="p-4 md:p-6 pt-16 md:pt-6">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent hidden md:block">
-            ⚽ StatTracker
-          </h1>
+          <Logo />
         </div>
         
         <nav className="flex-1 px-2 md:px-4 space-y-1">
@@ -126,7 +131,6 @@ const Layout = ({ children }) => {
           })}
         </nav>
         
-        {/* Внешние ссылки */}
         <div className="p-3 md:p-4 border-t border-gray-700 space-y-2">
           <p className="text-xs text-gray-500 uppercase tracking-wider mb-2 px-2">
             Инструменты
@@ -142,7 +146,6 @@ const Layout = ({ children }) => {
           </a>
         </div>
 
-        {/* Статус */}
         <div className="p-4 border-t border-gray-700">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-400">Статус</span>
@@ -163,7 +166,6 @@ const Layout = ({ children }) => {
         </div>
       </div>
 
-      {/* Оверлей для мобилки */}
       {isMobile && sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30"
@@ -171,7 +173,6 @@ const Layout = ({ children }) => {
         />
       )}
       
-      {/* Main Content */}
       <div className="flex-1 overflow-auto bg-gray-900">
         <div className={`p-4 md:p-8 ${isMobile ? 'pt-20' : ''}`}>
           {children}

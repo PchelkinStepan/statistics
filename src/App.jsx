@@ -9,6 +9,7 @@ import Admin from './pages/Admin';
 import PoissonCalculator from './pages/PoissonCalculator';
 import BetTracker from './pages/BetTracker';
 import { initStore } from './data/store';
+import Neuro from './pages/Neuro';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +42,7 @@ function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/neuro" element={<Neuro />} />
           <Route path="/table/:leagueId" element={<LeagueTable />} />
           <Route path="/table" element={<LeagueTable />} />
           <Route path="/matches" element={<Matches />} />
