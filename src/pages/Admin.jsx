@@ -15,7 +15,6 @@ const useIsMobile = () => {
 const Admin = () => {
   const [data, setData] = useState(getData());
   
-  // Получаем реальный ID лиги (динамически!)
   const defaultLeagueId = data.leagues?.[0]?.id || 'rpl';
   
   const [activeTab, setActiveTab] = useState('match');
@@ -34,7 +33,6 @@ const Admin = () => {
   const [message, setMessage] = useState('');
   const isMobile = useIsMobile();
   
-  // Получаем активный сезон для выбранной лиги
   const activeSeason = getActiveSeason(selectedLeagueFilter);
   
   const getInitialMatchForm = () => ({
@@ -73,7 +71,6 @@ const Admin = () => {
   });
   
   const [matchForm, setMatchForm] = useState(getInitialMatchForm());
-  
   const [leagueForm, setLeagueForm] = useState({ name: '', country: '' });
   const [teamForm, setTeamForm] = useState({ name: '', leagueId: defaultLeagueId, seasonIds: [] });
   const [seasonForm, setSeasonForm] = useState({
@@ -103,7 +100,6 @@ const Admin = () => {
 
   const refreshData = () => setData(getData());
 
-  // Функция экспорта базы данных
   const exportData = () => {
     const exportData = getData();
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -252,6 +248,7 @@ const Admin = () => {
     setTimeout(() => setMessage(''), 3000);
   };
 
+  // ИСПРАВЛЕНО: после добавления сезона переключаем выпадашку на выбранную лигу
   const handleSeasonSubmit = async (e) => {
     e.preventDefault();
     const formData = { ...seasonForm };
@@ -270,9 +267,13 @@ const Admin = () => {
       await addSeason(formData);
       setMessage('✅ Сезон добавлен!');
     }
+    
+    // ВАЖНО: переключаем выпадашку на лигу, в которую добавили сезон
+    setSelectedLeagueForSeasons(formData.leagueId);
+    
     refreshData();
     setShowSeasonForm(false);
-    setSeasonForm({ id: '', name: '', leagueId: defaultLeagueId, avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' });
+    setSeasonForm({ id: '', name: '', leagueId: formData.leagueId, avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' });
     setTimeout(() => setMessage(''), 3000);
   };
 
@@ -364,7 +365,6 @@ const Admin = () => {
           <p className="text-sm md:text-base text-gray-400">Сезоны + Туры + Экспорт</p>
         </div>
         
-        {/* Кнопка экспорта */}
         <button
           onClick={exportData}
           className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition shadow-lg"
@@ -661,6 +661,15 @@ const Admin = () => {
               <form onSubmit={handleSeasonSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
                 <h3 className="text-lg font-bold">{editingSeason ? 'Редактировать' : 'Добавить сезон'}</h3>
                 <input type="text" value={seasonForm.id} placeholder="ID (2025/26)" required onChange={(e) => setSeasonForm({...seasonForm, id: e.target.value, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
+                
+                {/* ВАЖНО: выпадашка для выбора лиги */}
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Лига</label>
+                  <select value={seasonForm.leagueId} onChange={(e) => setSeasonForm({...seasonForm, leagueId: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3">
+                    {data.leagues?.map(league => <option key={league.id} value={league.id}>{league.name}</option>)}
+                  </select>
+                </div>
+                
                 <div className="grid grid-cols-3 gap-2">
                   <div><label className="block text-xs text-gray-400 mb-1">Тотал</label><input type="text" inputMode="decimal" value={seasonForm.avgTotalCorners} onChange={(e) => { let val = e.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); setSeasonForm({...seasonForm, avgTotalCorners: val}); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" /></div>
                   <div><label className="block text-xs text-gray-400 mb-1">Дома</label><input type="text" inputMode="decimal" value={seasonForm.avgCornersHome} onChange={(e) => { let val = e.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); setSeasonForm({...seasonForm, avgCornersHome: val}); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" /></div>
@@ -676,7 +685,10 @@ const Admin = () => {
             <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-bold">Сезоны</h3>
-                <button onClick={() => setShowSeasonForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"><Plus size={14} /> Добавить</button>
+                <button onClick={() => {
+                  setSeasonForm({ id: '', name: '', leagueId: selectedLeagueForSeasons, avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' });
+                  setShowSeasonForm(true);
+                }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"><Plus size={14} /> Добавить</button>
               </div>
               
               <div className="space-y-2">
