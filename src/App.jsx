@@ -10,6 +10,7 @@ import PoissonCalculator from './pages/PoissonCalculator';
 import BetTracker from './pages/BetTracker';
 import { initStore } from './data/store';
 import Neuro from './pages/Neuro';
+import Analytics from './pages/Analytics';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +49,7 @@ function App() {
           <Route path="/matches" element={<Matches />} />
           <Route path="/bets" element={<BetTracker />} />
           <Route path="/poisson" element={<PoissonCalculator />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route 
             path="/admin" 
             element={

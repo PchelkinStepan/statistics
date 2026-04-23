@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Trophy, Calendar, Settings, Calculator, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -50,6 +51,7 @@ const Layout = ({ children }) => {
     { path: '/poisson', icon: Calculator, label: 'Пуассон' },
     { path: '/neuro', icon: Brain, label: 'Neuro AI' },
     { path: '/bets', icon: Wallet, label: 'Ставки' },
+    { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
     { path: '/admin', icon: Settings, label: 'Админка' },
   ];
 
