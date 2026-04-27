@@ -12,30 +12,17 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// Компонент поля с React.memo для предотвращения перерендера
 const FieldRow = memo(({ label, fieldH, fieldA, isFloat, valueH, valueA, onChange }) => (
   <div className="grid grid-cols-2 gap-2">
     <div>
       <label className="block text-[11px] text-gray-400 mb-0.5">{label} Х</label>
-      <input 
-        type="text" 
-        inputMode={isFloat ? 'decimal' : 'numeric'} 
-        value={valueH} 
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => onChange(fieldH, e.target.value)}
-        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" 
-      />
+      <input type="text" inputMode={isFloat ? 'decimal' : 'numeric'} value={valueH} onFocus={(e) => e.target.select()}
+        onChange={(e) => onChange(fieldH, e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
     </div>
     <div>
       <label className="block text-[11px] text-gray-400 mb-0.5">{label} Г</label>
-      <input 
-        type="text" 
-        inputMode={isFloat ? 'decimal' : 'numeric'} 
-        value={valueA} 
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => onChange(fieldA, e.target.value)}
-        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" 
-      />
+      <input type="text" inputMode={isFloat ? 'decimal' : 'numeric'} value={valueA} onFocus={(e) => e.target.select()}
+        onChange={(e) => onChange(fieldA, e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
     </div>
   </div>
 ));
@@ -62,42 +49,25 @@ const Admin = () => {
   const activeSeason = getActiveSeason(selectedLeagueFilter);
   
   const getInitialMatchForm = () => ({
-    leagueId: selectedLeagueFilter || defaultLeagueId,
-    seasonId: activeSeason?.id || '',
-    homeTeamId: '', awayTeamId: '',
-    date: new Date().toISOString().split('T')[0], round: '',
-    homeScore: '', awayScore: '',
-    homeCorners: '', awayCorners: '',
-    homeXG: '', awayXG: '',
-    homePossession: '', awayPossession: '',
-    homeTotalShots: '', awayTotalShots: '',
-    homeShotsOnTarget: '', awayShotsOnTarget: '',
-    homeYellowCards: '', awayYellowCards: '',
-    homeRedCards: '', awayRedCards: '',
-    homeShotsInsideBox: '', awayShotsInsideBox: '',
-    homeSaves: '', awaySaves: '',
+    leagueId: selectedLeagueFilter || defaultLeagueId, seasonId: activeSeason?.id || '',
+    homeTeamId: '', awayTeamId: '', date: new Date().toISOString().split('T')[0], round: '',
+    homeScore: '', awayScore: '', homeCorners: '', awayCorners: '',
+    homeXG: '', awayXG: '', homePossession: '', awayPossession: '',
+    homeTotalShots: '', awayTotalShots: '', homeShotsOnTarget: '', awayShotsOnTarget: '',
+    homeYellowCards: '', awayYellowCards: '', homeRedCards: '', awayRedCards: '',
+    homeShotsInsideBox: '', awayShotsInsideBox: '', homeSaves: '', awaySaves: '',
     homeFouls: '', awayFouls: '',
-    homeScore1H: '', awayScore1H: '',
-    homeCorners1H: '', awayCorners1H: '',
-    homeXG1H: '', awayXG1H: '',
-    homePossession1H: '', awayPossession1H: '',
-    homeTotalShots1H: '', awayTotalShots1H: '',
-    homeShotsOnTarget1H: '', awayShotsOnTarget1H: '',
-    homeYellowCards1H: '', awayYellowCards1H: '',
-    homeRedCards1H: '', awayRedCards1H: '',
-    homeShotsInsideBox1H: '', awayShotsInsideBox1H: '',
-    homeSaves1H: '', awaySaves1H: '',
+    homeScore1H: '', awayScore1H: '', homeCorners1H: '', awayCorners1H: '',
+    homeXG1H: '', awayXG1H: '', homePossession1H: '', awayPossession1H: '',
+    homeTotalShots1H: '', awayTotalShots1H: '', homeShotsOnTarget1H: '', awayShotsOnTarget1H: '',
+    homeYellowCards1H: '', awayYellowCards1H: '', homeRedCards1H: '', awayRedCards1H: '',
+    homeShotsInsideBox1H: '', awayShotsInsideBox1H: '', homeSaves1H: '', awaySaves1H: '',
     homeFouls1H: '', awayFouls1H: '',
-    homeScore2H: '', awayScore2H: '',
-    homeCorners2H: '', awayCorners2H: '',
-    homeXG2H: '', awayXG2H: '',
-    homePossession2H: '', awayPossession2H: '',
-    homeTotalShots2H: '', awayTotalShots2H: '',
-    homeShotsOnTarget2H: '', awayShotsOnTarget2H: '',
-    homeYellowCards2H: '', awayYellowCards2H: '',
-    homeRedCards2H: '', awayRedCards2H: '',
-    homeShotsInsideBox2H: '', awayShotsInsideBox2H: '',
-    homeSaves2H: '', awaySaves2H: '',
+    homeScore2H: '', awayScore2H: '', homeCorners2H: '', awayCorners2H: '',
+    homeXG2H: '', awayXG2H: '', homePossession2H: '', awayPossession2H: '',
+    homeTotalShots2H: '', awayTotalShots2H: '', homeShotsOnTarget2H: '', awayShotsOnTarget2H: '',
+    homeYellowCards2H: '', awayYellowCards2H: '', homeRedCards2H: '', awayRedCards2H: '',
+    homeShotsInsideBox2H: '', awayShotsInsideBox2H: '', homeSaves2H: '', awaySaves2H: '',
     homeFouls2H: '', awayFouls2H: '',
   });
   
@@ -167,7 +137,6 @@ const Admin = () => {
     setActiveTab('match'); setShowMobileForm(true);
   };
 
-  // ИСПРАВЛЕННЫЕ ОБРАБОТЧИКИ (не пересоздают весь объект)
   const handleFloatChange = (field, value) => {
     let val = value.replace(/,/g, '.'); val = val.replace(/[^0-9.]/g, '');
     const parts = val.split('.'); if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
@@ -178,8 +147,7 @@ const Admin = () => {
     const val = value.replace(/[^0-9]/g, '');
     setMatchForm(prev => {
       if (field.toLowerCase().includes('possession') && val !== '') {
-        const num = parseInt(val);
-        if (num > 100) return { ...prev, [field]: '100' };
+        const num = parseInt(val); if (num > 100) return { ...prev, [field]: '100' };
       }
       return { ...prev, [field]: val };
     });
@@ -221,15 +189,36 @@ const Admin = () => {
     refreshData(); setTeamForm({ name: '', leagueId: defaultLeagueId, seasonIds: [] }); setTimeout(() => setMessage(''), 3000);
   };
 
+  // ИСПРАВЛЕНО: сезон сохраняется с правильным leagueId!
   const handleSeasonSubmit = async (e) => {
     e.preventDefault(); const formData = { ...seasonForm };
-    formData.avgTotalCorners = parseFloat(formData.avgTotalCorners) || 9; formData.avgCornersHome = parseFloat(formData.avgCornersHome) || 5;
-    formData.avgCornersAway = parseFloat(formData.avgCornersAway) || 4; formData.avgXG = parseFloat(formData.avgXG) || 1.2;
-    formData.avgShotsInsideBox = parseFloat(formData.avgShotsInsideBox) || 7; formData.isActive = editingSeason ? seasonForm.isActive : false;
-    if (editingSeason) { await updateSeason(editingSeason.id, formData); setMessage('✅ Сезон обновлен!'); setEditingSeason(null); }
-    else { await addSeason(formData); setMessage('✅ Сезон добавлен!'); }
-    setSelectedLeagueForSeasons(formData.leagueId); refreshData(); setShowSeasonForm(false);
-    setSeasonForm({ id: '', name: '', leagueId: formData.leagueId, avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' });
+    formData.avgTotalCorners = parseFloat(formData.avgTotalCorners) || 9; 
+    formData.avgCornersHome = parseFloat(formData.avgCornersHome) || 5;
+    formData.avgCornersAway = parseFloat(formData.avgCornersAway) || 4; 
+    formData.avgXG = parseFloat(formData.avgXG) || 1.2;
+    formData.avgShotsInsideBox = parseFloat(formData.avgShotsInsideBox) || 7; 
+    formData.isActive = editingSeason ? seasonForm.isActive : false;
+    
+    // ВАЖНО: leagueId берётся из формы (выпадашки)!
+    if (editingSeason) { 
+      await updateSeason(editingSeason.id, formData); 
+      setMessage('✅ Сезон обновлен!'); 
+      setEditingSeason(null); 
+    } else { 
+      await addSeason(formData); 
+      setMessage('✅ Сезон добавлен!'); 
+    }
+    
+    // Переключаем выпадашку на лигу сезона
+    setSelectedLeagueForSeasons(formData.leagueId);
+    refreshData(); 
+    setShowSeasonForm(false);
+    // Сбрасываем форму, оставляя выбранную лигу
+    setSeasonForm({ 
+      id: '', name: '', 
+      leagueId: formData.leagueId, // ← Оставляем выбранную лигу!
+      avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' 
+    });
     setTimeout(() => setMessage(''), 3000);
   };
 
@@ -263,10 +252,6 @@ const Admin = () => {
 
   const renderFields = (suffix) => {
     const s = suffix || '';
-    const onChange = (field, value) => {
-      if (field.includes('XG') || field.includes('xG')) handleFloatChange(field, value);
-      else handleIntChange(field, value);
-    };
     return (
       <div className="space-y-2">
         <FieldRow label="1. Голы" valueH={matchForm[`homeScore${s}`]} valueA={matchForm[`awayScore${s}`]} fieldH={`homeScore${s}`} fieldA={`awayScore${s}`} onChange={handleIntChange} />
@@ -299,6 +284,7 @@ const Admin = () => {
       </div>
       {isMobile && activeTab === 'match' && !showMobileForm && (<button onClick={() => setShowMobileForm(true)} className="fixed bottom-6 right-6 z-20 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg"><Plus size={28} /></button>)}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        {/* ФОРМА МАТЧА */}
         {(!isMobile || showMobileForm) && activeTab === 'match' && (
           <div className={`${isMobile ? 'fixed inset-0 z-50 bg-gray-900 overflow-auto p-4' : 'lg:col-span-2'}`}>
             {isMobile && (<div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold">{editingMatch ? 'Редактировать' : 'Добавить матч'}</h3><button onClick={() => { setShowMobileForm(false); setEditingMatch(null); setMatchForm(getInitialMatchForm()); }} className="p-2 text-gray-400 hover:text-white"><X size={24} /></button></div>)}
@@ -315,25 +301,23 @@ const Admin = () => {
                 <div><label className="block text-xs text-gray-400 mb-1">Дата</label><input type="date" value={matchForm.date} onChange={(e) => setMatchForm({...matchForm, date: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm" /></div>
                 <div><label className="block text-xs text-gray-400 mb-1">Тур</label><input type="text" inputMode="numeric" value={matchForm.round} onChange={(e) => handleIntChange('round', e.target.value)} placeholder="1" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm" /></div>
               </div>
-
               <div className="flex gap-1 bg-gray-700/30 rounded-lg p-1">
                 <FormTabButton active={formTab === 'match'} onClick={() => setFormTab('match')}>📋 Матч</FormTabButton>
                 <FormTabButton active={formTab === 'half1'} onClick={() => setFormTab('half1')}>⏱️ 1-й тайм</FormTabButton>
                 <FormTabButton active={formTab === 'half2'} onClick={() => setFormTab('half2')}>⏱️ 2-й тайм</FormTabButton>
               </div>
-
               <div className="bg-gray-700/20 rounded-lg p-3">
                 {formTab === 'match' && renderFields('')}
                 {formTab === 'half1' && renderFields('1H')}
                 {formTab === 'half2' && renderFields('2H')}
               </div>
-
               <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 rounded-lg text-sm flex items-center justify-center gap-2"><Save size={18} /> {editingMatch ? 'Сохранить' : 'Добавить матч'}</button>
               {(editingMatch || isMobile) && <button type="button" onClick={() => { setEditingMatch(null); setShowMobileForm(false); setMatchForm(getInitialMatchForm()); }} className="w-full bg-gray-700 text-white font-semibold py-3 rounded-lg text-sm">Отмена</button>}
             </form>
           </div>
         )}
 
+        {/* ФОРМА ЛИГ */}
         {activeTab === 'league' && (
           <div className="lg:col-span-2 space-y-4">
             <form onSubmit={handleLeagueSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
@@ -346,6 +330,7 @@ const Admin = () => {
           </div>
         )}
 
+        {/* ФОРМА КОМАНД */}
         {activeTab === 'team' && (
           <div className="lg:col-span-2 space-y-4">
             <form onSubmit={handleTeamSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
@@ -359,14 +344,74 @@ const Admin = () => {
           </div>
         )}
 
+        {/* ФОРМА СЕЗОНОВ — ИСПРАВЛЕНО! */}
         {activeTab === 'seasons' && (
           <div className="lg:col-span-2 space-y-4">
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700"><label className="block text-xs text-gray-400 mb-2">Лига</label><select value={selectedLeagueForSeasons} onChange={(e) => setSelectedLeagueForSeasons(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3">{data.leagues?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
-            {showSeasonForm && (<form onSubmit={handleSeasonSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4"><h3 className="text-lg font-bold">{editingSeason ? 'Редактировать' : 'Добавить сезон'}</h3><input type="text" value={seasonForm.id} placeholder="ID (2025/26)" required onChange={(e) => setSeasonForm({...seasonForm, id: e.target.value, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" /><div><label className="block text-xs text-gray-400 mb-1">Лига</label><select value={seasonForm.leagueId} onChange={(e) => setSeasonForm({...seasonForm, leagueId: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3">{data.leagues?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div><div className="grid grid-cols-3 gap-2"><div><label className="block text-xs text-gray-400 mb-1">Тотал</label><input type="text" inputMode="decimal" value={seasonForm.avgTotalCorners} onChange={(e) => { let val = e.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); setSeasonForm({...seasonForm, avgTotalCorners: val}); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" /></div><div><label className="block text-xs text-gray-400 mb-1">Дома</label><input type="text" inputMode="decimal" value={seasonForm.avgCornersHome} onChange={(e) => { let val = e.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); setSeasonForm({...seasonForm, avgCornersHome: val}); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" /></div><div><label className="block text-xs text-gray-400 mb-1">В гостях</label><input type="text" inputMode="decimal" value={seasonForm.avgCornersAway} onChange={(e) => { let val = e.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); setSeasonForm({...seasonForm, avgCornersAway: val}); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" /></div></div><div className="flex gap-2"><button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">{editingSeason ? 'Сохранить' : 'Добавить'}</button><button type="button" onClick={() => { setShowSeasonForm(false); setEditingSeason(null); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">Отмена</button></div></form>)}
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700"><div className="flex items-center justify-between mb-3"><h3 className="text-lg font-bold">Сезоны</h3><button onClick={() => { setSeasonForm({ id: '', name: '', leagueId: selectedLeagueForSeasons, avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' }); setShowSeasonForm(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"><Plus size={14} /> Добавить</button></div><div className="space-y-2">{getSeasons(selectedLeagueForSeasons).map(season => (<div key={season.id} className={`flex items-center justify-between p-3 rounded-lg ${season.isActive ? 'bg-green-600/30 border border-green-600' : 'bg-gray-700/50'}`}><div className="flex-1"><div className="flex items-center gap-2"><span className="text-sm font-medium">{season.name}</span>{season.isActive && <span className="text-[10px] px-1.5 py-0.5 bg-green-600 rounded text-white flex items-center gap-1"><CheckCircle size={10} /> Активный</span>}</div><div className="text-xs text-gray-400">Тотал: {season.avgTotalCorners?.toFixed(1)} • Дома: {season.avgCornersHome?.toFixed(1)} • В гостях: {season.avgCornersAway?.toFixed(1)}</div></div><div className="flex items-center gap-1"><button onClick={async () => { await updateSeasonAverages(season.id); refreshData(); setMessage('✅ Средние обновлены!'); setTimeout(() => setMessage(''), 3000); }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><RefreshCw size={16} /></button>{!season.isActive && <button onClick={async () => { await setActiveSeason(selectedLeagueForSeasons, season.id); refreshData(); setMessage(`✅ Сезон ${season.name} активирован!`); setTimeout(() => setMessage(''), 3000); }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><CheckCircle size={16} /></button>}<button onClick={() => { setEditingSeason(season); setSeasonForm({ id: season.id, name: season.name, leagueId: season.leagueId, isActive: season.isActive, avgTotalCorners: season.avgTotalCorners?.toString() || '', avgCornersHome: season.avgCornersHome?.toString() || '', avgCornersAway: season.avgCornersAway?.toString() || '', avgXG: season.avgXG?.toString() || '', avgShotsInsideBox: season.avgShotsInsideBox?.toString() || '' }); setShowSeasonForm(true); }} className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"><Edit size={16} /></button><button onClick={() => handleDeleteSeason(season.id)} className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"><Trash2 size={16} /></button></div></div>))}</div></div>
+            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <label className="block text-xs text-gray-400 mb-2">Лига</label>
+              <select value={selectedLeagueForSeasons} onChange={(e) => setSelectedLeagueForSeasons(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3">
+                {data.leagues?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+            
+            {showSeasonForm && (
+              <form onSubmit={handleSeasonSubmit} className="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
+                <h3 className="text-lg font-bold">{editingSeason ? 'Редактировать' : 'Добавить сезон'}</h3>
+                <input type="text" value={seasonForm.id} placeholder="ID (2025/26)" required 
+                  onChange={(e) => setSeasonForm({...seasonForm, id: e.target.value, name: e.target.value})} 
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3" />
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Лига</label>
+                  <select value={seasonForm.leagueId} onChange={(e) => setSeasonForm({...seasonForm, leagueId: e.target.value})} 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3">
+                    {data.leagues?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><label className="block text-xs text-gray-400 mb-1">Тотал</label><input type="text" inputMode="decimal" value={seasonForm.avgTotalCorners} onChange={(e) => { let val = e.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); setSeasonForm({...seasonForm, avgTotalCorners: val}); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" /></div>
+                  <div><label className="block text-xs text-gray-400 mb-1">Дома</label><input type="text" inputMode="decimal" value={seasonForm.avgCornersHome} onChange={(e) => { let val = e.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); setSeasonForm({...seasonForm, avgCornersHome: val}); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" /></div>
+                  <div><label className="block text-xs text-gray-400 mb-1">В гостях</label><input type="text" inputMode="decimal" value={seasonForm.avgCornersAway} onChange={(e) => { let val = e.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); setSeasonForm({...seasonForm, avgCornersAway: val}); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2" /></div>
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">{editingSeason ? 'Сохранить' : 'Добавить'}</button>
+                  <button type="button" onClick={() => { setShowSeasonForm(false); setEditingSeason(null); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">Отмена</button>
+                </div>
+              </form>
+            )}
+            
+            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold">Сезоны</h3>
+                {/* ВАЖНО: при открытии формы передаём selectedLeagueForSeasons! */}
+                <button onClick={() => { 
+                  setSeasonForm({ 
+                    id: '', name: '', 
+                    leagueId: selectedLeagueForSeasons, // ← ИСПРАВЛЕНО!
+                    avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' 
+                  }); 
+                  setShowSeasonForm(true); 
+                }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-1">
+                  <Plus size={14} /> Добавить
+                </button>
+              </div>
+              <div className="space-y-2">
+                {getSeasons(selectedLeagueForSeasons).map(season => (
+                  <div key={season.id} className={`flex items-center justify-between p-3 rounded-lg ${season.isActive ? 'bg-green-600/30 border border-green-600' : 'bg-gray-700/50'}`}>
+                    <div className="flex-1"><div className="flex items-center gap-2"><span className="text-sm font-medium">{season.name}</span>{season.isActive && <span className="text-[10px] px-1.5 py-0.5 bg-green-600 rounded text-white flex items-center gap-1"><CheckCircle size={10} /> Активный</span>}</div><div className="text-xs text-gray-400">Тотал: {season.avgTotalCorners?.toFixed(1)} • Дома: {season.avgCornersHome?.toFixed(1)} • В гостях: {season.avgCornersAway?.toFixed(1)}</div></div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={async () => { await updateSeasonAverages(season.id); refreshData(); setMessage('✅ Средние обновлены!'); setTimeout(() => setMessage(''), 3000); }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><RefreshCw size={16} /></button>
+                      {!season.isActive && <button onClick={async () => { await setActiveSeason(selectedLeagueForSeasons, season.id); refreshData(); setMessage(`✅ Сезон ${season.name} активирован!`); setTimeout(() => setMessage(''), 3000); }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><CheckCircle size={16} /></button>}
+                      <button onClick={() => { setEditingSeason(season); setSeasonForm({ id: season.id, name: season.name, leagueId: season.leagueId, isActive: season.isActive, avgTotalCorners: season.avgTotalCorners?.toString() || '', avgCornersHome: season.avgCornersHome?.toString() || '', avgCornersAway: season.avgCornersAway?.toString() || '', avgXG: season.avgXG?.toString() || '', avgShotsInsideBox: season.avgShotsInsideBox?.toString() || '' }); setShowSeasonForm(true); }} className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"><Edit size={16} /></button>
+                      <button onClick={() => handleDeleteSeason(season.id)} className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
+        {/* СПИСОК МАТЧЕЙ */}
         <div className={`bg-gray-800 rounded-xl p-4 border border-gray-700 ${activeTab === 'match' && !isMobile ? '' : 'lg:col-span-1'}`}>
           {activeTab === 'match' && (<>
             <h3 className="text-lg font-bold mb-3">Матчи ({filteredMatches.length})</h3>

@@ -3,7 +3,7 @@ import { getData, saveData } from '../data/store';
 import { 
   TrendingUp, Wallet, Plus, Trash2, 
   Check, X, Target, ChevronDown,
-  BarChart3, Trophy, Clock, Edit
+  BarChart3, Trophy, Clock, Edit, Save
 } from 'lucide-react';
 
 const BetTracker = () => {
@@ -22,6 +22,7 @@ const BetTracker = () => {
   const [sortBy, setSortBy] = useState('date');
   const [editingBankroll, setEditingBankroll] = useState(false);
   const [newBankroll, setNewBankroll] = useState(bankroll.current);
+  const [editingBet, setEditingBet] = useState(null); // ← Для редактирования ставки
   
   const [betForm, setBetForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -39,14 +40,12 @@ const BetTracker = () => {
 
   const leagues = data.leagues || [];
 
-  // Сохранение данных
   const saveBets = (newBets, newBankroll) => {
     const updatedData = { ...data, bets: newBets, bankroll: newBankroll };
     setData(updatedData);
     saveData(updatedData);
   };
 
-  // Обновление банкролла вручную
   const updateBankroll = (newValue) => {
     const updated = { ...bankroll, current: parseFloat(newValue) };
     setBankroll(updated);
@@ -54,89 +53,109 @@ const BetTracker = () => {
     setEditingBankroll(false);
   };
 
-  // Добавление ставки
+  // Пересчёт банка на основе всех ставок
+  const recalcBankroll = (updatedBets) => {
+    const totalProfit = updatedBets.reduce((sum, bet) => sum + (bet.profit || 0), 0);
+    const updated = {
+      ...bankroll,
+      current: bankroll.initial + totalProfit
+    };
+    setBankroll(updated);
+    return updated;
+  };
+
+  // Добавление или редактирование ставки
   const handleAddBet = (e) => {
     e.preventDefault();
     
     const profit = betForm.status === 'won' 
-    ? Math.round(betForm.stake * (betForm.odds - 1) * 100) / 100
-    : betForm.status === 'lost' 
-    ? -betForm.stake 
-    : -betForm.stake;  // ← СТАЛО: для pending = -stake (деньги списаны!)
+      ? Math.round(betForm.stake * (betForm.odds - 1) * 100) / 100
+      : betForm.status === 'lost' 
+      ? -betForm.stake 
+      : 0; // pending = 0
     
-    const newBet = {
-      ...betForm,
-      id: Date.now().toString(),
-      profit: profit
-    };
-    
-    const updatedBets = [...bets, newBet];
-    setBets(updatedBets);
-    
-    // ПЕРЕСЧИТЫВАЕМ БАНКРОЛЛ НА ОСНОВЕ ВСЕХ СТАВОК
-    const totalProfit = updatedBets.reduce((sum, bet) => sum + (bet.profit || 0), 0);
-    const updatedBankroll = {
-      ...bankroll,
-      current: bankroll.initial + totalProfit
-    };
-    setBankroll(updatedBankroll);
-    
-    saveBets(updatedBets, updatedBankroll);
+    if (editingBet) {
+      // Редактирование существующей ставки
+      const updatedBets = bets.map(b => 
+        b.id === editingBet.id 
+          ? { ...betForm, id: editingBet.id, profit } 
+          : b
+      );
+      setBets(updatedBets);
+      const newBankroll = recalcBankroll(updatedBets);
+      saveBets(updatedBets, newBankroll);
+      setEditingBet(null);
+    } else {
+      // Новая ставка
+      const newBet = { ...betForm, id: Date.now().toString(), profit };
+      const updatedBets = [...bets, newBet];
+      setBets(updatedBets);
+      const newBankroll = recalcBankroll(updatedBets);
+      saveBets(updatedBets, newBankroll);
+    }
     
     setBetForm({
-      ...betForm,
+      date: new Date().toISOString().split('T')[0],
+      leagueId: data.leagues?.[0]?.id || '',
       match: '',
+      betType: 'total',
+      selection: 'over',
+      total: 9.5,
       odds: 1.85,
       stake: 1000,
+      status: 'pending',
+      profit: 0,
       notes: ''
     });
     setShowAddForm(false);
   };
 
-  // Обновление статуса ставки (выиграла/проиграла)
+  // Открыть форму редактирования
+  const handleEditBet = (bet) => {
+    setEditingBet(bet);
+    setBetForm({
+      date: bet.date,
+      leagueId: bet.leagueId,
+      match: bet.match,
+      betType: bet.betType || 'total',
+      selection: bet.selection,
+      total: bet.total || 9.5,
+      odds: bet.odds,
+      stake: bet.stake,
+      status: bet.status,
+      profit: bet.profit,
+      notes: bet.notes || ''
+    });
+    setShowAddForm(true);
+  };
+
+  // Обновление статуса (выиграла/проиграла)
   const updateBetStatus = (betId, newStatus) => {
     const updatedBets = bets.map(bet => {
       if (bet.id === betId) {
         const profit = newStatus === 'won' 
-        ? Math.round(bet.stake * (bet.odds - 1) * 100) / 100
-        : newStatus === 'lost' 
-        ? -bet.stake 
-        : -bet.stake;  // ← СТАЛО: pending = -stake
+          ? Math.round(bet.stake * (bet.odds - 1) * 100) / 100
+          : newStatus === 'lost' 
+          ? -bet.stake 
+          : 0;
         return { ...bet, status: newStatus, profit };
       }
       return bet;
     });
     
     setBets(updatedBets);
-    
-    // ПЕРЕСЧИТЫВАЕМ БАНКРОЛЛ
-    const totalProfit = updatedBets.reduce((sum, bet) => sum + (bet.profit || 0), 0);
-    const updatedBankroll = {
-      ...bankroll,
-      current: bankroll.initial + totalProfit
-    };
-    setBankroll(updatedBankroll);
-    
-    saveBets(updatedBets, updatedBankroll);
+    const newBankroll = recalcBankroll(updatedBets);
+    saveBets(updatedBets, newBankroll);
   };
 
   // Удаление ставки
   const deleteBet = (betId) => {
     const updatedBets = bets.filter(bet => bet.id !== betId);
     setBets(updatedBets);
-    
-    // ПЕРЕСЧИТЫВАЕМ БАНКРОЛЛ
-    const totalProfit = updatedBets.reduce((sum, bet) => sum + (bet.profit || 0), 0);
-    const updatedBankroll = {
-      ...bankroll,
-      current: bankroll.initial + totalProfit
-    };
-    setBankroll(updatedBankroll);
-    
-    saveBets(updatedBets, updatedBankroll);
+    const newBankroll = recalcBankroll(updatedBets);
+    saveBets(updatedBets, newBankroll);
   };
 
-  // Фильтрация и сортировка
   const filteredBets = bets
     .filter(bet => filterStatus === 'all' || bet.status === filterStatus)
     .filter(bet => filterLeague === 'all' || bet.leagueId === filterLeague)
@@ -147,7 +166,6 @@ const BetTracker = () => {
       return 0;
     });
 
-  // Статистика
   const totalStake = filteredBets.reduce((sum, b) => sum + b.stake, 0);
   const totalProfit = filteredBets.reduce((sum, b) => sum + (b.profit || 0), 0);
   
@@ -181,9 +199,7 @@ const BetTracker = () => {
             <Wallet className="text-green-400" />
             Трекер ставок
           </h2>
-          <p className="text-sm md:text-base text-gray-400">
-            Учёт ставок, банкролл и аналитика
-          </p>
+          <p className="text-sm md:text-base text-gray-400">Учёт ставок, банкролл и аналитика</p>
         </div>
         
         <div className="bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-700">
@@ -244,7 +260,7 @@ const BetTracker = () => {
             { value: 'date', label: 'По дате' }, { value: 'profit', label: 'По прибыли' }, { value: 'odds', label: 'По кэфу' }
           ]} />
         </div>
-        <button onClick={() => setShowAddForm(true)} className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2">
+        <button onClick={() => { setEditingBet(null); setShowAddForm(true); }} className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2">
           <Plus size={20} /> Добавить ставку
         </button>
       </div>
@@ -261,7 +277,7 @@ const BetTracker = () => {
                 <th className="py-3 px-3 md:px-4">Сумма</th>
                 <th className="py-3 px-3 md:px-4">Результат</th>
                 <th className="py-3 px-3 md:px-4">Прибыль</th>
-                <th className="py-3 px-3 md:px-4"></th>
+                <th className="py-3 px-3 md:px-4">Действия</th>
               </tr>
             </thead>
             <tbody>
@@ -290,8 +306,8 @@ const BetTracker = () => {
                       <td className="py-3 px-3 md:px-4">
                         {bet.status === 'pending' ? (
                           <div className="flex gap-1">
-                            <button onClick={() => updateBetStatus(bet.id, 'won')} className="p-1 bg-green-600/30 hover:bg-green-600 rounded"><Check size={14} /></button>
-                            <button onClick={() => updateBetStatus(bet.id, 'lost')} className="p-1 bg-red-600/30 hover:bg-red-600 rounded"><X size={14} /></button>
+                            <button onClick={() => updateBetStatus(bet.id, 'won')} className="p-1 bg-green-600/30 hover:bg-green-600 rounded" title="Выиграла"><Check size={14} /></button>
+                            <button onClick={() => updateBetStatus(bet.id, 'lost')} className="p-1 bg-red-600/30 hover:bg-red-600 rounded" title="Проиграла"><X size={14} /></button>
                           </div>
                         ) : (
                           <span className={`px-2 py-1 rounded text-xs font-medium ${bet.status === 'won' ? 'bg-green-600/30 text-green-400' : 'bg-red-600/30 text-red-400'}`}>
@@ -299,11 +315,17 @@ const BetTracker = () => {
                           </span>
                         )}
                       </td>
-                      <td className={`py-3 px-3 md:px-4 font-medium ${bet.profit > 0 ? 'text-green-400' : bet.profit < 0 ? 'text-red-400' : 'text-gray-400'}`}>
-                        {bet.profit > 0 ? '+' : ''}{bet.profit} ₽
+                      <td className={`py-3 px-3 md:px-4 font-medium ${
+                        bet.status === 'pending' ? 'text-gray-400' :
+                        bet.profit > 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {bet.status === 'pending' ? '0 ₽' : `${bet.profit > 0 ? '+' : ''}${bet.profit} ₽`}
                       </td>
                       <td className="py-3 px-3 md:px-4">
-                        <button onClick={() => deleteBet(bet.id)} className="p-1 text-gray-400 hover:text-red-400"><Trash2 size={16} /></button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleEditBet(bet)} className="p-1.5 text-blue-400 hover:bg-blue-600/20 rounded-lg" title="Редактировать"><Edit size={14} /></button>
+                          <button onClick={() => deleteBet(bet.id)} className="p-1.5 text-red-400 hover:bg-red-600/20 rounded-lg" title="Удалить"><Trash2 size={14} /></button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -314,10 +336,11 @@ const BetTracker = () => {
         </div>
       </div>
 
+      {/* Модалка добавления/редактирования */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-auto">
-            <h3 className="text-xl font-bold mb-4">Новая ставка</h3>
+            <h3 className="text-xl font-bold mb-4">{editingBet ? 'Редактировать ставку' : 'Новая ставка'}</h3>
             <form onSubmit={handleAddBet} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm text-gray-400 mb-1">Дата</label><input type="date" value={betForm.date} onChange={(e) => setBetForm({...betForm, date: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" required /></div>
@@ -335,8 +358,10 @@ const BetTracker = () => {
               <div><label className="block text-sm text-gray-400 mb-1">Статус</label><select value={betForm.status} onChange={(e) => setBetForm({...betForm, status: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5"><option value="pending">Ожидает</option><option value="won">Выиграла</option><option value="lost">Проиграла</option></select></div>
               <div><label className="block text-sm text-gray-400 mb-1">Заметка</label><textarea value={betForm.notes} onChange={(e) => setBetForm({...betForm, notes: e.target.value})} placeholder="Дополнительно..." className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" rows={2} /></div>
               <div className="flex gap-3 pt-4">
-                <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 rounded-lg">Добавить ставку</button>
-                <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 bg-gray-700 text-white font-semibold py-3 rounded-lg">Отмена</button>
+                <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2">
+                  <Save size={18} /> {editingBet ? 'Сохранить' : 'Добавить ставку'}
+                </button>
+                <button type="button" onClick={() => { setShowAddForm(false); setEditingBet(null); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">Отмена</button>
               </div>
             </form>
           </div>
