@@ -152,11 +152,29 @@ export const getActiveSeason = (leagueId) => {
   return data.seasons?.find(s => s.leagueId === leagueId && s.isActive) || null;
 };
 
+// 🔧 ИСПРАВЛЕНО: Уникальные ID сезонов + защита от дубликатов
 export const addSeason = async (season) => {
   const data = getData();
-  const newSeason = { ...season, id: season.id || Date.now().toString() };
+  
+  // Генерируем УНИКАЛЬНЫЙ ID из leagueId + название сезона
+  const uniqueId = `${season.leagueId}_${(season.id || season.name).replace(/\//g, '_')}`;
+  
+  // Проверяем, нет ли уже такого сезона
+  const exists = data.seasons?.find(s => s.id === uniqueId);
+  if (exists) {
+    console.warn('⚠️ Сезон уже существует, обновляю...');
+    return updateSeason(uniqueId, season);
+  }
+  
+  const newSeason = { 
+    ...season, 
+    id: uniqueId,
+    leagueId: season.leagueId // Явно сохраняем leagueId
+  };
+  
   const updatedData = { ...data, seasons: [...(data.seasons || []), newSeason] };
   await saveData(updatedData);
+  console.log('✅ Сезон создан с ID:', uniqueId);
   return newSeason;
 };
 
@@ -180,15 +198,37 @@ export const deleteSeason = async (seasonId) => {
   await saveData(updatedData);
 };
 
+// 🔧 ИСПРАВЛЕНО: Защита от дублирования активных сезонов
 export const setActiveSeason = async (leagueId, seasonId) => {
   const data = getData();
-  const updatedData = {
-    ...data,
-    seasons: data.seasons.map(s => ({
-      ...s,
-      isActive: s.leagueId === leagueId ? s.id === seasonId : s.isActive
-    }))
-  };
+  
+  // Делаем ТОЛЬКО ОДИН активный сезон для лиги
+  const updatedSeasons = data.seasons.map(s => ({
+    ...s,
+    isActive: s.leagueId === leagueId ? s.id === seasonId : s.isActive
+  }));
+  
+  // Проверяем что нет дубликатов активных
+  const activeForLeague = updatedSeasons.filter(s => s.leagueId === leagueId && s.isActive);
+  if (activeForLeague.length > 1) {
+    console.warn('⚠️ Обнаружено несколько активных сезонов, исправляю...');
+    let found = false;
+    const fixed = updatedSeasons.map(s => {
+      if (s.leagueId === leagueId) {
+        if (!found && s.id === seasonId) {
+          found = true;
+          return { ...s, isActive: true };
+        }
+        return { ...s, isActive: false };
+      }
+      return s;
+    });
+    const updatedData = { ...data, seasons: fixed };
+    await saveData(updatedData);
+    return;
+  }
+  
+  const updatedData = { ...data, seasons: updatedSeasons };
   await saveData(updatedData);
 };
 
@@ -316,19 +356,59 @@ export const getLeagueAverages = (leagueId, seasonId) => {
 
 export const getTeamStats = (teamId, seasonId, matchesCount = 10) => {
   const data = getData();
+  
+  console.log('=== getTeamStats ===');
+  console.log('teamId:', teamId);
+  console.log('seasonId:', seasonId);
+  console.log('Всего матчей в базе:', data.matches?.length);
+  
   let teamMatches = data.matches
     .filter(m => m.homeTeamId === teamId || m.awayTeamId === teamId)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
   
+  console.log('Найдено матчей команды:', teamMatches.length);
+  
   if (seasonId) {
-    teamMatches = teamMatches.filter(m => m.seasonId === seasonId);
+    teamMatches = teamMatches.filter(m => {
+      const match = m.seasonId === seasonId;
+      if (!match) {
+        console.log('НЕ СОВПАДАЕТ:', { 
+          matchSeasonId: m.seasonId, 
+          filterSeasonId: seasonId, 
+          types: [typeof m.seasonId, typeof seasonId],
+          lengths: [m.seasonId?.length, seasonId?.length]
+        });
+      }
+      return match;
+    });
+    console.log('После фильтра по сезону:', teamMatches.length);
   }
   
   teamMatches = teamMatches.slice(0, matchesCount);
+  console.log('После slice(' + matchesCount + '):', teamMatches.length);
   
-  if (teamMatches.length === 0) return null;
+  if (teamMatches.length === 0) {
+    console.log('❌ ВОЗВРАЩАЮ NULL - 0 матчей!');
+    return null;
+  }
   
-  const leagueAverages = getLeagueAverages(teamMatches[0].leagueId, seasonId);
+  const firstMatch = teamMatches[0];
+  console.log('Первый матч leagueId:', firstMatch?.leagueId);
+  
+  let leagueAverages;
+  try {
+    leagueAverages = getLeagueAverages(firstMatch.leagueId, seasonId);
+    console.log('leagueAverages:', leagueAverages);
+  } catch (e) {
+    console.error('❌ Ошибка в getLeagueAverages:', e.message);
+    leagueAverages = null;
+  }
+  
+  if (!leagueAverages) {
+    console.log('❌ leagueAverages is null!');
+    return null;
+  }
+  
   const fallbackXG = leagueAverages?.avgXG || 1.2;
   const fallbackShots = leagueAverages?.avgShotsInsideBox || 7;
   const fallbackHomeCorners = leagueAverages?.avgCornersHome || 5;
@@ -388,6 +468,8 @@ export const getTeamStats = (teamId, seasonId, matchesCount = 10) => {
   const homeMatches = teamMatches.filter(m => m.homeTeamId === teamId).length;
   const awayMatches = teamMatches.filter(m => m.awayTeamId === teamId).length;
   
+  console.log('✅ Успешно! Матчей:', n);
+  
   return {
     ...stats,
     avgCornersFor: stats.totalCornersFor / n,
@@ -403,7 +485,6 @@ export const getTeamStats = (teamId, seasonId, matchesCount = 10) => {
     matchesPlayed: n
   };
 };
-
 export const predictMatch = (homeTeamId, awayTeamId, leagueId, seasonId, selectedTotal = 9.5) => {
   const data = getData();
   const leagueAverages = getLeagueAverages(leagueId, seasonId);
@@ -521,14 +602,22 @@ export const getLeagueTable = (leagueId, seasonId) => {
   return table.sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff);
 };
 
-// Обновление средних по сезону
+// 🔧 ИСПРАВЛЕНО: Обновление средних с проверками и авто-бэкапом
 export const updateSeasonAverages = async (seasonId) => {
   const data = getData();
   const season = data.seasons?.find(s => s.id === seasonId);
-  if (!season) return null;
+  
+  if (!season) {
+    console.error('❌ Сезон не найден:', seasonId);
+    return null;
+  }
   
   const matches = data.matches.filter(m => m.seasonId === seasonId);
-  if (matches.length === 0) return season;
+  
+  if (matches.length === 0) {
+    console.warn('⚠️ Нет матчей для сезона:', seasonId);
+    return season;
+  }
   
   let total = 0, home = 0, away = 0, xg = 0, shots = 0;
   
@@ -549,6 +638,20 @@ export const updateSeasonAverages = async (seasonId) => {
     avgXG: xg / n,
     avgShotsInsideBox: shots / n
   };
+  
+  // Проверка на валидность
+  if (isNaN(updatedSeason.avgTotalCorners)) {
+    console.error('❌ Средние не посчитались!');
+    return season;
+  }
+  
+  // Логируем что получилось
+  console.log('✅ Средние обновлены для сезона:', seasonId, {
+    тотал: updatedSeason.avgTotalCorners.toFixed(2),
+    дома: updatedSeason.avgCornersHome.toFixed(2),
+    гости: updatedSeason.avgCornersAway.toFixed(2),
+    матчей: n
+  });
   
   const updatedData = {
     ...data,

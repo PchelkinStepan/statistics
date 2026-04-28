@@ -189,9 +189,16 @@ const Admin = () => {
     refreshData(); setTeamForm({ name: '', leagueId: defaultLeagueId, seasonIds: [] }); setTimeout(() => setMessage(''), 3000);
   };
 
-  // ИСПРАВЛЕНО: сезон сохраняется с правильным leagueId!
+  // 🔧 ИСПРАВЛЕНО: Добавлен авто-бэкап перед сохранением сезона
   const handleSeasonSubmit = async (e) => {
-    e.preventDefault(); const formData = { ...seasonForm };
+    e.preventDefault(); 
+    
+    // Авто-бэкап перед изменением сезона
+    const backupData = getData();
+    localStorage.setItem('football_pre_season_backup', JSON.stringify(backupData));
+    console.log('✅ Авто-бэкап создан перед изменением сезона');
+    
+    const formData = { ...seasonForm };
     formData.avgTotalCorners = parseFloat(formData.avgTotalCorners) || 9; 
     formData.avgCornersHome = parseFloat(formData.avgCornersHome) || 5;
     formData.avgCornersAway = parseFloat(formData.avgCornersAway) || 4; 
@@ -344,7 +351,7 @@ const Admin = () => {
           </div>
         )}
 
-        {/* ФОРМА СЕЗОНОВ — ИСПРАВЛЕНО! */}
+        {/* ФОРМА СЕЗОНОВ */}
         {activeTab === 'seasons' && (
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
@@ -382,11 +389,10 @@ const Admin = () => {
             <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-bold">Сезоны</h3>
-                {/* ВАЖНО: при открытии формы передаём selectedLeagueForSeasons! */}
                 <button onClick={() => { 
                   setSeasonForm({ 
                     id: '', name: '', 
-                    leagueId: selectedLeagueForSeasons, // ← ИСПРАВЛЕНО!
+                    leagueId: selectedLeagueForSeasons,
                     avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' 
                   }); 
                   setShowSeasonForm(true); 
@@ -399,7 +405,16 @@ const Admin = () => {
                   <div key={season.id} className={`flex items-center justify-between p-3 rounded-lg ${season.isActive ? 'bg-green-600/30 border border-green-600' : 'bg-gray-700/50'}`}>
                     <div className="flex-1"><div className="flex items-center gap-2"><span className="text-sm font-medium">{season.name}</span>{season.isActive && <span className="text-[10px] px-1.5 py-0.5 bg-green-600 rounded text-white flex items-center gap-1"><CheckCircle size={10} /> Активный</span>}</div><div className="text-xs text-gray-400">Тотал: {season.avgTotalCorners?.toFixed(1)} • Дома: {season.avgCornersHome?.toFixed(1)} • В гостях: {season.avgCornersAway?.toFixed(1)}</div></div>
                     <div className="flex items-center gap-1">
-                      <button onClick={async () => { await updateSeasonAverages(season.id); refreshData(); setMessage('✅ Средние обновлены!'); setTimeout(() => setMessage(''), 3000); }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><RefreshCw size={16} /></button>
+                      {/* 🔧 ИСПРАВЛЕНО: Добавлен авто-бэкап перед обновлением средних */}
+                      <button onClick={async () => { 
+                        const backupData = getData();
+                        localStorage.setItem('football_pre_average_backup', JSON.stringify(backupData));
+                        console.log('✅ Авто-бэкап перед обновлением средних');
+                        await updateSeasonAverages(season.id); 
+                        refreshData(); 
+                        setMessage('✅ Средние обновлены!'); 
+                        setTimeout(() => setMessage(''), 3000); 
+                      }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><RefreshCw size={16} /></button>
                       {!season.isActive && <button onClick={async () => { await setActiveSeason(selectedLeagueForSeasons, season.id); refreshData(); setMessage(`✅ Сезон ${season.name} активирован!`); setTimeout(() => setMessage(''), 3000); }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><CheckCircle size={16} /></button>}
                       <button onClick={() => { setEditingSeason(season); setSeasonForm({ id: season.id, name: season.name, leagueId: season.leagueId, isActive: season.isActive, avgTotalCorners: season.avgTotalCorners?.toString() || '', avgCornersHome: season.avgCornersHome?.toString() || '', avgCornersAway: season.avgCornersAway?.toString() || '', avgXG: season.avgXG?.toString() || '', avgShotsInsideBox: season.avgShotsInsideBox?.toString() || '' }); setShowSeasonForm(true); }} className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"><Edit size={16} /></button>
                       <button onClick={() => handleDeleteSeason(season.id)} className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"><Trash2 size={16} /></button>

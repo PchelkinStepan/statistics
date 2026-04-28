@@ -27,9 +27,42 @@ const PoissonCalculator = () => {
   }, [homeTeam, awayTeam, activeSeason]);
 
   const handleCalculate = () => {
+    console.log('=== НАЧАЛО РАСЧЁТА ===');
+    console.log('homeTeam:', homeTeam);
+    console.log('awayTeam:', awayTeam);
+    console.log('selectedLeague:', selectedLeague);
+    console.log('activeSeason:', activeSeason);
+    console.log('selectedTotal:', selectedTotal);
+    
     if (homeTeam && awayTeam && selectedLeague) {
+      // Проверяем статистику команд
+      const homeStats = getTeamStats(homeTeam, activeSeason);
+      const awayStats = getTeamStats(awayTeam, activeSeason);
+      console.log('Домашняя статистика:', homeStats);
+      console.log('Гостевая статистика:', awayStats);
+      
+      if (!homeStats) {
+        console.error('❌ Нет статистики для домашней команды!');
+        alert('Нет данных для команды хозяев. Добавьте матчи с её участием.');
+        return;
+      }
+      if (!awayStats) {
+        console.error('❌ Нет статистики для гостевой команды!');
+        alert('Нет данных для команды гостей. Добавьте матчи с её участием.');
+        return;
+      }
+      
       const result = predictMatch(homeTeam, awayTeam, selectedLeague, activeSeason, selectedTotal);
-      setPrediction(result);
+      console.log('Результат predictMatch:', result);
+      
+      if (result) {
+        setPrediction(result);
+      } else {
+        console.error('❌ predictMatch вернул null!');
+        alert('Не удалось построить прогноз. Проверьте данные команд.');
+      }
+    } else {
+      console.log('❌ Не выбраны команды или лига!');
     }
   };
 
