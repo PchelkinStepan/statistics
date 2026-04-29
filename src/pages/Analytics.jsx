@@ -1,19 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getData } from '../data/store';
 import { 
   TrendingUp, Brain, BarChart3, Target, Zap, 
-  Calendar, Trophy, Activity, ChevronDown 
+  Calendar, Trophy, Activity, ChevronDown, FlaskConical 
 } from 'lucide-react';
 
 const Analytics = () => {
   const data = getData();
   const [selectedLeague, setSelectedLeague] = useState(data.leagues?.[0]?.id || 'rpl');
-  const [selectedView, setSelectedView] = useState('comparison'); // comparison, trends, accuracy
+  const [selectedView, setSelectedView] = useState('comparison');
+  const [backtestResults, setBacktestResults] = useState(null);
+  const [backtestLoading, setBacktestLoading] = useState(false);
   
   const totalMatches = data.matches?.length || 0;
   const leagues = data.leagues || [];
   
-  // Симуляция данных для графиков (когда будет 500+ матчей — заменим на реальные)
+  // Симуляция данных для графиков
   const mockAccuracy = [
     { matches: 100, poisson: 62, neuro: 66 },
     { matches: 200, poisson: 63, neuro: 68 },
@@ -33,6 +35,208 @@ const Analytics = () => {
     { match: 'Арсенал - Челси', poisson: 11.5, neuro: 12.1, actual: 13, date: '16.04.2025' },
   ];
 
+  // 🔬 ФУНКЦИЯ БЭКТЕСТА — честная проверка на истории (ВСЕ матчи, 10 предыдущих)
+  const runBacktest = async () => {
+    setBacktestLoading(true);
+    setBacktestResults(null);
+    
+    // ВСЕ матчи, отсортированные по дате (от старых к новым)
+    const allMatches = [...(data.matches || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const allTeams = data.teams || [];
+    
+    console.log('🧪 Бэктест на', allMatches.length, 'матчах');
+    
+    // Получаем статистику команды на основе ТОЛЬКО матчей ДО указанной даты
+    const getHistoricalTeamStats = (teamId, beforeDate, allMatchesSnapshot) => {
+      const pastMatches = allMatchesSnapshot
+        .filter(m => (m.homeTeamId === teamId || m.awayTeamId === teamId) && m.date < beforeDate)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 10);
+      
+      if (pastMatches.length === 0) return null;
+      
+      let stats = {
+        teamId,
+        matchesPlayed: pastMatches.length,
+        totalCornersFor: 0,
+        totalCornersAgainst: 0,
+        cornersForHome: 0,
+        cornersForAway: 0,
+      };
+      
+      let homeMatches = 0;
+      let awayMatches = 0;
+      
+      pastMatches.forEach(match => {
+        const isHome = match.homeTeamId === teamId;
+        const cornersFor = isHome ? (match.homeCorners || 0) : (match.awayCorners || 0);
+        const cornersAgainst = isHome ? (match.awayCorners || 0) : (match.homeCorners || 0);
+        
+        stats.totalCornersFor += cornersFor;
+        stats.totalCornersAgainst += cornersAgainst;
+        
+        if (isHome) {
+          stats.cornersForHome += cornersFor;
+          homeMatches++;
+        } else {
+          stats.cornersForAway += cornersFor;
+          awayMatches++;
+        }
+      });
+      
+      const n = stats.matchesPlayed;
+      
+      return {
+        ...stats,
+        avgCornersFor: stats.totalCornersFor / n,
+        avgCornersAgainst: stats.totalCornersAgainst / n,
+        avgCornersForHome: homeMatches > 0 ? stats.cornersForHome / homeMatches : stats.totalCornersFor / n,
+        avgCornersForAway: awayMatches > 0 ? stats.cornersForAway / awayMatches : stats.totalCornersFor / n,
+        matchesPlayed: n
+      };
+    };
+    
+    // Функция предикта ИДЕНТИЧНАЯ predictMatch в store.js
+    const historicalPredict = (homeStats, awayStats, leagueAverages, selectedTotal = 9.5) => {
+      if (!homeStats || !awayStats || !leagueAverages) return null;
+      
+      const safeDivide = (a, b, fallback = 1) => {
+        if (!b || b === 0 || isNaN(a) || isNaN(b)) return fallback;
+        const result = a / b;
+        return isNaN(result) || !isFinite(result) ? fallback : result;
+      };
+      
+      const homeCornerRating = Math.max(0.3, safeDivide(homeStats.avgCornersFor, leagueAverages.avgCornersHome, 1));
+      const awayDefenseCorner = Math.max(0.3, safeDivide(awayStats.avgCornersAgainst, leagueAverages.avgCornersAway, 1));
+      
+      let homeExpected = leagueAverages.avgCornersHome * homeCornerRating * awayDefenseCorner;
+      if (isNaN(homeExpected) || homeExpected < 1) homeExpected = leagueAverages.avgCornersHome;
+      if (homeExpected > 15) homeExpected = 12;
+      
+      const awayCornerRating = Math.max(0.3, safeDivide(awayStats.avgCornersFor, leagueAverages.avgCornersAway, 1));
+      const homeDefenseCorner = Math.max(0.3, safeDivide(homeStats.avgCornersAgainst, leagueAverages.avgCornersHome, 1));
+      
+      let awayExpected = leagueAverages.avgCornersAway * awayCornerRating * homeDefenseCorner;
+      if (isNaN(awayExpected) || awayExpected < 0.5) awayExpected = leagueAverages.avgCornersAway;
+      if (awayExpected > 12) awayExpected = 10;
+      
+      homeExpected = Math.round(homeExpected * 100) / 100;
+      awayExpected = Math.round(awayExpected * 100) / 100;
+      const totalExpected = homeExpected + awayExpected;
+      
+      let totalProbability = 50;
+      
+      if (totalExpected > selectedTotal + 2) totalProbability = 85;
+      else if (totalExpected > selectedTotal + 1.5) totalProbability = 75;
+      else if (totalExpected > selectedTotal + 1) totalProbability = 68;
+      else if (totalExpected > selectedTotal + 0.5) totalProbability = 60;
+      else if (totalExpected > selectedTotal - 0.5) totalProbability = 52;
+      else if (totalExpected > selectedTotal - 1) totalProbability = 42;
+      else if (totalExpected > selectedTotal - 1.5) totalProbability = 35;
+      else totalProbability = 25;
+      
+      return {
+        homeExpected: homeExpected.toFixed(2),
+        awayExpected: awayExpected.toFixed(2),
+        totalExpected: totalExpected.toFixed(2),
+        totalProbability: Math.round(totalProbability),
+        underProbability: Math.round(100 - totalProbability),
+      };
+    };
+    
+    let strongOver = { total: 0, correct: 0, matches: [] };
+    let strongUnder = { total: 0, correct: 0, matches: [] };
+    let allOver = { total: 0, correct: 0 };
+    let allUnder = { total: 0, correct: 0 };
+    
+    const matchesSnapshot = [...allMatches];
+    
+    // Проходим по ВСЕМ матчам начиная с 20-го
+    for (let i = 20; i < matchesSnapshot.length; i++) {
+      const match = matchesSnapshot[i];
+      const totalCorners = (match.homeCorners || 0) + (match.awayCorners || 0);
+      
+      const homeStats = getHistoricalTeamStats(match.homeTeamId, match.date, matchesSnapshot);
+      const awayStats = getHistoricalTeamStats(match.awayTeamId, match.date, matchesSnapshot);
+      
+      if (!homeStats || !awayStats || homeStats.matchesPlayed < 3 || awayStats.matchesPlayed < 3) continue;
+      
+      // Реальные средние по сезону
+      const season = data.seasons?.find(s => s.leagueId === match.leagueId && s.id === match.seasonId);
+      const leagueAverages = {
+        avgCornersHome: season?.avgCornersHome || 5.0,
+        avgCornersAway: season?.avgCornersAway || 4.0,
+      };
+      
+      const prediction = historicalPredict(homeStats, awayStats, leagueAverages, 9.5);
+      if (!prediction) continue;
+      
+      const homeTeam = allTeams.find(t => t.id === match.homeTeamId)?.name || match.homeTeamId;
+      const awayTeam = allTeams.find(t => t.id === match.awayTeamId)?.name || match.awayTeamId;
+      
+      // Сильные сигналы ТБ (≥75%)
+      if (prediction.totalProbability >= 75) {
+        strongOver.total++;
+        const isCorrect = totalCorners > 9.5;
+        if (isCorrect) strongOver.correct++;
+        strongOver.matches.push({
+          homeTeam, awayTeam, 
+          date: match.date,
+          expected: prediction.totalExpected,
+          actual: totalCorners,
+          probability: prediction.totalProbability,
+          correct: isCorrect
+        });
+      }
+      
+      // Сильные сигналы ТМ (≤25%)
+      if (prediction.totalProbability <= 25) {
+        strongUnder.total++;
+        const isCorrect = totalCorners < 9.5;
+        if (isCorrect) strongUnder.correct++;
+        strongUnder.matches.push({
+          homeTeam, awayTeam,
+          date: match.date,
+          expected: prediction.totalExpected,
+          actual: totalCorners,
+          probability: prediction.totalProbability,
+          correct: isCorrect
+        });
+      }
+      
+      // Все сигналы
+      if (prediction.totalProbability > 50) {
+        allOver.total++;
+        if (totalCorners > 9.5) allOver.correct++;
+      }
+      if (prediction.totalProbability < 50) {
+        allUnder.total++;
+        if (totalCorners < 9.5) allUnder.correct++;
+      }
+    }
+    
+    const calcAccuracy = (correct, total) => total > 0 ? ((correct / total) * 100).toFixed(1) : '0.0';
+    
+    const results = {
+      strongOver,
+      strongUnder,
+      allOver,
+      allUnder,
+      totalTested: matchesSnapshot.length - 20,
+      strongTotal: strongOver.total + strongUnder.total,
+      strongCorrect: strongOver.correct + strongUnder.correct,
+      calcAccuracy
+    };
+    
+    console.log('✅ Бэктест завершён!');
+    console.log('Протестировано:', results.totalTested);
+    console.log('Сильных ТБ:', strongOver.correct + '/' + strongOver.total, '=', calcAccuracy(strongOver.correct, strongOver.total) + '%');
+    console.log('Сильных ТМ:', strongUnder.correct + '/' + strongUnder.total, '=', calcAccuracy(strongUnder.correct, strongUnder.total) + '%');
+    
+    setBacktestResults(results);
+    setBacktestLoading(false);
+  };
+
   // Максимальное значение для шкалы графиков
   const maxAccuracy = 80;
   const maxCorners = 14;
@@ -46,7 +250,7 @@ const Analytics = () => {
           Аналитика и сравнение
         </h2>
         <p className="text-sm md:text-base text-gray-400">
-          Нейросеть vs Пуассон • Графики точности • История прогнозов
+          Нейросеть vs Пуассон • Графики точности • История прогнозов • Проверка модели
         </p>
       </div>
 
@@ -82,7 +286,7 @@ const Analytics = () => {
         />
       </div>
 
-      {/* Выбор лиги и вида */}
+      {/* Выбор вида */}
       <div className="flex flex-wrap gap-2">
         <select 
           value={selectedLeague} 
@@ -92,7 +296,7 @@ const Analytics = () => {
           {leagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
         
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap">
           <ViewButton active={selectedView === 'comparison'} onClick={() => setSelectedView('comparison')}>
             Сравнение прогнозов
           </ViewButton>
@@ -101,6 +305,9 @@ const Analytics = () => {
           </ViewButton>
           <ViewButton active={selectedView === 'accuracy'} onClick={() => setSelectedView('accuracy')}>
             Точность по лигам
+          </ViewButton>
+          <ViewButton active={selectedView === 'backtest'} onClick={() => setSelectedView('backtest')}>
+            🧪 Проверка модели
           </ViewButton>
         </div>
       </div>
@@ -122,7 +329,6 @@ const Analytics = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  {/* Пуассон */}
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-yellow-400 w-16">Пуассон:</span>
                     <div className="flex-1 h-6 bg-gray-700 rounded-full relative overflow-hidden">
@@ -135,7 +341,6 @@ const Analytics = () => {
                     </div>
                   </div>
                   
-                  {/* Neuro */}
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-green-400 w-16">Neuro:</span>
                     <div className="flex-1 h-6 bg-gray-700 rounded-full relative overflow-hidden">
@@ -148,7 +353,6 @@ const Analytics = () => {
                     </div>
                   </div>
                   
-                  {/* Факт */}
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-blue-400 w-16">Факт:</span>
                     <div className="flex-1 h-6 bg-gray-700 rounded-full relative overflow-hidden">
@@ -162,7 +366,6 @@ const Analytics = () => {
                   </div>
                 </div>
                 
-                {/* Кто точнее */}
                 <div className="mt-2 text-xs">
                   {Math.abs(pred.neuro - pred.actual) < Math.abs(pred.poisson - pred.actual) ? (
                     <span className="text-green-400">✅ Neuro точнее на {(Math.abs(pred.poisson - pred.actual) - Math.abs(pred.neuro - pred.actual)).toFixed(1)} угловых</span>
@@ -187,7 +390,6 @@ const Analytics = () => {
           </h3>
           
           <div className="space-y-6">
-            {/* Легенда */}
             <div className="flex gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-purple-500" />
@@ -199,9 +401,7 @@ const Analytics = () => {
               </div>
             </div>
 
-            {/* График */}
             <div className="relative h-64">
-              {/* Ось Y (проценты) */}
               <div className="absolute left-0 top-0 bottom-0 w-10 flex flex-col justify-between text-xs text-gray-400">
                 <span>{maxAccuracy}%</span>
                 <span>{maxAccuracy * 0.75}%</span>
@@ -210,9 +410,7 @@ const Analytics = () => {
                 <span>0%</span>
               </div>
               
-              {/* Область графика */}
               <div className="ml-12 h-full relative">
-                {/* Линии сетки */}
                 {[0, 25, 50, 75, 100].map(pct => (
                   <div 
                     key={pct}
@@ -221,9 +419,7 @@ const Analytics = () => {
                   />
                 ))}
                 
-                {/* Точки и линии */}
                 <svg className="absolute inset-0 w-full h-full">
-                  {/* Линия Neuro */}
                   <polyline
                     points={mockAccuracy.map((d, i) => 
                       `${(i / (mockAccuracy.length - 1)) * 100}%,${100 - (d.neuro / maxAccuracy) * 100}%`
@@ -233,7 +429,6 @@ const Analytics = () => {
                     strokeWidth="2"
                     strokeDasharray="4"
                   />
-                  {/* Линия Пуассон */}
                   <polyline
                     points={mockAccuracy.map((d, i) => 
                       `${(i / (mockAccuracy.length - 1)) * 100}%,${100 - (d.poisson / maxAccuracy) * 100}%`
@@ -244,7 +439,6 @@ const Analytics = () => {
                   />
                 </svg>
                 
-                {/* Точки */}
                 {mockAccuracy.map((d, i) => (
                   <div key={i} className="absolute flex flex-col items-center" style={{ 
                     left: `${(i / (mockAccuracy.length - 1)) * 100}%`,
@@ -256,7 +450,6 @@ const Analytics = () => {
                 ))}
               </div>
               
-              {/* Ось X (количество матчей) */}
               <div className="ml-12 flex justify-between text-xs text-gray-400 mt-2">
                 {mockAccuracy.map(d => (
                   <span key={d.matches}>{d.matches}</span>
@@ -264,7 +457,6 @@ const Analytics = () => {
               </div>
             </div>
             
-            {/* Текущий статус */}
             <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-lg p-4 border border-purple-700/50">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-300">
@@ -347,6 +539,123 @@ const Analytics = () => {
           </div>
         </div>
       )}
+
+      {/* 🧪 Проверка модели */}
+      {selectedView === 'backtest' && (
+        <div className="space-y-6">
+          {/* Кнопка запуска */}
+          <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700 text-center">
+            <FlaskConical size={48} className="mx-auto mb-4 text-green-400" />
+            <h3 className="text-xl font-bold mb-2">Проверка модели на истории</h3>
+            <p className="text-gray-400 mb-4 max-w-lg mx-auto">
+              Честный бэктест: для каждого матча используются только 10 предыдущих матчей команд.
+              Модель не знает будущего — как в реальном прогнозировании.
+            </p>
+            
+            {!backtestResults && !backtestLoading && (
+              <button
+                onClick={runBacktest}
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 px-8 rounded-lg transition flex items-center gap-2 mx-auto"
+              >
+                <FlaskConical size={20} />
+                Запустить бэктест
+              </button>
+            )}
+            
+            {backtestLoading && (
+              <div className="text-center py-4">
+                <div className="text-2xl mb-2 animate-pulse">⚙️</div>
+                <p className="text-gray-400">Анализирую матчи...</p>
+              </div>
+            )}
+          </div>
+
+          {/* Результаты */}
+          {backtestResults && (
+            <>
+              {/* Итоговые карточки */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <BacktestStatCard
+                  label="Протестировано"
+                  value={backtestResults.totalTested}
+                  color="blue"
+                />
+                <BacktestStatCard
+                  label="Сильных сигналов"
+                  value={backtestResults.strongTotal}
+                  color="purple"
+                />
+                <BacktestStatCard
+                  label="Точность сильных"
+                  value={`${backtestResults.calcAccuracy(backtestResults.strongCorrect, backtestResults.strongTotal)}%`}
+                  color="green"
+                  highlight
+                />
+                <BacktestStatCard
+                  label="Общая точность"
+                  value={`${backtestResults.calcAccuracy(
+                    backtestResults.allOver.correct + backtestResults.allUnder.correct,
+                    backtestResults.allOver.total + backtestResults.allUnder.total
+                  )}%`}
+                  color="yellow"
+                />
+              </div>
+
+              {/* Детали по сигналам */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Сильные ТБ */}
+                <div className="bg-gray-800/50 rounded-xl p-4 border border-green-700/50">
+                  <h4 className="text-lg font-bold text-green-400 mb-3">
+                    🔥 Сильные ТБ 9.5 (≥75%)
+                  </h4>
+                  <div className="text-2xl font-bold text-green-400 mb-2">
+                    {backtestResults.strongOver.correct}/{backtestResults.strongOver.total} = {' '}
+                    {backtestResults.calcAccuracy(backtestResults.strongOver.correct, backtestResults.strongOver.total)}%
+                  </div>
+                  <div className="space-y-1 max-h-60 overflow-auto">
+                    {backtestResults.strongOver.matches.slice(0, 10).map((m, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-700/50">
+                        <span className="truncate flex-1">{m.homeTeam} vs {m.awayTeam}</span>
+                        <span className="ml-2">{m.expected} ➜ {m.actual}</span>
+                        <span className="ml-2 w-6 text-center">{m.correct ? '✅' : '❌'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Сильные ТМ */}
+                <div className="bg-gray-800/50 rounded-xl p-4 border border-blue-700/50">
+                  <h4 className="text-lg font-bold text-blue-400 mb-3">
+                    🧊 Сильные ТМ 9.5 (≤25%)
+                  </h4>
+                  <div className="text-2xl font-bold text-blue-400 mb-2">
+                    {backtestResults.strongUnder.correct}/{backtestResults.strongUnder.total} = {' '}
+                    {backtestResults.calcAccuracy(backtestResults.strongUnder.correct, backtestResults.strongUnder.total)}%
+                  </div>
+                  <div className="space-y-1 max-h-60 overflow-auto">
+                    {backtestResults.strongUnder.matches.slice(0, 10).map((m, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-700/50">
+                        <span className="truncate flex-1">{m.homeTeam} vs {m.awayTeam}</span>
+                        <span className="ml-2">{m.expected} ➜ {m.actual}</span>
+                        <span className="ml-2 w-6 text-center">{m.correct ? '✅' : '❌'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Инфо */}
+              <div className="bg-blue-900/30 rounded-lg p-4 border border-blue-700">
+                <p className="text-sm text-blue-300">
+                  💡 <strong>Как читать:</strong> Сильные сигналы (≥75% или ≤25%) — самые надёжные. 
+                  Слабые сигналы (50-60%) — модель не уверена, по ним точность ~50% (как монетка).
+                  Ставь только на сильные сигналы!
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -381,6 +690,22 @@ const ViewButton = ({ active, onClick, children }) => (
     {children}
   </button>
 );
+
+const BacktestStatCard = ({ label, value, color, highlight }) => {
+  const colors = {
+    blue: 'text-blue-400',
+    green: 'text-green-400',
+    yellow: 'text-yellow-400',
+    purple: 'text-purple-400',
+  };
+  
+  return (
+    <div className={`bg-gray-800 rounded-xl p-4 border ${highlight ? 'border-green-700' : 'border-gray-700'}`}>
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className={`text-2xl font-bold ${colors[color]}`}>{value}</p>
+    </div>
+  );
+};
 
 // Импорт для StatCard
 import { Database } from 'lucide-react';

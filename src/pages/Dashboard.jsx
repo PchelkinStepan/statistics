@@ -1,9 +1,19 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Trophy, Calendar, TrendingUp, Target } from 'lucide-react';
-import { getData } from '../data/store';
+import { getData, subscribe } from '../data/store';
 
 const Dashboard = () => {
-  const data = getData();
+  // 🔧 ИСПРАВЛЕНО: теперь данные обновляются реактивно
+  const [data, setData] = useState(getData());
+  
+  useEffect(() => {
+    const unsubscribe = subscribe((newData) => {
+      setData(newData);
+    });
+    return () => unsubscribe();
+  }, []);
+  
   const totalMatches = data.matches.length;
   const totalLeagues = data.leagues.length;
   const totalTeams = data.teams.length;
@@ -80,7 +90,7 @@ const Dashboard = () => {
         {data.leagues.map(league => (
   <Link
     key={league.id}
-    to={`/table/${league.id}`}  // ← ВАЖНО! Передаём ID лиги!
+    to={`/table/${league.id}`}
     className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:bg-gray-700 transition"
   >
     <p className="font-semibold">{league.name}</p>
