@@ -69,41 +69,94 @@ let subscribers = [];
 let currentData = null;
 let unsubscribeFirestore = null;
 
+// 🔧 ИСПРАВЛЕНО: Защита от перезаписи данных из Firebase
 export const initStore = (callback) => {
   const docRef = doc(db, 'football', 'stats');
   
   unsubscribeFirestore = onSnapshot(docRef, async (snapshot) => {
     if (snapshot.exists()) {
-      currentData = snapshot.data();
+      const cloudData = snapshot.data();
+      const cloudMatches = cloudData?.matches?.length || 0;
+      const cloudTeams = cloudData?.teams?.length || 0;
       
-      // Миграция старых данных
-      if (!currentData.seasons) {
-        currentData.seasons = DEFAULT_DATA.seasons;
-      }
-      if (currentData.teams && !currentData.teams[0]?.seasonIds) {
-        currentData.teams = currentData.teams.map(t => ({ ...t, seasonIds: ['2024/25'] }));
-      }
-      if (currentData.matches && !currentData.matches[0]?.seasonId) {
-        currentData.matches = currentData.matches.map(m => ({ 
-          ...m, 
-          seasonId: getSeasonFromDate(m.date) 
-        }));
+      // Проверяем кэш
+      const cached = localStorage.getItem('football_cache');
+      const cachedData = cached ? JSON.parse(cached) : null;
+      const cachedMatches = cachedData?.matches?.length || 0;
+      
+      // 🔑 КЛЮЧЕВАЯ ПРОВЕРКА: если в облаке дефолт, а в кэше больше
+      if (cloudMatches < 10 && cachedMatches > 10) {
+        console.warn('⚠️ В Firebase дефолтные данные! Загружаю из кэша:', cachedMatches, 'матчей');
+        currentData = cachedData;
+        // Восстанавливаем Firebase из кэша
+        await setDoc(docRef, cachedData);
+      } else if (cachedMatches > cloudMatches && cachedMatches > 10) {
+        // В кэше больше матчей чем в облаке — восстанавливаем облако
+        console.warn('⚠️ В кэше больше матчей! Восстанавливаю Firebase:', cachedMatches, 'матчей');
+        currentData = cachedData;
+        await setDoc(docRef, cachedData);
+      } else {
+        // Всё норм, берём облачные данные
+        currentData = cloudData;
+        
+        // Миграция старых данных
+        if (!currentData.seasons) {
+          currentData.seasons = DEFAULT_DATA.seasons;
+        }
+        if (currentData.teams && !currentData.teams[0]?.seasonIds) {
+          currentData.teams = currentData.teams.map(t => ({ ...t, seasonIds: ['2024/25'] }));
+        }
+        if (currentData.matches && !currentData.matches[0]?.seasonId) {
+          currentData.matches = currentData.matches.map(m => ({ 
+            ...m, 
+            seasonId: getSeasonFromDate(m.date) 
+          }));
+        }
+        
+        console.log('☁️ Данные из облака:', currentData.matches?.length || 0, 'матчей');
+        
+        // Обновляем кэш
+        if (currentData.matches?.length > 10) {
+          localStorage.setItem('football_cache', JSON.stringify(currentData));
+        }
       }
       
-      console.log('☁️ Данные из облака:', currentData.matches?.length || 0, 'матчей');
+      subscribers.forEach(cb => cb(currentData));
+      if (callback) callback(currentData);
     } else {
-      currentData = { ...DEFAULT_DATA, lastUpdated: new Date().toISOString() };
+      // В облаке пусто — используем кэш
+      const cached = localStorage.getItem('football_cache');
+      const autoBackup = localStorage.getItem('football_auto_backup');
+      
+      if (autoBackup) {
+        currentData = JSON.parse(autoBackup);
+        console.log('📦 Облако пустое, загружаю из бэкапа:', currentData.matches?.length, 'матчей');
+      } else if (cached) {
+        currentData = JSON.parse(cached);
+        console.log('📦 Облако пустое, загружаю из кэша:', currentData.matches?.length, 'матчей');
+      } else {
+        currentData = { ...DEFAULT_DATA, lastUpdated: new Date().toISOString() };
+        console.log('📦 Новая база');
+      }
+      
+      // Отправляем в Firebase
       await setDoc(docRef, currentData);
-      console.log('📦 Новая база в облаке');
+      
+      subscribers.forEach(cb => cb(currentData));
+      if (callback) callback(currentData);
     }
-    
-    subscribers.forEach(cb => cb(currentData));
-    if (callback) callback(currentData);
   }, (error) => {
     console.error('❌ Ошибка синхронизации:', error);
     const cached = localStorage.getItem('football_cache');
-    if (cached) {
+    const autoBackup = localStorage.getItem('football_auto_backup');
+    
+    if (autoBackup) {
+      currentData = JSON.parse(autoBackup);
+    } else if (cached) {
       currentData = JSON.parse(cached);
+    }
+    
+    if (currentData) {
       subscribers.forEach(cb => cb(currentData));
       if (callback) callback(currentData);
     }
@@ -126,17 +179,45 @@ export const subscribe = (callback) => {
   };
 };
 
+// 🔧 ИСПРАВЛЕНО: Двойное сохранение + защита от перезаписи
 export const saveData = async (data) => {
   const docRef = doc(db, 'football', 'stats');
-  const dataWithTimestamp = { ...data, lastUpdated: new Date().toISOString() };
+  const dataWithTimestamp = { 
+    ...data, 
+    lastUpdated: new Date().toISOString(),
+    matchesCount: data.matches?.length || 0 // Добавляем счётчик для проверки
+  };
   
   try {
-    await setDoc(docRef, dataWithTimestamp);
-    console.log('☁️ Сохранено в облако');
+    // ДВОЙНАЯ ЗАЩИТА: сохраняем в 3 местах
+    // 1. Локальный storage (быстрый доступ)
     localStorage.setItem('football_cache', JSON.stringify(dataWithTimestamp));
+    
+    // 2. Резервная копия (на случай перезаписи)
+    if (dataWithTimestamp.matchesCount > 10) {
+      localStorage.setItem('football_auto_backup', JSON.stringify(dataWithTimestamp));
+    }
+    
+    // 3. Firebase (основное хранилище)
+    await setDoc(docRef, dataWithTimestamp);
+    
+    // Обновляем currentData только если матчей не стало меньше
+    if (!currentData || (dataWithTimestamp.matchesCount >= (currentData.matches?.length || 0))) {
+      currentData = dataWithTimestamp;
+    } else {
+      console.warn('⚠️ Попытка сохранить меньше матчей чем есть! Игнорирую.');
+      console.log('В памяти:', currentData.matches?.length, 'Прислано:', dataWithTimestamp.matchesCount);
+    }
+    
+    console.log('☁️ Сохранено в облако:', dataWithTimestamp.matchesCount, 'матчей');
     return true;
   } catch (error) {
-    console.error('❌ Ошибка сохранения:', error);
+    console.error('❌ Ошибка сохранения в Firebase:', error);
+    
+    // Если Firebase недоступен — сохраняем локально
+    localStorage.setItem('football_offline_save', JSON.stringify(dataWithTimestamp));
+    console.log('💾 Сохранено локально (оффлайн)');
+    
     return false;
   }
 };
@@ -152,7 +233,7 @@ export const getActiveSeason = (leagueId) => {
   return data.seasons?.find(s => s.leagueId === leagueId && s.isActive) || null;
 };
 
-// 🔧 ИСПРАВЛЕНО: Уникальные ID сезонов + защита от дубликатов
+// 🔧 Уникальные ID сезонов + защита от дубликатов
 export const addSeason = async (season) => {
   const data = getData();
   
@@ -198,7 +279,7 @@ export const deleteSeason = async (seasonId) => {
   await saveData(updatedData);
 };
 
-// 🔧 ИСПРАВЛЕНО: Защита от дублирования активных сезонов
+// 🔧 Защита от дублирования активных сезонов
 export const setActiveSeason = async (leagueId, seasonId) => {
   const data = getData();
   
@@ -485,6 +566,7 @@ export const getTeamStats = (teamId, seasonId, matchesCount = 10) => {
     matchesPlayed: n
   };
 };
+
 export const predictMatch = (homeTeamId, awayTeamId, leagueId, seasonId, selectedTotal = 9.5) => {
   const data = getData();
   const leagueAverages = getLeagueAverages(leagueId, seasonId);
@@ -602,7 +684,7 @@ export const getLeagueTable = (leagueId, seasonId) => {
   return table.sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff);
 };
 
-// 🔧 ИСПРАВЛЕНО: Обновление средних с проверками и авто-бэкапом
+// 🔧 Обновление средних с проверками
 export const updateSeasonAverages = async (seasonId) => {
   const data = getData();
   const season = data.seasons?.find(s => s.id === seasonId);
