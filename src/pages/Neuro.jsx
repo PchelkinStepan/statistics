@@ -14,11 +14,9 @@ const Neuro = () => {
   const [testResults, setTestResults] = useState(null);
   const [trainingHistory, setTrainingHistory] = useState([]);
 
-  // 🔧 Состояния для выбора тотала
   const [selectedTotal, setSelectedTotal] = useState(9.5);
   const availableTotals = [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
 
-  // Проверяем сохранена ли модель при загрузке
   useEffect(() => {
     const checkModel = async () => {
       try {
@@ -41,7 +39,6 @@ const Neuro = () => {
     checkModel();
   }, []);
 
-  // 🔮 ПРЕДИКТ
   const [predictLeague, setPredictLeague] = useState(data.leagues?.[0]?.id || 'rpl');
   const [predictHomeTeam, setPredictHomeTeam] = useState('');
   const [predictAwayTeam, setPredictAwayTeam] = useState('');
@@ -52,7 +49,6 @@ const Neuro = () => {
   const activeSeason = getActiveSeason(predictLeague)?.id;
   const teamsInLeague = data.teams?.filter(t => t.leagueId === predictLeague) || [];
 
-  // 🔧 Функция расчёта вероятности для любого тотала
   const calculateProbability = (total, expectedTotal) => {
     const diff = total - expectedTotal;
     if (diff > 2.5) return 8;
@@ -69,7 +65,6 @@ const Neuro = () => {
     return 92;
   };
 
-  // 🔧 Авто-определение тотала по лиге
   useEffect(() => {
     const league = data.leagues?.find(l => l.id === predictLeague);
     const season = data.seasons?.find(s => s.leagueId === predictLeague && s.isActive);
@@ -104,40 +99,10 @@ const Neuro = () => {
       const homeStats = calculateFeatures(homePast, predictHomeTeam);
       const awayStats = calculateFeatures(awayPast, predictAwayTeam);
       
-      // 🔧 Признак лиги
       const leagueAvgTotal = getLeagueAvgTotal(predictLeague, data.seasons);
       
-      const features = [
-        homeStats.avgCornersFor || 5,
-        homeStats.avgCornersAgainst || 4,
-        homeStats.cornersTrend || 0,
-        homeStats.avgXG || 1.2,
-        homeStats.avgPossession || 50,
-        homeStats.avgShotsInside || 6,
-        homeStats.formPoints || 0,
-        
-        awayStats.avgCornersFor || 4,
-        awayStats.avgCornersAgainst || 5,
-        awayStats.cornersTrend || 0,
-        awayStats.avgXG || 1.1,
-        awayStats.avgPossession || 50,
-        awayStats.avgShotsInside || 5,
-        awayStats.formPoints || 0,
-        
-        homeStats.avgCornersForHome || 5,
-        homeStats.avgCornersAgainstHome || 4,
-        awayStats.avgCornersForAway || 4,
-        awayStats.avgCornersAgainstAway || 5,
-        
-        0,
-        homeStats.matchesPlayed || 10,
-        awayStats.matchesPlayed || 10,
-        
-        // 🔧 22-й признак — средний тотал лиги
-        leagueAvgTotal,
-      ];
+      const features = buildFeatures(homeStats, awayStats, 0, leagueAvgTotal);
       
-      // prediction — ожидаемый тотал
       const prediction = model.predict(tf.tensor2d([features])).dataSync()[0];
       const expectedTotal = prediction.toFixed(2);
       
@@ -151,11 +116,11 @@ const Neuro = () => {
         expectedTotal: expectedTotal,
         overProbability: overProb,
         underProbability: 100 - overProb,
-        recommendation: overProb > 75 ? `🔥 СИЛЬНЫЙ ТБ ${selectedTotal}` :
-                        overProb > 60 ? `✅ ТБ ${selectedTotal}` :
-                        overProb < 25 ? `🧊 СИЛЬНЫЙ ТМ ${selectedTotal}` :
-                        overProb < 40 ? `❄️ ТМ ${selectedTotal}` :
-                        `⚖️ Близко к ${selectedTotal}`,
+        recommendation: overProb > 75 ? `🔥 СТАВЛЮ! ТБ ${selectedTotal}` :
+                        overProb > 60 ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТБ ${selectedTotal}` :
+                        overProb < 25 ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТМ ${selectedTotal}` :
+                        overProb < 40 ? `🤔 ДУМАЮ! ТМ ${selectedTotal}` :
+                        `❌ НЕ ЛЕЗУ! Близко к ${selectedTotal}`,
         confidence: Math.abs(overProb - 50) * 2
       });
       
@@ -184,20 +149,19 @@ const Neuro = () => {
     localStorage.setItem('neuro_training_history', JSON.stringify(updatedHistory));
   };
   
-  // 🧠 ОБУЧЕНИЕ С НУЛЯ
   const trainTensorFlowModel = async () => {
     setIsTraining(true);
     setTrainingLog([]);
     
     try {
-      log('🚀 Начинаю обучение TensorFlow модели (регрессия)...');
+      log('🚀 Начинаю обучение TensorFlow модели (32 признака)...');
       log(`📊 Данных: ${totalMatches} матчей`);
       
       const trainingData = prepareTrainingData(data.matches, data.teams, data.seasons);
       log(`✅ Подготовлено ${trainingData.length} примеров`);
       
       const model = createModel();
-      log('✅ Модель создана (22 входа → 64 → 32 → 16 → 1 выход)');
+      log('✅ Модель создана (32 входа → 64 → 32 → 16 → 1 выход)');
       
       log('🎓 Обучение (50 эпох)...');
       const trainResult = await trainModel(model, trainingData, log);
@@ -229,7 +193,6 @@ const Neuro = () => {
     setIsTraining(false);
   };
 
-  // 📚 ДООБУЧЕНИЕ
   const retrainModel = async () => {
     setIsRetraining(true);
     setTrainingLog([]);
@@ -305,7 +268,7 @@ const Neuro = () => {
           Neuro AI
         </h2>
         <p className="text-sm md:text-base text-gray-400">
-          Регрессия с признаком лиги • Предсказывает точный тотал угловых
+          Регрессия • 32 признака (таймы + лиги) • Предсказывает точный тотал угловых
         </p>
       </div>
       
@@ -378,9 +341,9 @@ const Neuro = () => {
         <div className="space-y-4">
           <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50 text-center">
             <Brain size={48} className="mx-auto mb-4 text-purple-400" />
-            <h3 className="text-xl font-bold mb-2">TensorFlow.js — Регрессия + Признак лиги</h3>
+            <h3 className="text-xl font-bold mb-2">TensorFlow.js — 32 признака</h3>
             <p className="text-gray-400 mb-4 max-w-lg mx-auto">
-              Предсказывает точный тотал. Учитывает особенности лиги (АПЛ ~10.5, РПЛ ~9.5).
+              Регрессия с таймами и признаком лиги. 32 входа: основная статистика + 1-й/2-й тайм + дома/в гостях.
             </p>
             
             {!isTraining && !isRetraining && (
@@ -473,7 +436,6 @@ const Neuro = () => {
                 </div>
               </div>
               
-              {/* 🔧 ВЫБОР ТОТАЛА */}
               <div className="mb-4">
                 <label className="block text-xs text-gray-400 mb-2">Тотал угловых</label>
                 <div className="flex flex-wrap gap-2">
@@ -518,8 +480,8 @@ const Neuro = () => {
                           <span className="text-lg font-bold text-red-400">{neuroPrediction.underProbability}%</span>
                         </div>
                         <div className={`mt-3 p-3 rounded-lg text-center font-semibold ${
-                          neuroPrediction.recommendation.includes('СИЛЬНЫЙ') ? 'bg-green-600/30 text-green-400' :
-                          neuroPrediction.recommendation.includes('ТБ') || neuroPrediction.recommendation.includes('ТМ') ? 'bg-blue-600/30 text-blue-400' :
+                          neuroPrediction.recommendation.includes('СТАВЛЮ') ? 'bg-green-600/30 text-green-400' :
+                          neuroPrediction.recommendation.includes('ДУМАЮ') ? 'bg-yellow-600/30 text-yellow-400' :
                           'bg-gray-600/30 text-gray-400'
                         }`}>
                           {neuroPrediction.recommendation}
@@ -547,8 +509,8 @@ const Neuro = () => {
                           <span className="text-lg font-bold text-red-400">{poissonPrediction.underProbability}%</span>
                         </div>
                         <div className={`mt-3 p-3 rounded-lg text-center text-sm font-semibold ${
-                          poissonPrediction.recommendation.includes('СИЛЬНЫЙ') ? 'bg-green-600/30 text-green-400' :
-                          poissonPrediction.recommendation.includes('ТМ') ? 'bg-blue-600/30 text-blue-400' :
+                          poissonPrediction.recommendation.includes('СТАВЛЮ') ? 'bg-green-600/30 text-green-400' :
+                          poissonPrediction.recommendation.includes('ДУМАЮ') ? 'bg-yellow-600/30 text-yellow-400' :
                           'bg-gray-600/30 text-gray-400'
                         }`}>
                           {poissonPrediction.recommendation}
@@ -582,13 +544,32 @@ const Neuro = () => {
   );
 };
 
-// 🔧 Функция получения среднего тотала лиги
+// 🔧 Вспомогательные функции
 const getLeagueAvgTotal = (leagueId, seasons) => {
   const season = seasons?.find(s => s.leagueId === leagueId && s.isActive);
   return season?.avgTotalCorners || 9.5;
 };
 
-// 📦 Подготовка данных
+const buildFeatures = (homeStats, awayStats, round, leagueAvgTotal) => {
+  return [
+    homeStats.avgCornersFor, homeStats.avgCornersAgainst, homeStats.cornersTrend,
+    homeStats.avgXG || 0, homeStats.avgPossession || 50, homeStats.avgShotsInside || 0,
+    homeStats.formPoints,
+    awayStats.avgCornersFor, awayStats.avgCornersAgainst, awayStats.cornersTrend,
+    awayStats.avgXG || 0, awayStats.avgPossession || 50, awayStats.avgShotsInside || 0,
+    awayStats.formPoints,
+    homeStats.avgCornersForHome, homeStats.avgCornersAgainstHome,
+    awayStats.avgCornersForAway, awayStats.avgCornersAgainstAway,
+    // 🔧 ТАЙМЫ
+    homeStats.avgCorners1H || 0, homeStats.avgCorners2H || 0, homeStats.ratio1H || 0.5,
+    awayStats.avgCorners1H || 0, awayStats.avgCorners2H || 0, awayStats.ratio1H || 0.5,
+    homeStats.avgCorners1HHome || 0, homeStats.avgCorners2HHome || 0,
+    awayStats.avgCorners1HAway || 0, awayStats.avgCorners2HAway || 0,
+    round, homeStats.matchesPlayed, awayStats.matchesPlayed,
+    leagueAvgTotal,
+  ];
+};
+
 const prepareTrainingData = (matches, teams, seasons) => {
   const sortedMatches = [...matches].sort((a, b) => new Date(a.date) - new Date(b.date));
   const trainingExamples = [];
@@ -605,25 +586,11 @@ const prepareTrainingData = (matches, teams, seasons) => {
     const awayStats = calculateFeatures(awayPast, match.awayTeamId);
     
     const actualTotal = (match.homeCorners || 0) + (match.awayCorners || 0);
-    
-    // 🔧 Признак лиги
     const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, seasons);
+    const round = match.round ? parseInt(match.round) || 0 : 0;
     
     trainingExamples.push({
-      features: [
-        homeStats.avgCornersFor, homeStats.avgCornersAgainst, homeStats.cornersTrend,
-        homeStats.avgXG || 0, homeStats.avgPossession || 50, homeStats.avgShotsInside || 0,
-        homeStats.formPoints,
-        awayStats.avgCornersFor, awayStats.avgCornersAgainst, awayStats.cornersTrend,
-        awayStats.avgXG || 0, awayStats.avgPossession || 50, awayStats.avgShotsInside || 0,
-        awayStats.formPoints,
-        homeStats.avgCornersForHome, homeStats.avgCornersAgainstHome,
-        awayStats.avgCornersForAway, awayStats.avgCornersAgainstAway,
-        match.round ? parseInt(match.round) || 0 : 0,
-        homeStats.matchesPlayed, awayStats.matchesPlayed,
-        // 🔧 22-й признак
-        leagueAvgTotal,
-      ],
+      features: buildFeatures(homeStats, awayStats, round, leagueAvgTotal),
       label: actualTotal,
       actualTotal: actualTotal
     });
@@ -639,6 +606,7 @@ const getLastMatches = (allMatches, teamId, beforeDate, count) => {
     .slice(0, count);
 };
 
+// 🔧 РАСШИРЕННЫЕ ПРИЗНАКИ С ТАЙМАМИ
 const calculateFeatures = (matches, teamId) => {
   if (matches.length === 0) return {};
   
@@ -650,6 +618,11 @@ const calculateFeatures = (matches, teamId) => {
   let cornersTrend = [];
   let formPoints = 0;
   
+  // 🔧 Таймы
+  let corners1H = 0, corners2H = 0;
+  let corners1HHome = 0, corners2HHome = 0;
+  let corners1HAway = 0, corners2HAway = 0;
+  
   matches.forEach(match => {
     const isHome = match.homeTeamId === teamId;
     const teamScore = isHome ? (match.homeScore || 0) : (match.awayScore || 0);
@@ -658,8 +631,21 @@ const calculateFeatures = (matches, teamId) => {
     const cornersFor = isHome ? (match.homeCorners || 0) : (match.awayCorners || 0);
     const cornersAgainst = isHome ? (match.awayCorners || 0) : (match.homeCorners || 0);
     
-    if (isHome) { cornersForHome += cornersFor; cornersAgainstHome += cornersAgainst; homeCount++; }
-    else { cornersForAway += cornersFor; cornersAgainstAway += cornersAgainst; awayCount++; }
+    const cornersFor1H = isHome ? (match.homeCorners1H || 0) : (match.awayCorners1H || 0);
+    const cornersFor2H = isHome ? (match.homeCorners2H || 0) : (match.awayCorners2H || 0);
+    
+    corners1H += cornersFor1H;
+    corners2H += cornersFor2H;
+    
+    if (isHome) {
+      cornersForHome += cornersFor; cornersAgainstHome += cornersAgainst;
+      corners1HHome += cornersFor1H; corners2HHome += cornersFor2H;
+      homeCount++;
+    } else {
+      cornersForAway += cornersFor; cornersAgainstAway += cornersAgainst;
+      corners1HAway += cornersFor1H; corners2HAway += cornersFor2H;
+      awayCount++;
+    }
     
     totalCornersFor += cornersFor;
     totalCornersAgainst += cornersAgainst;
@@ -688,15 +674,22 @@ const calculateFeatures = (matches, teamId) => {
     avgCornersAgainstHome: homeCount > 0 ? cornersAgainstHome / homeCount : totalCornersAgainst / n,
     avgCornersForAway: awayCount > 0 ? cornersForAway / awayCount : totalCornersFor / n,
     avgCornersAgainstAway: awayCount > 0 ? cornersAgainstAway / awayCount : totalCornersAgainst / n,
-    matchesPlayed: n
+    matchesPlayed: n,
+    // 🔧 Таймы
+    avgCorners1H: corners1H / n,
+    avgCorners2H: corners2H / n,
+    ratio1H: totalCornersFor > 0 ? corners1H / totalCornersFor : 0.5,
+    avgCorners1HHome: homeCount > 0 ? corners1HHome / homeCount : corners1H / n,
+    avgCorners2HHome: homeCount > 0 ? corners2HHome / homeCount : corners2H / n,
+    avgCorners1HAway: awayCount > 0 ? corners1HAway / awayCount : corners1H / n,
+    avgCorners2HAway: awayCount > 0 ? corners2HAway / awayCount : corners2H / n,
   };
 };
 
-// 🏗️ Модель — 22 входа!
 const createModel = () => {
   const model = tf.sequential();
   
-  model.add(tf.layers.dense({ units: 64, activation: 'relu', inputShape: [22] }));
+  model.add(tf.layers.dense({ units: 64, activation: 'relu', inputShape: [32] }));
   model.add(tf.layers.dropout({ rate: 0.2 }));
   model.add(tf.layers.dense({ units: 32, activation: 'relu' }));
   model.add(tf.layers.dropout({ rate: 0.15 }));
@@ -763,20 +756,9 @@ const testModel = (model, matches, teams, seasons) => {
     const homeStats = calculateFeatures(homePast, match.homeTeamId);
     const awayStats = calculateFeatures(awayPast, match.awayTeamId);
     const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, seasons);
+    const round = match.round ? parseInt(match.round) || 0 : 0;
     
-    const features = [
-      homeStats.avgCornersFor, homeStats.avgCornersAgainst, homeStats.cornersTrend,
-      homeStats.avgXG || 0, homeStats.avgPossession || 50, homeStats.avgShotsInside || 0,
-      homeStats.formPoints,
-      awayStats.avgCornersFor, awayStats.avgCornersAgainst, awayStats.cornersTrend,
-      awayStats.avgXG || 0, awayStats.avgPossession || 50, awayStats.avgShotsInside || 0,
-      awayStats.formPoints,
-      homeStats.avgCornersForHome, homeStats.avgCornersAgainstHome,
-      awayStats.avgCornersForAway, awayStats.avgCornersAgainstAway,
-      match.round ? parseInt(match.round) || 0 : 0,
-      homeStats.matchesPlayed, awayStats.matchesPlayed,
-      leagueAvgTotal,
-    ];
+    const features = buildFeatures(homeStats, awayStats, round, leagueAvgTotal);
     
     const prediction = model.predict(tf.tensor2d([features])).dataSync()[0];
     
