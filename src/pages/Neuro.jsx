@@ -14,6 +14,10 @@ const Neuro = () => {
   const [testResults, setTestResults] = useState(null);
   const [trainingHistory, setTrainingHistory] = useState([]);
 
+  // 🔧 Состояния для выбора тотала
+  const [selectedTotal, setSelectedTotal] = useState(9.5);
+  const availableTotals = [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
+
   // Проверяем сохранена ли модель при загрузке
   useEffect(() => {
     const checkModel = async () => {
@@ -21,44 +25,23 @@ const Neuro = () => {
         const models = await tf.io.listModels();
         if (models['localstorage://football-neuro-model']) {
           setModelReady(true);
-          const lastTrained = localStorage.getItem('neuro_last_trained');
-          const matchesCount = localStorage.getItem('neuro_matches_count');
           
-          // Загружаем сохранённые результаты тестирования
           const savedResults = localStorage.getItem('neuro_test_results');
           if (savedResults) {
-            try {
-              setTestResults(JSON.parse(savedResults));
-              console.log('📊 Загружены сохранённые результаты тестирования');
-            } catch (e) {
-              console.log('Не удалось загрузить результаты');
-            }
+            try { setTestResults(JSON.parse(savedResults)); } catch (e) {}
           }
           
-          // 🔧 Загружаем историю обучения
           const savedHistory = localStorage.getItem('neuro_training_history');
           if (savedHistory) {
-            try {
-              setTrainingHistory(JSON.parse(savedHistory));
-            } catch (e) {
-              console.log('Не удалось загрузить историю');
-            }
-          }
-          
-          if (lastTrained) {
-            console.log('📦 Найдена сохранённая модель');
-            console.log('🕐 Обучена:', new Date(lastTrained).toLocaleString('ru-RU'));
-            console.log('📊 На матчах:', matchesCount);
+            try { setTrainingHistory(JSON.parse(savedHistory)); } catch (e) {}
           }
         }
-      } catch (e) {
-        console.log('Модель не найдена');
-      }
+      } catch (e) {}
     };
     checkModel();
   }, []);
 
-  // 🔮 ПРЕДИКТ ОТ НЕЙРОСЕТИ
+  // 🔮 ПРЕДИКТ
   const [predictLeague, setPredictLeague] = useState(data.leagues?.[0]?.id || 'rpl');
   const [predictHomeTeam, setPredictHomeTeam] = useState('');
   const [predictAwayTeam, setPredictAwayTeam] = useState('');
@@ -68,6 +51,36 @@ const Neuro = () => {
 
   const activeSeason = getActiveSeason(predictLeague)?.id;
   const teamsInLeague = data.teams?.filter(t => t.leagueId === predictLeague) || [];
+
+  // 🔧 Функция расчёта вероятности для любого тотала
+  const calculateProbability = (total, expectedTotal) => {
+    const diff = total - expectedTotal;
+    if (diff > 2.5) return 8;
+    if (diff > 2) return 15;
+    if (diff > 1.5) return 25;
+    if (diff > 1) return 35;
+    if (diff > 0.5) return 42;
+    if (diff > 0) return 48;
+    if (diff > -0.5) return 52;
+    if (diff > -1) return 58;
+    if (diff > -1.5) return 65;
+    if (diff > -2) return 75;
+    if (diff > -2.5) return 85;
+    return 92;
+  };
+
+  // 🔧 Авто-определение тотала по лиге
+  useEffect(() => {
+    const league = data.leagues?.find(l => l.id === predictLeague);
+    const season = data.seasons?.find(s => s.leagueId === predictLeague && s.isActive);
+    const avgTotal = season?.avgTotalCorners || 9.5;
+    
+    if (league?.name === 'АПЛ' || avgTotal > 10) {
+      setSelectedTotal(10.5);
+    } else {
+      setSelectedTotal(9.5);
+    }
+  }, [predictLeague, data]);
 
   const predictWithNeuro = async () => {
     if (!predictHomeTeam || !predictAwayTeam || !modelReady) return;
@@ -80,8 +93,8 @@ const Neuro = () => {
       model = await tf.loadLayersModel('localstorage://football-neuro-model');
       model.compile({
         optimizer: tf.train.adam(0.001),
-        loss: 'binaryCrossentropy',
-        metrics: ['accuracy']
+        loss: 'meanSquaredError',
+        metrics: ['mae']
       });
       
       const allMatches = [...(data.matches || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -90,6 +103,9 @@ const Neuro = () => {
       
       const homeStats = calculateFeatures(homePast, predictHomeTeam);
       const awayStats = calculateFeatures(awayPast, predictAwayTeam);
+      
+      // 🔧 Признак лиги
+      const leagueAvgTotal = getLeagueAvgTotal(predictLeague, data.seasons);
       
       const features = [
         homeStats.avgCornersFor || 5,
@@ -116,23 +132,31 @@ const Neuro = () => {
         0,
         homeStats.matchesPlayed || 10,
         awayStats.matchesPlayed || 10,
+        
+        // 🔧 22-й признак — средний тотал лиги
+        leagueAvgTotal,
       ];
       
+      // prediction — ожидаемый тотал
       const prediction = model.predict(tf.tensor2d([features])).dataSync()[0];
+      const expectedTotal = prediction.toFixed(2);
+      
+      const overProb = calculateProbability(selectedTotal, parseFloat(expectedTotal));
       
       const { predictMatch } = await import('../data/store');
-      const poissonResult = predictMatch(predictHomeTeam, predictAwayTeam, predictLeague, activeSeason, 9.5);
+      const poissonResult = predictMatch(predictHomeTeam, predictAwayTeam, predictLeague, activeSeason, selectedTotal);
       setPoissonPrediction(poissonResult);
       
       setNeuroPrediction({
-        overProbability: (prediction * 100).toFixed(1),
-        underProbability: ((1 - prediction) * 100).toFixed(1),
-        recommendation: prediction > 0.65 ? '🔥 СИЛЬНЫЙ ТБ 9.5' :
-                        prediction > 0.55 ? '✅ ТБ 9.5' :
-                        prediction < 0.35 ? '🧊 СИЛЬНЫЙ ТМ 9.5' :
-                        prediction < 0.45 ? '❄️ ТМ 9.5' :
-                        '⚖️ Нет сигнала',
-        confidence: Math.abs(prediction - 0.5) * 200
+        expectedTotal: expectedTotal,
+        overProbability: overProb,
+        underProbability: 100 - overProb,
+        recommendation: overProb > 75 ? `🔥 СИЛЬНЫЙ ТБ ${selectedTotal}` :
+                        overProb > 60 ? `✅ ТБ ${selectedTotal}` :
+                        overProb < 25 ? `🧊 СИЛЬНЫЙ ТМ ${selectedTotal}` :
+                        overProb < 40 ? `❄️ ТМ ${selectedTotal}` :
+                        `⚖️ Близко к ${selectedTotal}`,
+        confidence: Math.abs(overProb - 50) * 2
       });
       
     } catch (error) {
@@ -147,10 +171,9 @@ const Neuro = () => {
     setTrainingLog(prev => [...prev, { time: new Date().toLocaleTimeString(), text: message }]);
   };
 
-  // 🔧 Сохранение в историю обучения
   const addToHistory = (type, matchesCount, accuracy) => {
     const entry = {
-      type: type, // 'full' или 'retrain'
+      type: type,
       date: new Date().toISOString(),
       matches: matchesCount,
       accuracy: accuracy
@@ -161,35 +184,35 @@ const Neuro = () => {
     localStorage.setItem('neuro_training_history', JSON.stringify(updatedHistory));
   };
   
-  // 🧠 ОБУЧЕНИЕ TENSORFLOW МОДЕЛИ С НУЛЯ
+  // 🧠 ОБУЧЕНИЕ С НУЛЯ
   const trainTensorFlowModel = async () => {
     setIsTraining(true);
     setTrainingLog([]);
     
     try {
-      log('🚀 Начинаю обучение TensorFlow модели с нуля...');
+      log('🚀 Начинаю обучение TensorFlow модели (регрессия)...');
       log(`📊 Данных: ${totalMatches} матчей`);
       
       const trainingData = prepareTrainingData(data.matches, data.teams, data.seasons);
       log(`✅ Подготовлено ${trainingData.length} примеров`);
       
       const model = createModel();
-      log('✅ Модель создана (21 вход → 64 → 32 → 16 → 1 выход)');
+      log('✅ Модель создана (22 входа → 64 → 32 → 16 → 1 выход)');
       
       log('🎓 Обучение (50 эпох)...');
-      const history = await trainModel(model, trainingData, log);
-      log(`✅ Обучение завершено! Loss: ${history.loss.toFixed(4)}`);
+      const trainResult = await trainModel(model, trainingData, log);
+      log(`✅ Обучение завершено! Loss: ${trainResult.loss.toFixed(4)}, MAE: ±${trainResult.mae} угл.`);
       
       log('🧪 Тестирование...');
       const results = testModel(model, data.matches, data.teams, data.seasons);
       log(`📊 Точность Neuro: ${results.accuracy}%`);
+      log(`📊 Средняя ошибка: ±${results.avgError} угловых`);
       log(`📊 Протестировано: ${results.neuroTotal} матчей`);
       
       setTestResults(results);
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
       setModelReady(true);
       
-      // 🔧 Сохраняем в историю
       addToHistory('full', totalMatches, results.accuracy);
       
       await model.save('localstorage://football-neuro-model');
@@ -206,7 +229,7 @@ const Neuro = () => {
     setIsTraining(false);
   };
 
-  // 📚 ДООБУЧЕНИЕ МОДЕЛИ
+  // 📚 ДООБУЧЕНИЕ
   const retrainModel = async () => {
     setIsRetraining(true);
     setTrainingLog([]);
@@ -216,8 +239,8 @@ const Neuro = () => {
       const model = await tf.loadLayersModel('localstorage://football-neuro-model');
       model.compile({
         optimizer: tf.train.adam(0.001),
-        loss: 'binaryCrossentropy',
-        metrics: ['accuracy']
+        loss: 'meanSquaredError',
+        metrics: ['mae']
       });
       log('✅ Модель загружена и скомпилирована');
       
@@ -240,12 +263,12 @@ const Neuro = () => {
         shuffle: true,
         callbacks: {
           onEpochEnd: (epoch, logs) => {
-            log(`  Эпоха ${epoch + 1}/10: accuracy=${(logs.acc * 100).toFixed(1)}%, loss=${logs.loss.toFixed(4)}`);
+            log(`  Эпоха ${epoch + 1}/10: loss=${logs.loss.toFixed(4)}, mae=±${logs.mae.toFixed(2)}`);
           }
         }
       });
       
-      log(`✅ Дообучение завершено! Loss: ${history.history.loss[9].toFixed(4)}`);
+      log(`✅ Дообучение завершено!`);
       
       xsTensor.dispose();
       ysTensor.dispose();
@@ -253,12 +276,11 @@ const Neuro = () => {
       log('🧪 Тестирование...');
       const results = testModel(model, data.matches, data.teams, data.seasons);
       log(`📊 Точность Neuro: ${results.accuracy}%`);
-      log(`📊 Протестировано: ${results.neuroTotal} матчей`);
+      log(`📊 Средняя ошибка: ±${results.avgError} угловых`);
       
       setTestResults(results);
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
       
-      // 🔧 Сохраняем в историю
       addToHistory('retrain', totalMatches, results.accuracy);
       
       await model.save('localstorage://football-neuro-model');
@@ -277,26 +299,23 @@ const Neuro = () => {
   
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Заголовок */}
       <div>
         <h2 className="text-2xl md:text-3xl font-bold mb-1 flex items-center gap-3">
           <Brain className="text-purple-400" />
           Neuro AI
         </h2>
         <p className="text-sm md:text-base text-gray-400">
-          Нейросетевые модели прогнозирования угловых
+          Регрессия с признаком лиги • Предсказывает точный тотал угловых
         </p>
       </div>
       
-      {/* Статус */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatusCard icon={Database} label="Матчей для обучения" value={totalMatches} color="blue" />
         <StatusCard icon={Brain} label="Статус модели" value={modelReady ? 'Готова' : 'Не обучена'} color="purple" />
         <StatusCard icon={Target} label="Точность Neuro" value={testResults ? `${testResults.accuracy}%` : '—'} color="green" />
-        <StatusCard icon={TrendingUp} label="Протестировано" value={testResults ? `${testResults.neuroTotal}` : '—'} color="yellow" />
+        <StatusCard icon={TrendingUp} label="Ср. ошибка" value={testResults ? `±${testResults.avgError} угл.` : '—'} color="yellow" />
       </div>
       
-      {/* 🔧 ИСТОРИЯ ОБУЧЕНИЯ */}
       {trainingHistory.length > 0 && (
         <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
           <h4 className="font-semibold mb-3 flex items-center gap-2">
@@ -330,26 +349,19 @@ const Neuro = () => {
         </div>
       )}
       
-      {/* Инфо о последнем обучении */}
       {modelReady && (
         <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700 flex items-center justify-between text-sm">
-          <div className="flex items-center gap-4">
-            <span className="text-gray-400">
-              🕐 Последнее обучение: <span className="text-white">{new Date(localStorage.getItem('neuro_last_trained') || Date.now()).toLocaleString('ru-RU')}</span>
-            </span>
-            <span className="text-gray-400">
-              📊 Матчей при обучении: <span className="text-white">{localStorage.getItem('neuro_matches_count') || totalMatches}</span>
-            </span>
-          </div>
+          <span className="text-gray-400">
+            🕐 Обучена: <span className="text-white">{new Date(localStorage.getItem('neuro_last_trained') || Date.now()).toLocaleString('ru-RU')}</span>
+          </span>
           {totalMatches > parseInt(localStorage.getItem('neuro_matches_count') || 0) && (
             <span className="text-yellow-400 text-xs">
-              ⚠️ Добавлено {totalMatches - parseInt(localStorage.getItem('neuro_matches_count') || 0)} новых матчей. Рекомендуется дообучить!
+              ⚠️ +{totalMatches - parseInt(localStorage.getItem('neuro_matches_count') || 0)} матчей. Дообучи!
             </span>
           )}
         </div>
       )}
       
-      {/* Вкладки */}
       <div className="flex gap-2 flex-wrap">
         <TabButton active={activeTab === 'tensorflow'} onClick={() => setActiveTab('tensorflow')}>
           🧠 TensorFlow
@@ -362,32 +374,24 @@ const Neuro = () => {
         </TabButton>
       </div>
       
-      {/* Вкладка TensorFlow */}
       {activeTab === 'tensorflow' && (
         <div className="space-y-4">
-          {/* Кнопка обучения */}
           <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50 text-center">
             <Brain size={48} className="mx-auto mb-4 text-purple-400" />
-            <h3 className="text-xl font-bold mb-2">TensorFlow.js Нейросеть</h3>
+            <h3 className="text-xl font-bold mb-2">TensorFlow.js — Регрессия + Признак лиги</h3>
             <p className="text-gray-400 mb-4 max-w-lg mx-auto">
-              Глубокое обучение на 500+ матчах. Использует 20+ признаков для прогноза тотала угловых.
+              Предсказывает точный тотал. Учитывает особенности лиги (АПЛ ~10.5, РПЛ ~9.5).
             </p>
             
             {!isTraining && !isRetraining && (
               <div className="flex gap-3 justify-center flex-wrap">
-                <button
-                  onClick={trainTensorFlowModel}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2"
-                >
+                <button onClick={trainTensorFlowModel} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2">
                   <Play size={20} />
                   {modelReady ? 'Переобучить с нуля' : 'Обучить модель'}
                 </button>
                 
                 {modelReady && (
-                  <button
-                    onClick={retrainModel}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2"
-                  >
+                  <button onClick={retrainModel} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2">
                     <RefreshCw size={20} />
                     Дообучить
                   </button>
@@ -410,7 +414,6 @@ const Neuro = () => {
             )}
           </div>
           
-          {/* Лог обучения */}
           {trainingLog.length > 0 && (
             <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
               <h4 className="font-semibold mb-2 flex items-center gap-2">
@@ -427,7 +430,6 @@ const Neuro = () => {
             </div>
           )}
           
-          {/* Результаты тестирования */}
           {testResults && (
             <div className="grid grid-cols-1 gap-4">
               <ResultCard 
@@ -436,19 +438,11 @@ const Neuro = () => {
                 correct={testResults.neuroCorrect}
                 total={testResults.neuroTotal}
                 color="purple"
+                subtitle={`Средняя ошибка: ±${testResults.avgError} угловых`}
               />
             </div>
           )}
           
-          {/* Инфо */}
-          <div className="bg-blue-900/30 rounded-lg p-4 border border-blue-700">
-            <p className="text-sm text-blue-300">
-              💡 <strong>Как работает:</strong> Нейросеть анализирует 20+ параметров (угловые, xG, владение, 
-              удары, форма команд) и учится находить закономерности которые Пуассон не видит. 
-            </p>
-          </div>
-          
-          {/* 🔮 ФОРМА ПРЕДИКТА */}
           {modelReady && (
             <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -459,78 +453,69 @@ const Neuro = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Лига</label>
-                  <select 
-                    value={predictLeague}
-                    onChange={(e) => { setPredictLeague(e.target.value); setPredictHomeTeam(''); setPredictAwayTeam(''); }}
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm"
-                  >
+                  <select value={predictLeague} onChange={(e) => { setPredictLeague(e.target.value); setPredictHomeTeam(''); setPredictAwayTeam(''); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
                     {data.leagues?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Хозяева</label>
-                  <select 
-                    value={predictHomeTeam}
-                    onChange={(e) => setPredictHomeTeam(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm"
-                  >
-                    <option value="">Выберите команду</option>
+                  <select value={predictHomeTeam} onChange={(e) => setPredictHomeTeam(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
+                    <option value="">Выберите</option>
                     {teamsInLeague.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Гости</label>
-                  <select 
-                    value={predictAwayTeam}
-                    onChange={(e) => setPredictAwayTeam(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm"
-                  >
-                    <option value="">Выберите команду</option>
+                  <select value={predictAwayTeam} onChange={(e) => setPredictAwayTeam(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm">
+                    <option value="">Выберите</option>
                     {teamsInLeague.filter(t => t.id !== predictHomeTeam).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
               </div>
               
-              <button
-                onClick={predictWithNeuro}
-                disabled={!predictHomeTeam || !predictAwayTeam || isPredicting}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isPredicting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <RefreshCw size={18} className="animate-spin" />
-                    Анализирую...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <Brain size={18} />
-                    Получить прогноз
-                  </span>
-                )}
+              {/* 🔧 ВЫБОР ТОТАЛА */}
+              <div className="mb-4">
+                <label className="block text-xs text-gray-400 mb-2">Тотал угловых</label>
+                <div className="flex flex-wrap gap-2">
+                  {availableTotals.map(total => (
+                    <button
+                      key={total}
+                      onClick={() => setSelectedTotal(total)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                        selectedTotal === total
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                      }`}
+                    >
+                      {total}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <button onClick={predictWithNeuro} disabled={!predictHomeTeam || !predictAwayTeam || isPredicting} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50">
+                {isPredicting ? 'Анализирую...' : 'Получить прогноз'}
               </button>
               
-              {/* Результаты предикта */}
               {(neuroPrediction || poissonPrediction) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  {/* Neuro */}
                   {neuroPrediction && (
                     <div className="bg-purple-900/20 rounded-lg p-4 border border-purple-700/50">
                       <h4 className="font-semibold text-purple-400 mb-3 flex items-center gap-2">
-                        <Brain size={16} />
-                        Neuro AI
+                        <Brain size={16} /> Neuro AI
                       </h4>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-400">ТБ 9.5</span>
+                          <span className="text-sm text-gray-400">Ожидаемый тотал</span>
+                          <span className="text-xl font-bold text-white">{neuroPrediction.expectedTotal}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-400">ТБ {selectedTotal}</span>
                           <span className="text-lg font-bold text-green-400">{neuroPrediction.overProbability}%</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-400">ТМ 9.5</span>
+                          <span className="text-sm text-gray-400">ТМ {selectedTotal}</span>
                           <span className="text-lg font-bold text-red-400">{neuroPrediction.underProbability}%</span>
-                        </div>
-                        <div className="flex justify-between border-t border-gray-700 pt-2">
-                          <span className="text-sm text-gray-400">Уверенность</span>
-                          <span className="text-sm font-semibold">{neuroPrediction.confidence.toFixed(0)}%</span>
                         </div>
                         <div className={`mt-3 p-3 rounded-lg text-center font-semibold ${
                           neuroPrediction.recommendation.includes('СИЛЬНЫЙ') ? 'bg-green-600/30 text-green-400' :
@@ -543,12 +528,10 @@ const Neuro = () => {
                     </div>
                   )}
                   
-                  {/* Пуассон */}
                   {poissonPrediction && (
                     <div className="bg-yellow-900/20 rounded-lg p-4 border border-yellow-700/50">
                       <h4 className="font-semibold text-yellow-400 mb-3 flex items-center gap-2">
-                        <Calculator size={16} />
-                        Пуассон
+                        <Calculator size={16} /> Пуассон
                       </h4>
                       <div className="space-y-2">
                         <div className="flex justify-between">
@@ -556,11 +539,11 @@ const Neuro = () => {
                           <span className="font-semibold">{poissonPrediction.totalExpected}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-400">ТБ 9.5</span>
+                          <span className="text-sm text-gray-400">ТБ {selectedTotal}</span>
                           <span className="text-lg font-bold text-green-400">{poissonPrediction.totalProbability}%</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-400">ТМ 9.5</span>
+                          <span className="text-sm text-gray-400">ТМ {selectedTotal}</span>
                           <span className="text-lg font-bold text-red-400">{poissonPrediction.underProbability}%</span>
                         </div>
                         <div className={`mt-3 p-3 rounded-lg text-center text-sm font-semibold ${
@@ -580,34 +563,32 @@ const Neuro = () => {
         </div>
       )}
       
-      {/* Вкладка Random Forest (заглушка) */}
       {activeTab === 'randomforest' && (
         <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700 text-center">
           <h3 className="text-xl font-bold mb-2">🌲 Random Forest</h3>
-          <p className="text-gray-400 mb-4">
-            Ансамблевый метод на основе деревьев решений. Будет добавлен в следующем обновлении.
-          </p>
+          <p className="text-gray-400 mb-4">Будет добавлен позже (1000+ матчей)</p>
           <div className="text-4xl mb-4">🚧</div>
-          <p className="text-sm text-gray-500">Нужно больше данных для этой модели (1000+ матчей)</p>
         </div>
       )}
       
-      {/* Вкладка XGBoost (заглушка) */}
       {activeTab === 'xgboost' && (
         <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700 text-center">
           <h3 className="text-xl font-bold mb-2">⚡ XGBoost</h3>
-          <p className="text-gray-400 mb-4">
-            Градиентный бустинг — одна из лучших ML моделей. Будет добавлен в следующем обновлении.
-          </p>
+          <p className="text-gray-400 mb-4">Будет добавлен позже (2000+ матчей)</p>
           <div className="text-4xl mb-4">🚧</div>
-          <p className="text-sm text-gray-500">Нужно больше данных для этой модели (2000+ матчей)</p>
         </div>
       )}
     </div>
   );
 };
 
-// 📦 Подготовка данных для обучения
+// 🔧 Функция получения среднего тотала лиги
+const getLeagueAvgTotal = (leagueId, seasons) => {
+  const season = seasons?.find(s => s.leagueId === leagueId && s.isActive);
+  return season?.avgTotalCorners || 9.5;
+};
+
+// 📦 Подготовка данных
 const prepareTrainingData = (matches, teams, seasons) => {
   const sortedMatches = [...matches].sort((a, b) => new Date(a.date) - new Date(b.date));
   const trainingExamples = [];
@@ -624,36 +605,26 @@ const prepareTrainingData = (matches, teams, seasons) => {
     const awayStats = calculateFeatures(awayPast, match.awayTeamId);
     
     const actualTotal = (match.homeCorners || 0) + (match.awayCorners || 0);
-    const label = actualTotal > 9.5 ? 1 : 0;
+    
+    // 🔧 Признак лиги
+    const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, seasons);
     
     trainingExamples.push({
       features: [
-        homeStats.avgCornersFor,
-        homeStats.avgCornersAgainst,
-        homeStats.cornersTrend,
-        homeStats.avgXG || 0,
-        homeStats.avgPossession || 50,
-        homeStats.avgShotsInside || 0,
+        homeStats.avgCornersFor, homeStats.avgCornersAgainst, homeStats.cornersTrend,
+        homeStats.avgXG || 0, homeStats.avgPossession || 50, homeStats.avgShotsInside || 0,
         homeStats.formPoints,
-        
-        awayStats.avgCornersFor,
-        awayStats.avgCornersAgainst,
-        awayStats.cornersTrend,
-        awayStats.avgXG || 0,
-        awayStats.avgPossession || 50,
-        awayStats.avgShotsInside || 0,
+        awayStats.avgCornersFor, awayStats.avgCornersAgainst, awayStats.cornersTrend,
+        awayStats.avgXG || 0, awayStats.avgPossession || 50, awayStats.avgShotsInside || 0,
         awayStats.formPoints,
-        
-        homeStats.avgCornersForHome,
-        homeStats.avgCornersAgainstHome,
-        awayStats.avgCornersForAway,
-        awayStats.avgCornersAgainstAway,
-        
+        homeStats.avgCornersForHome, homeStats.avgCornersAgainstHome,
+        awayStats.avgCornersForAway, awayStats.avgCornersAgainstAway,
         match.round ? parseInt(match.round) || 0 : 0,
-        homeStats.matchesPlayed,
-        awayStats.matchesPlayed,
+        homeStats.matchesPlayed, awayStats.matchesPlayed,
+        // 🔧 22-й признак
+        leagueAvgTotal,
       ],
-      label: label,
+      label: actualTotal,
       actualTotal: actualTotal
     });
   }
@@ -687,20 +658,12 @@ const calculateFeatures = (matches, teamId) => {
     const cornersFor = isHome ? (match.homeCorners || 0) : (match.awayCorners || 0);
     const cornersAgainst = isHome ? (match.awayCorners || 0) : (match.homeCorners || 0);
     
-    if (isHome) {
-      cornersForHome += cornersFor;
-      cornersAgainstHome += cornersAgainst;
-      homeCount++;
-    } else {
-      cornersForAway += cornersFor;
-      cornersAgainstAway += cornersAgainst;
-      awayCount++;
-    }
+    if (isHome) { cornersForHome += cornersFor; cornersAgainstHome += cornersAgainst; homeCount++; }
+    else { cornersForAway += cornersFor; cornersAgainstAway += cornersAgainst; awayCount++; }
     
     totalCornersFor += cornersFor;
     totalCornersAgainst += cornersAgainst;
     cornersTrend.push(cornersFor);
-    
     totalXG += isHome ? (match.homeXG || 0) : (match.awayXG || 0);
     totalPossession += isHome ? (match.homePossession || 50) : (match.awayPossession || 50);
     totalShotsInside += isHome ? (match.homeShotsInsideBox || 0) : (match.awayShotsInsideBox || 0);
@@ -710,19 +673,17 @@ const calculateFeatures = (matches, teamId) => {
   });
   
   const n = matches.length;
-  
   const recentAvg = cornersTrend.slice(0, Math.floor(n / 2)).reduce((a, b) => a + b, 0) / Math.floor(n / 2);
   const olderAvg = cornersTrend.slice(Math.floor(n / 2)).reduce((a, b) => a + b, 0) / Math.ceil(n / 2);
-  const trend = recentAvg - olderAvg;
   
   return {
     avgCornersFor: totalCornersFor / n,
     avgCornersAgainst: totalCornersAgainst / n,
-    cornersTrend: trend,
+    cornersTrend: recentAvg - olderAvg,
     avgXG: totalXG / n,
     avgPossession: totalPossession / n,
     avgShotsInside: totalShotsInside / n,
-    formPoints: formPoints,
+    formPoints,
     avgCornersForHome: homeCount > 0 ? cornersForHome / homeCount : totalCornersFor / n,
     avgCornersAgainstHome: homeCount > 0 ? cornersAgainstHome / homeCount : totalCornersAgainst / n,
     avgCornersForAway: awayCount > 0 ? cornersForAway / awayCount : totalCornersFor / n,
@@ -731,20 +692,21 @@ const calculateFeatures = (matches, teamId) => {
   };
 };
 
+// 🏗️ Модель — 22 входа!
 const createModel = () => {
   const model = tf.sequential();
   
-  model.add(tf.layers.dense({ units: 64, activation: 'relu', inputShape: [21] }));
+  model.add(tf.layers.dense({ units: 64, activation: 'relu', inputShape: [22] }));
   model.add(tf.layers.dropout({ rate: 0.2 }));
   model.add(tf.layers.dense({ units: 32, activation: 'relu' }));
   model.add(tf.layers.dropout({ rate: 0.15 }));
   model.add(tf.layers.dense({ units: 16, activation: 'relu' }));
-  model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+  model.add(tf.layers.dense({ units: 1, activation: 'linear' }));
   
   model.compile({
     optimizer: tf.train.adam(0.001),
-    loss: 'binaryCrossentropy',
-    metrics: ['accuracy']
+    loss: 'meanSquaredError',
+    metrics: ['mae']
   });
   
   return model;
@@ -767,7 +729,7 @@ const trainModel = async (model, trainingData, log) => {
     callbacks: {
       onEpochEnd: (epoch, logs) => {
         if (epoch % 10 === 0 || epoch === 49) {
-          log(`  Эпоха ${epoch + 1}/50: accuracy=${(logs.acc * 100).toFixed(1)}%, loss=${logs.loss.toFixed(4)}`);
+          log(`  Эпоха ${epoch + 1}/50: loss=${logs.loss.toFixed(4)}, mae=±${logs.mae.toFixed(2)} угл.`);
         }
       }
     }
@@ -778,13 +740,14 @@ const trainModel = async (model, trainingData, log) => {
   
   return {
     loss: history.history.loss[history.history.loss.length - 1],
-    accuracy: history.history.acc[history.history.acc.length - 1] * 100
+    mae: history.history.mae[history.history.mae.length - 1].toFixed(2)
   };
 };
 
 const testModel = (model, matches, teams, seasons) => {
   const sortedMatches = [...matches].sort((a, b) => new Date(a.date) - new Date(b.date));
   
+  let totalError = 0;
   let neuroCorrect = 0, neuroTotal = 0;
   
   const testStart = Math.floor(sortedMatches.length * 0.8);
@@ -792,7 +755,6 @@ const testModel = (model, matches, teams, seasons) => {
   for (let i = testStart; i < sortedMatches.length; i++) {
     const match = sortedMatches[i];
     const actualTotal = (match.homeCorners || 0) + (match.awayCorners || 0);
-    const actualOver = actualTotal > 9.5;
     
     const homePast = getLastMatches(sortedMatches, match.homeTeamId, match.date, 10);
     const awayPast = getLastMatches(sortedMatches, match.awayTeamId, match.date, 10);
@@ -800,6 +762,7 @@ const testModel = (model, matches, teams, seasons) => {
     
     const homeStats = calculateFeatures(homePast, match.homeTeamId);
     const awayStats = calculateFeatures(awayPast, match.awayTeamId);
+    const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, seasons);
     
     const features = [
       homeStats.avgCornersFor, homeStats.avgCornersAgainst, homeStats.cornersTrend,
@@ -812,10 +775,15 @@ const testModel = (model, matches, teams, seasons) => {
       awayStats.avgCornersForAway, awayStats.avgCornersAgainstAway,
       match.round ? parseInt(match.round) || 0 : 0,
       homeStats.matchesPlayed, awayStats.matchesPlayed,
+      leagueAvgTotal,
     ];
     
     const prediction = model.predict(tf.tensor2d([features])).dataSync()[0];
-    const neuroOver = prediction > 0.5;
+    
+    totalError += Math.abs(prediction - actualTotal);
+    
+    const actualOver = actualTotal > 9.5;
+    const neuroOver = prediction > 9.5;
     
     if (neuroOver === actualOver) neuroCorrect++;
     neuroTotal++;
@@ -824,6 +792,7 @@ const testModel = (model, matches, teams, seasons) => {
   return {
     neuroCorrect, neuroTotal,
     accuracy: neuroTotal > 0 ? ((neuroCorrect / neuroTotal) * 100).toFixed(1) : '0.0',
+    avgError: neuroTotal > 0 ? (totalError / neuroTotal).toFixed(2) : '0',
   };
 };
 
@@ -844,13 +813,14 @@ const TabButton = ({ active, onClick, children }) => (
   </button>
 );
 
-const ResultCard = ({ title, accuracy, correct, total, color, highlight }) => {
+const ResultCard = ({ title, accuracy, correct, total, color, highlight, subtitle }) => {
   const colors = { purple: 'text-purple-400', yellow: 'text-yellow-400', green: 'text-green-400' };
   return (
     <div className={`bg-gray-800 rounded-xl p-4 border ${highlight ? 'border-green-700' : 'border-gray-700'}`}>
       <h4 className={`font-semibold mb-2 ${colors[color]}`}>{title}</h4>
       <div className={`text-3xl font-bold ${colors[color]}`}>{accuracy}%</div>
       <p className="text-xs text-gray-400 mt-1">{correct}/{total} верно</p>
+      {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
     </div>
   );
 };
