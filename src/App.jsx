@@ -17,13 +17,39 @@ function App() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
+    let timeout;
+    let loaded = false;
+    
     // Подписываемся на облако
     const unsubscribe = initStore((initialData) => {
-      setData(initialData);
-      setIsLoading(false);
+      if (!loaded) {
+        setData(initialData);
+        setIsLoading(false);
+        loaded = true;
+      }
+      if (timeout) clearTimeout(timeout);
     });
     
-    return () => unsubscribe();
+    // 🔧 Если через 3 секунды данные не загрузились — берём из кэша (для мобилок)
+    timeout = setTimeout(() => {
+      if (!loaded) {
+        const cached = localStorage.getItem('football_cache');
+        const autoBackup = localStorage.getItem('football_auto_backup');
+        const fallbackData = cached ? JSON.parse(cached) : (autoBackup ? JSON.parse(autoBackup) : null);
+        
+        if (fallbackData) {
+          console.log('📱 Загружено из кэша (offline/мобильное устройство)');
+          setData(fallbackData);
+          setIsLoading(false);
+          loaded = true;
+        }
+      }
+    }, 3000);
+    
+    return () => {
+      unsubscribe();
+      if (timeout) clearTimeout(timeout);
+    };
   }, []);
 
   if (isLoading) {
@@ -33,6 +59,20 @@ function App() {
           <div className="text-4xl mb-4 animate-pulse">⚽</div>
           <h2 className="text-xl font-bold mb-2">Загрузка данных...</h2>
           <p className="text-gray-400">Синхронизация с облаком ☁️</p>
+          <button 
+            onClick={() => {
+              const cached = localStorage.getItem('football_cache');
+              const autoBackup = localStorage.getItem('football_auto_backup');
+              const fallbackData = cached ? JSON.parse(cached) : (autoBackup ? JSON.parse(autoBackup) : null);
+              if (fallbackData) {
+                setData(fallbackData);
+                setIsLoading(false);
+              }
+            }}
+            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition"
+          >
+            Загрузить оффлайн 📱
+          </button>
         </div>
       </div>
     );
