@@ -83,14 +83,33 @@ export const initStore = (callback) => {
       const cachedData = cached ? JSON.parse(cached) : null;
       const cachedMatches = cachedData?.matches?.length || 0;
       
-      // Если в облаке дефолт, а в кэше больше — восстанавливаем
+      // Если в облаке дефолт, а в кэше больше
       if (cloudMatches < 10 && cachedMatches > 10) {
         console.warn('⚠️ В Firebase дефолтные данные! Загружаю из кэша:', cachedMatches, 'матчей');
         currentData = cachedData;
         await setDoc(docRef, cachedData);
       } else {
-        // Всё норм, берём облачные данные
-        currentData = cloudData;
+        // 🔧 ЗАЩИТА: проверяем что облачные данные не "просели" по матчам
+        const localMatches = currentData?.matches?.length || 0;
+        
+        if (localMatches > 100 && cloudMatches < localMatches * 0.9) {
+          // Потеря больше 10% матчей — игнорируем облако!
+          console.warn('⚠️ Firebase потерял данные! Локально:', localMatches, 'в облаке:', cloudMatches);
+          
+          // Пробуем восстановить из авто-бэкапа
+          const autoBackup = localStorage.getItem('football_auto_backup');
+          if (autoBackup) {
+            const backupData = JSON.parse(autoBackup);
+            if (backupData.matches?.length > cloudMatches) {
+              currentData = backupData;
+              console.log('📦 Восстановлено из бэкапа:', currentData.matches?.length, 'матчей');
+              await setDoc(docRef, currentData);
+            }
+          }
+        } else {
+          // Всё норм, берём облачные данные
+          currentData = cloudData;
+        }
         
         // Миграция старых данных
         if (!currentData.seasons) {

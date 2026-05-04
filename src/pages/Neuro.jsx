@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Brain, Zap, TrendingUp, Activity, Database, Target, Play, RefreshCw, BarChart3, Calculator, Home, User, Save } from 'lucide-react';
+import { Brain, Zap, TrendingUp, Activity, Database, Target, Play, RefreshCw, BarChart3, Calculator, Home, User, Save, Clock } from 'lucide-react';
 import { getData, getActiveSeason } from '../data/store';
 import * as tf from '@tensorflow/tfjs';
 
@@ -12,6 +12,7 @@ const Neuro = () => {
   const [isRetraining, setIsRetraining] = useState(false);
   const [modelReady, setModelReady] = useState(false);
   const [testResults, setTestResults] = useState(null);
+  const [trainingHistory, setTrainingHistory] = useState([]);
 
   // Проверяем сохранена ли модель при загрузке
   useEffect(() => {
@@ -22,6 +23,28 @@ const Neuro = () => {
           setModelReady(true);
           const lastTrained = localStorage.getItem('neuro_last_trained');
           const matchesCount = localStorage.getItem('neuro_matches_count');
+          
+          // Загружаем сохранённые результаты тестирования
+          const savedResults = localStorage.getItem('neuro_test_results');
+          if (savedResults) {
+            try {
+              setTestResults(JSON.parse(savedResults));
+              console.log('📊 Загружены сохранённые результаты тестирования');
+            } catch (e) {
+              console.log('Не удалось загрузить результаты');
+            }
+          }
+          
+          // 🔧 Загружаем историю обучения
+          const savedHistory = localStorage.getItem('neuro_training_history');
+          if (savedHistory) {
+            try {
+              setTrainingHistory(JSON.parse(savedHistory));
+            } catch (e) {
+              console.log('Не удалось загрузить историю');
+            }
+          }
+          
           if (lastTrained) {
             console.log('📦 Найдена сохранённая модель');
             console.log('🕐 Обучена:', new Date(lastTrained).toLocaleString('ru-RU'));
@@ -51,11 +74,10 @@ const Neuro = () => {
     
     setIsPredicting(true);
     
-    let model; // ← ДОБАВЬ ЭТУ СТРОКУ
+    let model;
     
     try {
-      model = await tf.loadLayersModel('localstorage://football-neuro-model'); // ← УБЕРИ const
-      // Перекомпилируем после загрузки
+      model = await tf.loadLayersModel('localstorage://football-neuro-model');
       model.compile({
         optimizer: tf.train.adam(0.001),
         loss: 'binaryCrossentropy',
@@ -124,6 +146,20 @@ const Neuro = () => {
     console.log(message);
     setTrainingLog(prev => [...prev, { time: new Date().toLocaleTimeString(), text: message }]);
   };
+
+  // 🔧 Сохранение в историю обучения
+  const addToHistory = (type, matchesCount, accuracy) => {
+    const entry = {
+      type: type, // 'full' или 'retrain'
+      date: new Date().toISOString(),
+      matches: matchesCount,
+      accuracy: accuracy
+    };
+    
+    const updatedHistory = [...trainingHistory, entry];
+    setTrainingHistory(updatedHistory);
+    localStorage.setItem('neuro_training_history', JSON.stringify(updatedHistory));
+  };
   
   // 🧠 ОБУЧЕНИЕ TENSORFLOW МОДЕЛИ С НУЛЯ
   const trainTensorFlowModel = async () => {
@@ -147,11 +183,14 @@ const Neuro = () => {
       log('🧪 Тестирование...');
       const results = testModel(model, data.matches, data.teams, data.seasons);
       log(`📊 Точность Neuro: ${results.accuracy}%`);
-      log(`📊 Точность Пуассон: ${results.poissonAccuracy}%`);
-      log(`🚀 Улучшение: +${(results.accuracy - results.poissonAccuracy).toFixed(1)}%`);
+      log(`📊 Протестировано: ${results.neuroTotal} матчей`);
       
       setTestResults(results);
+      localStorage.setItem('neuro_test_results', JSON.stringify(results));
       setModelReady(true);
+      
+      // 🔧 Сохраняем в историю
+      addToHistory('full', totalMatches, results.accuracy);
       
       await model.save('localstorage://football-neuro-model');
       log('💾 Модель сохранена в браузере');
@@ -168,71 +207,73 @@ const Neuro = () => {
   };
 
   // 📚 ДООБУЧЕНИЕ МОДЕЛИ
-const retrainModel = async () => {
-  setIsRetraining(true);
-  setTrainingLog([]);
-  
-  try {
-    log('📚 Загружаю существующую модель...');
-    const model = await tf.loadLayersModel('localstorage://football-neuro-model');
-    // 🔧 ПЕРЕКОМПИЛИРУЕМ после загрузки
-    model.compile({
-      optimizer: tf.train.adam(0.001),
-      loss: 'binaryCrossentropy',
-      metrics: ['accuracy']
-    });
-    log('✅ Модель загружена и скомпилирована');
+  const retrainModel = async () => {
+    setIsRetraining(true);
+    setTrainingLog([]);
     
-    log('📦 Подготовка ВСЕХ данных...');
-    const trainingData = prepareTrainingData(data.matches, data.teams, data.seasons);
-    log(`✅ Подготовлено ${trainingData.length} примеров`);
-    
-    const xs = trainingData.map(d => d.features);
-    const ys = trainingData.map(d => d.label);
-    
-    const xsTensor = tf.tensor2d(xs);
-    const ysTensor = tf.tensor2d(ys, [ys.length, 1]);
-    
-    log('📚 Дообучение (10 эпох)...');
-    
-    const history = await model.fit(xsTensor, ysTensor, {
-      epochs: 10,
-      batchSize: 16,
-      validationSplit: 0.2,
-      shuffle: true,
-      callbacks: {
-        onEpochEnd: (epoch, logs) => {
-          log(`  Эпоха ${epoch + 1}/10: accuracy=${(logs.acc * 100).toFixed(1)}%, loss=${logs.loss.toFixed(4)}`);
+    try {
+      log('📚 Загружаю существующую модель...');
+      const model = await tf.loadLayersModel('localstorage://football-neuro-model');
+      model.compile({
+        optimizer: tf.train.adam(0.001),
+        loss: 'binaryCrossentropy',
+        metrics: ['accuracy']
+      });
+      log('✅ Модель загружена и скомпилирована');
+      
+      log('📦 Подготовка ВСЕХ данных...');
+      const trainingData = prepareTrainingData(data.matches, data.teams, data.seasons);
+      log(`✅ Подготовлено ${trainingData.length} примеров`);
+      
+      const xs = trainingData.map(d => d.features);
+      const ys = trainingData.map(d => d.label);
+      
+      const xsTensor = tf.tensor2d(xs);
+      const ysTensor = tf.tensor2d(ys, [ys.length, 1]);
+      
+      log('📚 Дообучение (10 эпох)...');
+      
+      const history = await model.fit(xsTensor, ysTensor, {
+        epochs: 10,
+        batchSize: 16,
+        validationSplit: 0.2,
+        shuffle: true,
+        callbacks: {
+          onEpochEnd: (epoch, logs) => {
+            log(`  Эпоха ${epoch + 1}/10: accuracy=${(logs.acc * 100).toFixed(1)}%, loss=${logs.loss.toFixed(4)}`);
+          }
         }
-      }
-    });
+      });
+      
+      log(`✅ Дообучение завершено! Loss: ${history.history.loss[9].toFixed(4)}`);
+      
+      xsTensor.dispose();
+      ysTensor.dispose();
+      
+      log('🧪 Тестирование...');
+      const results = testModel(model, data.matches, data.teams, data.seasons);
+      log(`📊 Точность Neuro: ${results.accuracy}%`);
+      log(`📊 Протестировано: ${results.neuroTotal} матчей`);
+      
+      setTestResults(results);
+      localStorage.setItem('neuro_test_results', JSON.stringify(results));
+      
+      // 🔧 Сохраняем в историю
+      addToHistory('retrain', totalMatches, results.accuracy);
+      
+      await model.save('localstorage://football-neuro-model');
+      log('💾 Обновлённая модель сохранена');
+      
+      localStorage.setItem('neuro_last_trained', new Date().toISOString());
+      localStorage.setItem('neuro_matches_count', totalMatches);
+      
+    } catch (error) {
+      log(`❌ Ошибка: ${error.message}`);
+      console.error(error);
+    }
     
-    log(`✅ Дообучение завершено! Loss: ${history.history.loss[9].toFixed(4)}`);
-    
-    xsTensor.dispose();
-    ysTensor.dispose();
-    
-    log('🧪 Тестирование...');
-    const results = testModel(model, data.matches, data.teams, data.seasons);
-    log(`📊 Точность Neuro: ${results.accuracy}%`);
-    log(`📊 Точность Пуассон: ${results.poissonAccuracy}%`);
-    log(`🚀 Улучшение: +${(results.accuracy - results.poissonAccuracy).toFixed(1)}%`);
-    
-    setTestResults(results);
-    
-    await model.save('localstorage://football-neuro-model');
-    log('💾 Обновлённая модель сохранена');
-    
-    localStorage.setItem('neuro_last_trained', new Date().toISOString());
-    localStorage.setItem('neuro_matches_count', totalMatches);
-    
-  } catch (error) {
-    log(`❌ Ошибка: ${error.message}`);
-    console.error(error);
-  }
-  
-  setIsRetraining(false);
-};
+    setIsRetraining(false);
+  };
   
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -252,8 +293,42 @@ const retrainModel = async () => {
         <StatusCard icon={Database} label="Матчей для обучения" value={totalMatches} color="blue" />
         <StatusCard icon={Brain} label="Статус модели" value={modelReady ? 'Готова' : 'Не обучена'} color="purple" />
         <StatusCard icon={Target} label="Точность Neuro" value={testResults ? `${testResults.accuracy}%` : '—'} color="green" />
-        <StatusCard icon={TrendingUp} label="Улучшение" value={testResults ? `+${(testResults.accuracy - testResults.poissonAccuracy).toFixed(1)}%` : '—'} color="yellow" />
+        <StatusCard icon={TrendingUp} label="Протестировано" value={testResults ? `${testResults.neuroTotal}` : '—'} color="yellow" />
       </div>
+      
+      {/* 🔧 ИСТОРИЯ ОБУЧЕНИЯ */}
+      {trainingHistory.length > 0 && (
+        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <Clock size={16} className="text-blue-400" />
+            История обучения
+          </h4>
+          <div className="space-y-2">
+            {trainingHistory.map((entry, i) => (
+              <div key={i} className="flex items-center justify-between bg-gray-700/30 rounded-lg p-3 text-sm">
+                <div className="flex items-center gap-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    entry.type === 'full' ? 'bg-purple-600/30 text-purple-400' : 'bg-green-600/30 text-green-400'
+                  }`}>
+                    {entry.type === 'full' ? '🧠 Обучена с нуля' : '📚 Дообучена'}
+                  </span>
+                  <span className="text-gray-400">
+                    на <span className="text-white font-medium">{entry.matches}</span> матчах
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-400">
+                    точность <span className="text-green-400 font-bold">{entry.accuracy}%</span>
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(entry.date).toLocaleDateString('ru-RU')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* Инфо о последнем обучении */}
       {modelReady && (
@@ -354,28 +429,13 @@ const retrainModel = async () => {
           
           {/* Результаты тестирования */}
           {testResults && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <ResultCard 
-                title="Neuro AI"
+                title="Neuro AI — Точность на тестовой выборке"
                 accuracy={testResults.accuracy}
                 correct={testResults.neuroCorrect}
                 total={testResults.neuroTotal}
                 color="purple"
-              />
-              <ResultCard 
-                title="Пуассон"
-                accuracy={testResults.poissonAccuracy}
-                correct={testResults.poissonCorrect}
-                total={testResults.poissonTotal}
-                color="yellow"
-              />
-              <ResultCard 
-                title="Гибрид (Neuro + Пуассон)"
-                accuracy={testResults.hybridAccuracy}
-                correct={testResults.hybridCorrect}
-                total={testResults.hybridTotal}
-                color="green"
-                highlight
               />
             </div>
           )}
@@ -385,7 +445,6 @@ const retrainModel = async () => {
             <p className="text-sm text-blue-300">
               💡 <strong>Как работает:</strong> Нейросеть анализирует 20+ параметров (угловые, xG, владение, 
               удары, форма команд) и учится находить закономерности которые Пуассон не видит. 
-              Затем комбинируется с Пуассоном для максимальной точности.
             </p>
           </div>
           
@@ -727,8 +786,6 @@ const testModel = (model, matches, teams, seasons) => {
   const sortedMatches = [...matches].sort((a, b) => new Date(a.date) - new Date(b.date));
   
   let neuroCorrect = 0, neuroTotal = 0;
-  let poissonCorrect = 0, poissonTotal = 0;
-  let hybridCorrect = 0, hybridTotal = 0;
   
   const testStart = Math.floor(sortedMatches.length * 0.8);
   
@@ -762,29 +819,11 @@ const testModel = (model, matches, teams, seasons) => {
     
     if (neuroOver === actualOver) neuroCorrect++;
     neuroTotal++;
-    
-    const homeAvg = homeStats.avgCornersFor;
-    const awayAvg = awayStats.avgCornersFor;
-    const totalExpected = (homeAvg + awayAvg) * 0.9;
-    const poissonOver = totalExpected > 9.5;
-    
-    if (poissonOver === actualOver) poissonCorrect++;
-    poissonTotal++;
-    
-    const hybridProb = (prediction * 0.4) + ((totalExpected > 9.5 ? 0.6 : 0.4) * 0.6);
-    const hybridOver = hybridProb > 0.5;
-    
-    if (hybridOver === actualOver) hybridCorrect++;
-    hybridTotal++;
   }
   
   return {
     neuroCorrect, neuroTotal,
     accuracy: neuroTotal > 0 ? ((neuroCorrect / neuroTotal) * 100).toFixed(1) : '0.0',
-    poissonCorrect, poissonTotal,
-    poissonAccuracy: poissonTotal > 0 ? ((poissonCorrect / poissonTotal) * 100).toFixed(1) : '0.0',
-    hybridCorrect, hybridTotal,
-    hybridAccuracy: hybridTotal > 0 ? ((hybridCorrect / hybridTotal) * 100).toFixed(1) : '0.0',
   };
 };
 
