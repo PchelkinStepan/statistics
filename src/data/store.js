@@ -577,28 +577,28 @@ export const predictMatch = (homeTeamId, awayTeamId, leagueId, seasonId, selecte
   
   if (totalExpected > selectedTotal + 2) {
     totalProbability = 85;
-    recommendation = `🔥 СИЛЬНЫЙ СИГНАЛ: ТБ ${selectedTotal} угловых`;
+    recommendation = `🔥 СТАВЛЮ! ТБ ${selectedTotal} угловых (85%)`;
   } else if (totalExpected > selectedTotal + 1.5) {
     totalProbability = 75;
-    recommendation = `🔥 СИЛЬНЫЙ СИГНАЛ: ТБ ${selectedTotal} угловых`;
+    recommendation = `⚠️ СТАВЛЮ ОСТОРОЖНО! ТБ ${selectedTotal} угловых (75%)`;
   } else if (totalExpected > selectedTotal + 1) {
     totalProbability = 68;
-    recommendation = `✅ ХОРОШИЙ СИГНАЛ: ТБ ${selectedTotal} угловых`;
+    recommendation = `🤔 ДУМАЮ! ТБ ${selectedTotal} угловых (68%)`;
   } else if (totalExpected > selectedTotal + 0.5) {
     totalProbability = 60;
-    recommendation = `👍 СИГНАЛ: ТБ ${selectedTotal} угловых`;
+    recommendation = `❌ НЕ ЛЕЗУ! ТБ ${selectedTotal} угловых (60%)`;
   } else if (totalExpected > selectedTotal - 0.5) {
     totalProbability = 52;
-    recommendation = `⚖️ Нет явного сигнала (близко к ${selectedTotal})`;
+    recommendation = `❌ НЕ ЛЕЗУ! Близко к ${selectedTotal} (52%)`;
   } else if (totalExpected > selectedTotal - 1) {
     totalProbability = 42;
-    recommendation = `❄️ СИГНАЛ: Рассмотри ТМ ${selectedTotal} угловых`;
+    recommendation = `❌ НЕ ЛЕЗУ! ТМ ${selectedTotal} угловых (42%)`;
   } else if (totalExpected > selectedTotal - 1.5) {
     totalProbability = 35;
-    recommendation = `❄️ ХОРОШИЙ СИГНАЛ: ТМ ${selectedTotal} угловых`;
+    recommendation = `🤔 ДУМАЮ! ТМ ${selectedTotal} угловых (35%)`;
   } else {
     totalProbability = 25;
-    recommendation = `🧊 СИЛЬНЫЙ СИГНАЛ: ТМ ${selectedTotal} угловых`;
+    recommendation = `⚠️ СТАВЛЮ ОСТОРОЖНО! ТМ ${selectedTotal} угловых (25%)`;
   }
   
   const underProbability = 100 - totalProbability;
