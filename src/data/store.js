@@ -83,7 +83,7 @@ export const initStore = (callback) => {
       const cachedData = cached ? JSON.parse(cached) : null;
       const cachedMatches = cachedData?.matches?.length || 0;
       
-      // Если в облаке дефолт, а в кэше больше
+      // Если в облаке дефолт, а в кэше больше — восстанавливаем
       if (cloudMatches < 10 && cachedMatches > 10) {
         console.warn('⚠️ В Firebase дефолтные данные! Загружаю из кэша:', cachedMatches, 'матчей');
         currentData = cachedData;
