@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { getData, saveData } from '../data/store';
+import { useState, useEffect } from 'react';
+import { getData, saveData, subscribe } from '../data/store';
 import { 
   TrendingUp, Wallet, Plus, Trash2, 
   Check, X, Target, ChevronDown,
@@ -16,13 +16,24 @@ const BetTracker = () => {
   
   const [bets, setBets] = useState(data.bets || []);
   const [bankroll, setBankroll] = useState(data.bankroll || { initial: 10000, current: 10000 });
+
+  // 🔧 ПОДПИСКА НА ОБНОВЛЕНИЯ
+  useEffect(() => {
+    const unsubscribe = subscribe((newData) => {
+      setData(newData);
+      setBets(newData.bets || []);
+      setBankroll(newData.bankroll || { initial: 10000, current: 10000 });
+    });
+    return () => unsubscribe();
+  }, []);
+  
   const [showAddForm, setShowAddForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterLeague, setFilterLeague] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [editingBankroll, setEditingBankroll] = useState(false);
   const [newBankroll, setNewBankroll] = useState(bankroll.current);
-  const [editingBet, setEditingBet] = useState(null); // ← Для редактирования ставки
+  const [editingBet, setEditingBet] = useState(null);
   
   const [betForm, setBetForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -53,7 +64,6 @@ const BetTracker = () => {
     setEditingBankroll(false);
   };
 
-  // Пересчёт банка на основе всех ставок
   const recalcBankroll = (updatedBets) => {
     const totalProfit = updatedBets.reduce((sum, bet) => sum + (bet.profit || 0), 0);
     const updated = {
@@ -64,7 +74,6 @@ const BetTracker = () => {
     return updated;
   };
 
-  // Добавление или редактирование ставки
   const handleAddBet = (e) => {
     e.preventDefault();
     
@@ -72,10 +81,9 @@ const BetTracker = () => {
       ? Math.round(betForm.stake * (betForm.odds - 1) * 100) / 100
       : betForm.status === 'lost' 
       ? -betForm.stake 
-      : 0; // pending = 0
+      : 0;
     
     if (editingBet) {
-      // Редактирование существующей ставки
       const updatedBets = bets.map(b => 
         b.id === editingBet.id 
           ? { ...betForm, id: editingBet.id, profit } 
@@ -86,7 +94,6 @@ const BetTracker = () => {
       saveBets(updatedBets, newBankroll);
       setEditingBet(null);
     } else {
-      // Новая ставка
       const newBet = { ...betForm, id: Date.now().toString(), profit };
       const updatedBets = [...bets, newBet];
       setBets(updatedBets);
@@ -110,7 +117,6 @@ const BetTracker = () => {
     setShowAddForm(false);
   };
 
-  // Открыть форму редактирования
   const handleEditBet = (bet) => {
     setEditingBet(bet);
     setBetForm({
@@ -129,7 +135,6 @@ const BetTracker = () => {
     setShowAddForm(true);
   };
 
-  // Обновление статуса (выиграла/проиграла)
   const updateBetStatus = (betId, newStatus) => {
     const updatedBets = bets.map(bet => {
       if (bet.id === betId) {
@@ -148,7 +153,6 @@ const BetTracker = () => {
     saveBets(updatedBets, newBankroll);
   };
 
-  // Удаление ставки
   const deleteBet = (betId) => {
     const updatedBets = bets.filter(bet => bet.id !== betId);
     setBets(updatedBets);
@@ -336,7 +340,6 @@ const BetTracker = () => {
         </div>
       </div>
 
-      {/* Модалка добавления/редактирования */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-auto">
