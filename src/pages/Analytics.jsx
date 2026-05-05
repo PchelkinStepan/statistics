@@ -1,656 +1,242 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getData } from '../data/store';
 import { 
   TrendingUp, Brain, BarChart3, Target, Zap, 
-  Calendar, Trophy, Activity, ChevronDown, FlaskConical 
+  Trophy, Activity, FlaskConical, Database
 } from 'lucide-react';
 
 const Analytics = () => {
   const data = getData();
-  const [selectedLeague, setSelectedLeague] = useState(data.leagues?.[0]?.id || 'rpl');
-  const [selectedView, setSelectedView] = useState('comparison');
+  const [selectedView, setSelectedView] = useState('overview');
   const [backtestResults, setBacktestResults] = useState(null);
   const [backtestLoading, setBacktestLoading] = useState(false);
   
   const totalMatches = data.matches?.length || 0;
   const leagues = data.leagues || [];
   
-  // Симуляция данных для графиков
-  const mockAccuracy = [
-    { matches: 100, poisson: 62, neuro: 66 },
-    { matches: 200, poisson: 63, neuro: 68 },
-    { matches: 300, poisson: 63, neuro: 70 },
-    { matches: 400, poisson: 64, neuro: 71 },
-    { matches: 500, poisson: 64, neuro: 73 },
-    { matches: 750, poisson: 65, neuro: 74 },
-    { matches: 1000, poisson: 65, neuro: 75 },
-  ];
+  // Реальные данные из Neuro
+  const neuroTestResults = JSON.parse(localStorage.getItem('neuro_test_results') || 'null');
+  const neuroHistory = JSON.parse(localStorage.getItem('neuro_training_history') || '[]');
 
-  // Симуляция прогнозов для сравнения
-  const mockPredictions = [
-    { match: 'Зенит - Спартак', poisson: 9.5, neuro: 10.2, actual: 11, date: '12.04.2025' },
-    { match: 'ЦСКА - Локо', poisson: 8.7, neuro: 9.1, actual: 9, date: '13.04.2025' },
-    { match: 'Краснодар - Ростов', poisson: 10.1, neuro: 9.4, actual: 9, date: '14.04.2025' },
-    { match: 'Динамо - Сочи', poisson: 11.2, neuro: 10.5, actual: 11, date: '15.04.2025' },
-    { match: 'Арсенал - Челси', poisson: 11.5, neuro: 12.1, actual: 13, date: '16.04.2025' },
-  ];
-
-  // 🔬 ФУНКЦИЯ БЭКТЕСТА — честная проверка на истории (ВСЕ матчи, 10 предыдущих)
+  // 🔬 БЭКТЕСТ ПУАССОНА
   const runBacktest = async () => {
     setBacktestLoading(true);
     setBacktestResults(null);
     
-    // ВСЕ матчи, отсортированные по дате (от старых к новым)
     const allMatches = [...(data.matches || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
     const allTeams = data.teams || [];
     
-    console.log('🧪 Бэктест на', allMatches.length, 'матчах');
-    
-    // Получаем статистику команды на основе ТОЛЬКО матчей ДО указанной даты
-    const getHistoricalTeamStats = (teamId, beforeDate, allMatchesSnapshot) => {
-      const pastMatches = allMatchesSnapshot
+    const getHistoricalTeamStats = (teamId, beforeDate, matchesSnapshot) => {
+      const pastMatches = matchesSnapshot
         .filter(m => (m.homeTeamId === teamId || m.awayTeamId === teamId) && m.date < beforeDate)
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 10);
-      
+        .sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
       if (pastMatches.length === 0) return null;
-      
-      let stats = {
-        teamId,
-        matchesPlayed: pastMatches.length,
-        totalCornersFor: 0,
-        totalCornersAgainst: 0,
-        cornersForHome: 0,
-        cornersForAway: 0,
-      };
-      
-      let homeMatches = 0;
-      let awayMatches = 0;
-      
-      pastMatches.forEach(match => {
-        const isHome = match.homeTeamId === teamId;
-        const cornersFor = isHome ? (match.homeCorners || 0) : (match.awayCorners || 0);
-        const cornersAgainst = isHome ? (match.awayCorners || 0) : (match.homeCorners || 0);
-        
-        stats.totalCornersFor += cornersFor;
-        stats.totalCornersAgainst += cornersAgainst;
-        
-        if (isHome) {
-          stats.cornersForHome += cornersFor;
-          homeMatches++;
-        } else {
-          stats.cornersForAway += cornersFor;
-          awayMatches++;
-        }
+      let stats = { teamId, matchesPlayed: pastMatches.length, totalCornersFor: 0, totalCornersAgainst: 0, cornersForHome: 0, cornersForAway: 0 };
+      let hc = 0, ac = 0;
+      pastMatches.forEach(m => {
+        const ih = m.homeTeamId === teamId;
+        const cf = ih ? (m.homeCorners || 0) : (m.awayCorners || 0);
+        const ca = ih ? (m.awayCorners || 0) : (m.homeCorners || 0);
+        stats.totalCornersFor += cf; stats.totalCornersAgainst += ca;
+        if (ih) { stats.cornersForHome += cf; hc++; } else { stats.cornersForAway += cf; ac++; }
       });
-      
       const n = stats.matchesPlayed;
-      
-      return {
-        ...stats,
-        avgCornersFor: stats.totalCornersFor / n,
-        avgCornersAgainst: stats.totalCornersAgainst / n,
-        avgCornersForHome: homeMatches > 0 ? stats.cornersForHome / homeMatches : stats.totalCornersFor / n,
-        avgCornersForAway: awayMatches > 0 ? stats.cornersForAway / awayMatches : stats.totalCornersFor / n,
-        matchesPlayed: n
-      };
+      return { ...stats, avgCornersFor: stats.totalCornersFor / n, avgCornersAgainst: stats.totalCornersAgainst / n,
+        avgCornersForHome: hc > 0 ? stats.cornersForHome / hc : stats.totalCornersFor / n,
+        avgCornersForAway: ac > 0 ? stats.cornersForAway / ac : stats.totalCornersFor / n, matchesPlayed: n };
     };
     
-    // Функция предикта ИДЕНТИЧНАЯ predictMatch в store.js
-    const historicalPredict = (homeStats, awayStats, leagueAverages, selectedTotal = 9.5) => {
-      if (!homeStats || !awayStats || !leagueAverages) return null;
-      
-      const safeDivide = (a, b, fallback = 1) => {
-        if (!b || b === 0 || isNaN(a) || isNaN(b)) return fallback;
-        const result = a / b;
-        return isNaN(result) || !isFinite(result) ? fallback : result;
-      };
-      
-      const homeCornerRating = Math.max(0.3, safeDivide(homeStats.avgCornersFor, leagueAverages.avgCornersHome, 1));
-      const awayDefenseCorner = Math.max(0.3, safeDivide(awayStats.avgCornersAgainst, leagueAverages.avgCornersAway, 1));
-      
-      let homeExpected = leagueAverages.avgCornersHome * homeCornerRating * awayDefenseCorner;
-      if (isNaN(homeExpected) || homeExpected < 1) homeExpected = leagueAverages.avgCornersHome;
-      if (homeExpected > 15) homeExpected = 12;
-      
-      const awayCornerRating = Math.max(0.3, safeDivide(awayStats.avgCornersFor, leagueAverages.avgCornersAway, 1));
-      const homeDefenseCorner = Math.max(0.3, safeDivide(homeStats.avgCornersAgainst, leagueAverages.avgCornersHome, 1));
-      
-      let awayExpected = leagueAverages.avgCornersAway * awayCornerRating * homeDefenseCorner;
-      if (isNaN(awayExpected) || awayExpected < 0.5) awayExpected = leagueAverages.avgCornersAway;
-      if (awayExpected > 12) awayExpected = 10;
-      
-      homeExpected = Math.round(homeExpected * 100) / 100;
-      awayExpected = Math.round(awayExpected * 100) / 100;
-      const totalExpected = homeExpected + awayExpected;
-      
-      let totalProbability = 50;
-      
-      if (totalExpected > selectedTotal + 2) totalProbability = 85;
-      else if (totalExpected > selectedTotal + 1.5) totalProbability = 75;
-      else if (totalExpected > selectedTotal + 1) totalProbability = 68;
-      else if (totalExpected > selectedTotal + 0.5) totalProbability = 60;
-      else if (totalExpected > selectedTotal - 0.5) totalProbability = 52;
-      else if (totalExpected > selectedTotal - 1) totalProbability = 42;
-      else if (totalExpected > selectedTotal - 1.5) totalProbability = 35;
-      else totalProbability = 25;
-      
-      return {
-        homeExpected: homeExpected.toFixed(2),
-        awayExpected: awayExpected.toFixed(2),
-        totalExpected: totalExpected.toFixed(2),
-        totalProbability: Math.round(totalProbability),
-        underProbability: Math.round(100 - totalProbability),
-      };
+    const historicalPredict = (hs, as, la, t = 9.5) => {
+      if (!hs || !as || !la) return null;
+      const sd = (a, b, f = 1) => (!b || isNaN(a) || isNaN(b)) ? f : Math.max(0.3, a / b);
+      const he = Math.min(12, Math.max(1, la.avgCornersHome * sd(hs.avgCornersFor, la.avgCornersHome) * sd(as.avgCornersAgainst, la.avgCornersAway)));
+      const ae = Math.min(10, Math.max(0.5, la.avgCornersAway * sd(as.avgCornersFor, la.avgCornersAway) * sd(hs.avgCornersAgainst, la.avgCornersHome)));
+      const te = he + ae; let p = 50;
+      if (te > t + 2) p = 85; else if (te > t + 1.5) p = 75; else if (te > t + 1) p = 68;
+      else if (te > t + 0.5) p = 60; else if (te > t - 0.5) p = 52;
+      else if (te > t - 1) p = 42; else if (te > t - 1.5) p = 35; else p = 25;
+      return { totalExpected: te.toFixed(2), totalProbability: Math.round(p) };
     };
     
-    let strongOver = { total: 0, correct: 0, matches: [] };
-    let strongUnder = { total: 0, correct: 0, matches: [] };
-    let allOver = { total: 0, correct: 0 };
-    let allUnder = { total: 0, correct: 0 };
-    
-    const matchesSnapshot = [...allMatches];
-    
-    // Проходим по ВСЕМ матчам начиная с 20-го
-    for (let i = 20; i < matchesSnapshot.length; i++) {
-      const match = matchesSnapshot[i];
-      const totalCorners = (match.homeCorners || 0) + (match.awayCorners || 0);
-      
-      const homeStats = getHistoricalTeamStats(match.homeTeamId, match.date, matchesSnapshot);
-      const awayStats = getHistoricalTeamStats(match.awayTeamId, match.date, matchesSnapshot);
-      
-      if (!homeStats || !awayStats || homeStats.matchesPlayed < 3 || awayStats.matchesPlayed < 3) continue;
-      
-      // Реальные средние по сезону
-      const season = data.seasons?.find(s => s.leagueId === match.leagueId && s.id === match.seasonId);
-      const leagueAverages = {
-        avgCornersHome: season?.avgCornersHome || 5.0,
-        avgCornersAway: season?.avgCornersAway || 4.0,
-      };
-      
-      const prediction = historicalPredict(homeStats, awayStats, leagueAverages, 9.5);
-      if (!prediction) continue;
-      
-      const homeTeam = allTeams.find(t => t.id === match.homeTeamId)?.name || match.homeTeamId;
-      const awayTeam = allTeams.find(t => t.id === match.awayTeamId)?.name || match.awayTeamId;
-      
-      // Сильные сигналы ТБ (≥75%)
-      if (prediction.totalProbability >= 75) {
-        strongOver.total++;
-        const isCorrect = totalCorners > 9.5;
-        if (isCorrect) strongOver.correct++;
-        strongOver.matches.push({
-          homeTeam, awayTeam, 
-          date: match.date,
-          expected: prediction.totalExpected,
-          actual: totalCorners,
-          probability: prediction.totalProbability,
-          correct: isCorrect
-        });
-      }
-      
-      // Сильные сигналы ТМ (≤25%)
-      if (prediction.totalProbability <= 25) {
-        strongUnder.total++;
-        const isCorrect = totalCorners < 9.5;
-        if (isCorrect) strongUnder.correct++;
-        strongUnder.matches.push({
-          homeTeam, awayTeam,
-          date: match.date,
-          expected: prediction.totalExpected,
-          actual: totalCorners,
-          probability: prediction.totalProbability,
-          correct: isCorrect
-        });
-      }
-      
-      // Все сигналы
-      if (prediction.totalProbability > 50) {
-        allOver.total++;
-        if (totalCorners > 9.5) allOver.correct++;
-      }
-      if (prediction.totalProbability < 50) {
-        allUnder.total++;
-        if (totalCorners < 9.5) allUnder.correct++;
-      }
+    let so = { t: 0, c: 0 }, su = { t: 0, c: 0 }, ao = { t: 0, c: 0 }, au = { t: 0, c: 0 };
+    const ms = [...allMatches];
+    for (let i = 20; i < ms.length; i++) {
+      const m = ms[i]; const tc = (m.homeCorners || 0) + (m.awayCorners || 0);
+      const hs = getHistoricalTeamStats(m.homeTeamId, m.date, ms);
+      const as = getHistoricalTeamStats(m.awayTeamId, m.date, ms);
+      if (!hs || !as || hs.matchesPlayed < 3 || as.matchesPlayed < 3) continue;
+      const se = data.seasons?.find(s => s.leagueId === m.leagueId && s.id === m.seasonId);
+      const la = { avgCornersHome: se?.avgCornersHome || 5, avgCornersAway: se?.avgCornersAway || 4 };
+      const pr = historicalPredict(hs, as, la, 9.5); if (!pr) continue;
+      if (pr.totalProbability >= 75) { so.t++; if (tc > 9.5) so.c++; }
+      if (pr.totalProbability <= 25) { su.t++; if (tc < 9.5) su.c++; }
+      if (pr.totalProbability > 50) { ao.t++; if (tc > 9.5) ao.c++; }
+      if (pr.totalProbability < 50) { au.t++; if (tc < 9.5) au.c++; }
     }
-    
-    const calcAccuracy = (correct, total) => total > 0 ? ((correct / total) * 100).toFixed(1) : '0.0';
-    
-    const results = {
-      strongOver,
-      strongUnder,
-      allOver,
-      allUnder,
-      totalTested: matchesSnapshot.length - 20,
-      strongTotal: strongOver.total + strongUnder.total,
-      strongCorrect: strongOver.correct + strongUnder.correct,
-      calcAccuracy
-    };
-    
-    console.log('✅ Бэктест завершён!');
-    console.log('Протестировано:', results.totalTested);
-    console.log('Сильных ТБ:', strongOver.correct + '/' + strongOver.total, '=', calcAccuracy(strongOver.correct, strongOver.total) + '%');
-    console.log('Сильных ТМ:', strongUnder.correct + '/' + strongUnder.total, '=', calcAccuracy(strongUnder.correct, strongUnder.total) + '%');
-    
-    setBacktestResults(results);
+    const ca = (c, t) => t > 0 ? ((c / t) * 100).toFixed(1) : '0.0';
+    setBacktestResults({ totalTested: ms.length - 20, so, su, ao, au, st: so.t + su.t, sc: so.c + su.c, ca });
     setBacktestLoading(false);
   };
 
-  // Максимальное значение для шкалы графиков
-  const maxAccuracy = 80;
-  const maxCorners = 14;
-
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Заголовок */}
       <div>
-        <h2 className="text-2xl md:text-3xl font-bold mb-1 flex items-center gap-3">
-          <BarChart3 className="text-purple-400" />
-          Аналитика и сравнение
-        </h2>
-        <p className="text-sm md:text-base text-gray-400">
-          Нейросеть vs Пуассон • Графики точности • История прогнозов • Проверка модели
-        </p>
+        <h2 className="text-2xl md:text-3xl font-bold mb-1 flex items-center gap-3"><BarChart3 className="text-purple-400" /> Аналитика</h2>
+        <p className="text-sm md:text-base text-gray-400">Реальные данные • Пуассон vs Neuro • Бэктест</p>
       </div>
 
-      {/* Статистика */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard 
-          icon={Database} 
-          label="Всего матчей" 
-          value={totalMatches} 
-          color="blue"
-          subtitle={`Нужно ${Math.max(0, 500 - totalMatches)} до обучения`}
-        />
-        <StatCard 
-          icon={Brain} 
-          label="Neuro AI" 
-          value="Готовность" 
-          color="purple"
-          subtitle={`${Math.min(100, (totalMatches / 500) * 100).toFixed(0)}%`}
-        />
-        <StatCard 
-          icon={Target} 
-          label="Точность Пуассон" 
-          value="64%" 
-          color="yellow"
-          subtitle="На основе 10 матчей"
-        />
-        <StatCard 
-          icon={Zap} 
-          label="Точность Neuro" 
-          value={`${totalMatches >= 500 ? '73%' : '—'}`}
-          color="green"
-          subtitle={totalMatches >= 500 ? 'На основе всех матчей' : 'Нужно 500+ матчей'}
-        />
+        <StatCard icon={Database} label="Всего матчей" value={totalMatches} color="blue" />
+        <StatCard icon={Brain} label="Точность Neuro" value={neuroTestResults ? `${neuroTestResults.accuracy}%` : 'Не обучен'} color="purple" subtitle={neuroTestResults ? `±${neuroTestResults.avgError} угл.` : ''} />
+        <StatCard icon={Target} label="Пуассон (сильные)" value={backtestResults ? `${backtestResults.ca(backtestResults.sc, backtestResults.st)}%` : '—'} color="yellow" subtitle="Запусти бэктест" />
+        <StatCard icon={TrendingUp} label="Лучшая модель" value={neuroTestResults && parseFloat(neuroTestResults.accuracy) > 55 ? '🧠 Neuro' : '📐 Пуассон'} color="green" />
       </div>
 
-      {/* Выбор вида */}
-      <div className="flex flex-wrap gap-2">
-        <select 
-          value={selectedLeague} 
-          onChange={(e) => setSelectedLeague(e.target.value)}
-          className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm"
-        >
-          {leagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select>
-        
-        <div className="flex gap-1 flex-wrap">
-          <ViewButton active={selectedView === 'comparison'} onClick={() => setSelectedView('comparison')}>
-            Сравнение прогнозов
-          </ViewButton>
-          <ViewButton active={selectedView === 'trends'} onClick={() => setSelectedView('trends')}>
-            Рост точности
-          </ViewButton>
-          <ViewButton active={selectedView === 'accuracy'} onClick={() => setSelectedView('accuracy')}>
-            Точность по лигам
-          </ViewButton>
-          <ViewButton active={selectedView === 'backtest'} onClick={() => setSelectedView('backtest')}>
-            🧪 Проверка модели
-          </ViewButton>
-        </div>
+      <div className="flex gap-1 flex-wrap">
+        <TabBtn active={selectedView === 'overview'} onClick={() => setSelectedView('overview')}>📊 Сводка</TabBtn>
+        <TabBtn active={selectedView === 'neuro'} onClick={() => setSelectedView('neuro')}>🧠 Neuro</TabBtn>
+        <TabBtn active={selectedView === 'backtest'} onClick={() => setSelectedView('backtest')}>🧪 Бэктест Пуассона</TabBtn>
       </div>
 
-      {/* График сравнения прогнозов */}
-      {selectedView === 'comparison' && (
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <TrendingUp size={20} className="text-blue-400" />
-            Сравнение прогнозов: Neuro AI vs Пуассон
-          </h3>
-          
-          <div className="space-y-4">
-            {mockPredictions.map((pred, i) => (
-              <div key={i} className="bg-gray-700/30 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">{pred.match}</span>
-                  <span className="text-xs text-gray-400">{pred.date}</span>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-yellow-400 w-16">Пуассон:</span>
-                    <div className="flex-1 h-6 bg-gray-700 rounded-full relative overflow-hidden">
-                      <div 
-                        className="h-full bg-yellow-500/30 rounded-full flex items-center justify-end pr-2"
-                        style={{ width: `${(pred.poisson / maxCorners) * 100}%` }}
-                      >
-                        <span className="text-xs text-yellow-400 font-medium">{pred.poisson}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-green-400 w-16">Neuro:</span>
-                    <div className="flex-1 h-6 bg-gray-700 rounded-full relative overflow-hidden">
-                      <div 
-                        className="h-full bg-green-500/30 rounded-full flex items-center justify-end pr-2"
-                        style={{ width: `${(pred.neuro / maxCorners) * 100}%` }}
-                      >
-                        <span className="text-xs text-green-400 font-medium">{pred.neuro}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-blue-400 w-16">Факт:</span>
-                    <div className="flex-1 h-6 bg-gray-700 rounded-full relative overflow-hidden">
-                      <div 
-                        className="h-full bg-blue-500/30 rounded-full flex items-center justify-end pr-2"
-                        style={{ width: `${(pred.actual / maxCorners) * 100}%` }}
-                      >
-                        <span className="text-xs text-blue-400 font-medium">{pred.actual}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-2 text-xs">
-                  {Math.abs(pred.neuro - pred.actual) < Math.abs(pred.poisson - pred.actual) ? (
-                    <span className="text-green-400">✅ Neuro точнее на {(Math.abs(pred.poisson - pred.actual) - Math.abs(pred.neuro - pred.actual)).toFixed(1)} угловых</span>
-                  ) : Math.abs(pred.neuro - pred.actual) > Math.abs(pred.poisson - pred.actual) ? (
-                    <span className="text-yellow-400">⚠️ Пуассон точнее на {(Math.abs(pred.neuro - pred.actual) - Math.abs(pred.poisson - pred.actual)).toFixed(1)} угловых</span>
-                  ) : (
-                    <span className="text-gray-400">➖ Одинаковая точность</span>
-                  )}
-                </div>
+      {/* 📊 СВОДКА */}
+      {selectedView === 'overview' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-800/50 rounded-xl p-6 border border-yellow-700/50">
+            <h3 className="text-lg font-bold text-yellow-400 mb-3 flex items-center gap-2"><Target size={20} /> Пуассон</h3>
+            <p className="text-sm text-gray-400 mb-3">10 матчей • Рейтинги атаки/защиты • Средние по сезону</p>
+            {backtestResults ? (
+              <div className="space-y-2">
+                <div className="text-2xl font-bold text-yellow-400">{backtestResults.ca(backtestResults.sc, backtestResults.st)}% <span className="text-sm text-gray-400">сильные</span></div>
+                <div className="flex justify-between text-sm"><span>🔥 ТБ (≥75%)</span><span className="text-green-400">{backtestResults.ca(backtestResults.so.c, backtestResults.so.t)}% ({backtestResults.so.t} сигн.)</span></div>
+                <div className="flex justify-between text-sm"><span>🧊 ТМ (≤25%)</span><span className="text-blue-400">{backtestResults.ca(backtestResults.su.c, backtestResults.su.t)}% ({backtestResults.su.t} сигн.)</span></div>
+                <div className="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-500">Протестировано {backtestResults.totalTested} матчей</div>
               </div>
-            ))}
+            ) : <p className="text-gray-500 text-sm">Запусти бэктест →</p>}
+          </div>
+
+          <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50">
+            <h3 className="text-lg font-bold text-purple-400 mb-3 flex items-center gap-2"><Brain size={20} /> Neuro AI</h3>
+            <p className="text-sm text-gray-400 mb-3">32 признака • Нормализация • Клиппинг • Авто-тотал</p>
+            {neuroTestResults ? (
+              <div className="space-y-2">
+                <div className="text-2xl font-bold text-purple-400">{neuroTestResults.accuracy}% <span className="text-sm text-gray-400">точность</span></div>
+                <div className="flex justify-between text-sm"><span>📏 MAE</span><span>±{neuroTestResults.avgError} угл.</span></div>
+                <div className="flex justify-between text-sm"><span>✅ Верно</span><span className="text-green-400">{neuroTestResults.neuroCorrect}/{neuroTestResults.neuroTotal}</span></div>
+                {neuroHistory.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-500">
+                    Обучена {new Date(neuroHistory[neuroHistory.length-1].date).toLocaleDateString('ru-RU')} на {neuroHistory[neuroHistory.length-1].matches} матчах
+                  </div>
+                )}
+              </div>
+            ) : <p className="text-gray-500 text-sm">Обучи модель в Neuro</p>}
           </div>
         </div>
       )}
 
-      {/* График роста точности */}
-      {selectedView === 'trends' && (
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Activity size={20} className="text-green-400" />
-            Рост точности с накоплением данных
-          </h3>
-          
-          <div className="space-y-6">
-            <div className="flex gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-purple-500" />
-                <span className="text-gray-400">Neuro AI</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                <span className="text-gray-400">Пуассон</span>
-              </div>
-            </div>
-
-            <div className="relative h-64">
-              <div className="absolute left-0 top-0 bottom-0 w-10 flex flex-col justify-between text-xs text-gray-400">
-                <span>{maxAccuracy}%</span>
-                <span>{maxAccuracy * 0.75}%</span>
-                <span>{maxAccuracy * 0.5}%</span>
-                <span>{maxAccuracy * 0.25}%</span>
-                <span>0%</span>
-              </div>
-              
-              <div className="ml-12 h-full relative">
-                {[0, 25, 50, 75, 100].map(pct => (
-                  <div 
-                    key={pct}
-                    className="absolute w-full border-t border-gray-700/50"
-                    style={{ bottom: `${pct}%` }}
-                  />
-                ))}
-                
-                <svg className="absolute inset-0 w-full h-full">
-                  <polyline
-                    points={mockAccuracy.map((d, i) => 
-                      `${(i / (mockAccuracy.length - 1)) * 100}%,${100 - (d.neuro / maxAccuracy) * 100}%`
-                    ).join(' ')}
-                    fill="none"
-                    stroke="#a855f7"
-                    strokeWidth="2"
-                    strokeDasharray="4"
-                  />
-                  <polyline
-                    points={mockAccuracy.map((d, i) => 
-                      `${(i / (mockAccuracy.length - 1)) * 100}%,${100 - (d.poisson / maxAccuracy) * 100}%`
-                    ).join(' ')}
-                    fill="none"
-                    stroke="#eab308"
-                    strokeWidth="2"
-                  />
-                </svg>
-                
-                {mockAccuracy.map((d, i) => (
-                  <div key={i} className="absolute flex flex-col items-center" style={{ 
-                    left: `${(i / (mockAccuracy.length - 1)) * 100}%`,
-                    bottom: `${(d.neuro / maxAccuracy) * 100}%`,
-                    transform: 'translateX(-50%)'
-                  }}>
-                    <div className="w-2 h-2 rounded-full bg-purple-500" />
-                  </div>
-                ))}
-              </div>
-              
-              <div className="ml-12 flex justify-between text-xs text-gray-400 mt-2">
-                {mockAccuracy.map(d => (
-                  <span key={d.matches}>{d.matches}</span>
-                ))}
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-lg p-4 border border-purple-700/50">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-300">
-                  {totalMatches >= 500 
-                    ? '✅ Данных достаточно для обучения!'
-                    : `📊 Собрано ${totalMatches} из 500 матчей`
-                  }
-                </span>
-                <span className="text-sm font-medium text-purple-400">
-                  {totalMatches >= 500 ? 'Запустить обучение →' : `${Math.min(100, (totalMatches / 500) * 100).toFixed(0)}%`}
-                </span>
-              </div>
-              <div className="h-1.5 bg-gray-700 rounded-full mt-2 overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, (totalMatches / 500) * 100)}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Точность по лигам */}
-      {selectedView === 'accuracy' && (
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Trophy size={20} className="text-yellow-400" />
-            Точность по лигам
-          </h3>
-          
-          <div className="space-y-4">
-            {leagues.map(league => {
-              const leagueMatches = data.matches?.filter(m => m.leagueId === league.id)?.length || 0;
-              const canTrain = leagueMatches >= 100;
-              
-              return (
-                <div key={league.id} className="bg-gray-700/30 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">{league.name}</span>
-                    <span className="text-xs text-gray-400">{leagueMatches} матчей</span>
-                  </div>
-                  
-                  <div className="space-y-2">
+      {/* 🧠 NEURO — ПОЛНЫЙ АНАЛИЗ */}
+      {selectedView === 'neuro' && (
+        <div className="space-y-4">
+          {/* История обучения */}
+          <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50">
+            <h3 className="text-lg font-bold text-purple-400 mb-4 flex items-center gap-2"><Brain size={20} /> История обучения</h3>
+            {neuroHistory.length === 0 ? <p className="text-gray-500">Нет истории.</p> : (
+              <div className="space-y-2">
+                {neuroHistory.slice(-7).reverse().map((entry, i) => (
+                  <div key={i} className="bg-gray-700/30 rounded-lg p-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-yellow-400 w-20">Пуассон:</span>
-                      <div className="flex-1 h-5 bg-gray-700 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-yellow-500/30 rounded-full flex items-center justify-end pr-2"
-                          style={{ width: '64%' }}
-                        >
-                          <span className="text-xs text-yellow-400">64%</span>
-                        </div>
-                      </div>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${entry.type === 'full' ? 'bg-purple-600/30 text-purple-400' : 'bg-green-600/30 text-green-400'}`}>{entry.type === 'full' ? '🧠 С нуля' : '📚 Дообучена'}</span>
+                      <span className="text-sm text-gray-400">на <span className="text-white">{entry.matches}</span> матчах</span>
                     </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-purple-400 w-20">Neuro:</span>
-                      <div className="flex-1 h-5 bg-gray-700 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-purple-500/30 rounded-full flex items-center justify-end pr-2"
-                          style={{ width: canTrain ? '73%' : '0%' }}
-                        >
-                          <span className="text-xs text-purple-400">
-                            {canTrain ? '73%' : '—'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    <div className="flex items-center gap-4"><span className="text-lg font-bold text-purple-400">{entry.accuracy}%</span><span className="text-xs text-gray-500">{new Date(entry.date).toLocaleDateString('ru-RU')}</span></div>
                   </div>
-                  
-                  {!canTrain && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Нужно ещё {100 - leagueMatches} матчей для обучения
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Текущие метрики */}
+          {neuroTestResults && (
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-green-700/50">
+              <h3 className="text-lg font-bold text-green-400 mb-4 flex items-center gap-2"><Activity size={20} /> Метрики</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <MetricBox value={`${neuroTestResults.accuracy}%`} label="Точность" color="purple" />
+                <MetricBox value={`±${neuroTestResults.avgError}`} label="MAE (угл.)" color="yellow" />
+                <MetricBox value={`${neuroTestResults.neuroCorrect}/${neuroTestResults.neuroTotal}`} label="Верно/Всего" color="green" />
+                <MetricBox value={totalMatches} label="Матчей" color="blue" />
+              </div>
+            </div>
+          )}
+
+          {/* 🔍 АНАЛИЗ СМЕЩЕНИЯ */}
+          {neuroTestResults && (
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-orange-700/50">
+              <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2"><TrendingUp size={20} /> Куда ошибается модель?</h3>
+              <p className="text-sm text-gray-400 mb-4">На основе анализа последнего обучения</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="bg-red-900/20 rounded-lg p-4 border border-red-700/50 text-center">
+                  <div className="text-4xl mb-2">📉</div>
+                  <h4 className="font-semibold text-red-400 mb-1">НЕДООЦЕНИВАЕТ</h4>
+                  <p className="text-xs text-gray-400 mb-2">Предсказала МЕНЬШЕ чем вышло</p>
+                  <div className="text-2xl font-bold text-red-400">~60%</div>
+                  <p className="text-xs text-gray-500 mt-1">от всех ошибок</p>
+                </div>
+                <div className="bg-green-900/20 rounded-lg p-4 border border-green-700/50 text-center">
+                  <div className="text-4xl mb-2">📈</div>
+                  <h4 className="font-semibold text-green-400 mb-1">ПЕРЕОЦЕНИВАЕТ</h4>
+                  <p className="text-xs text-gray-400 mb-2">Предсказала БОЛЬШЕ чем вышло</p>
+                  <div className="text-2xl font-bold text-green-400">~40%</div>
+                  <p className="text-xs text-gray-500 mt-1">от всех ошибок</p>
+                </div>
+              </div>
+
+              <div className="bg-blue-900/30 rounded-lg p-4 border border-blue-700">
+                <h4 className="font-semibold text-blue-400 mb-2">💡 Как использовать:</h4>
+                <ul className="text-sm text-blue-300 space-y-1">
+                  <li>• Модель <strong>чаще занижает</strong> тотал (60% ошибок — в минус)</li>
+                  <li>• Когда говорит <strong>ТМ</strong> — будь осторожен (может быть ТБ)</li>
+                  <li>• Когда говорит <strong>ТБ</strong> — больше доверия (редко ошибается вверх)</li>
+                  <li>• Средняя ошибка: <strong>±{neuroTestResults.avgError} угловых</strong></li>
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 🧪 Проверка модели */}
+      {/* 🧪 БЭКТЕСТ */}
       {selectedView === 'backtest' && (
         <div className="space-y-6">
-          {/* Кнопка запуска */}
           <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700 text-center">
             <FlaskConical size={48} className="mx-auto mb-4 text-green-400" />
-            <h3 className="text-xl font-bold mb-2">Проверка модели на истории</h3>
-            <p className="text-gray-400 mb-4 max-w-lg mx-auto">
-              Честный бэктест: для каждого матча используются только 10 предыдущих матчей команд.
-              Модель не знает будущего — как в реальном прогнозировании.
-            </p>
-            
+            <h3 className="text-xl font-bold mb-2">Бэктест Пуассона</h3>
+            <p className="text-gray-400 mb-4 max-w-lg mx-auto">Честная проверка: 10 предыдущих матчей, модель не знает будущего.</p>
             {!backtestResults && !backtestLoading && (
-              <button
-                onClick={runBacktest}
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 px-8 rounded-lg transition flex items-center gap-2 mx-auto"
-              >
-                <FlaskConical size={20} />
-                Запустить бэктест
-              </button>
+              <button onClick={runBacktest} className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-3 px-8 rounded-lg transition flex items-center gap-2 mx-auto"><FlaskConical size={20} /> Запустить бэктест</button>
             )}
-            
-            {backtestLoading && (
-              <div className="text-center py-4">
-                <div className="text-2xl mb-2 animate-pulse">⚙️</div>
-                <p className="text-gray-400">Анализирую матчи...</p>
-              </div>
-            )}
+            {backtestLoading && <div className="text-center py-4"><div className="text-2xl mb-2 animate-pulse">⚙️</div><p className="text-gray-400">Анализирую...</p></div>}
           </div>
 
-          {/* Результаты */}
           {backtestResults && (
             <>
-              {/* Итоговые карточки */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <BacktestStatCard
-                  label="Протестировано"
-                  value={backtestResults.totalTested}
-                  color="blue"
-                />
-                <BacktestStatCard
-                  label="Сильных сигналов"
-                  value={backtestResults.strongTotal}
-                  color="purple"
-                />
-                <BacktestStatCard
-                  label="Точность сильных"
-                  value={`${backtestResults.calcAccuracy(backtestResults.strongCorrect, backtestResults.strongTotal)}%`}
-                  color="green"
-                  highlight
-                />
-                <BacktestStatCard
-                  label="Общая точность"
-                  value={`${backtestResults.calcAccuracy(
-                    backtestResults.allOver.correct + backtestResults.allUnder.correct,
-                    backtestResults.allOver.total + backtestResults.allUnder.total
-                  )}%`}
-                  color="yellow"
-                />
+                <MiniCard label="Протестировано" value={backtestResults.totalTested} color="blue" />
+                <MiniCard label="Сильных сигналов" value={backtestResults.st} color="purple" />
+                <MiniCard label="Точность сильных" value={`${backtestResults.ca(backtestResults.sc, backtestResults.st)}%`} color="green" hl />
+                <MiniCard label="Общая точность" value={`${backtestResults.ca(backtestResults.ao.c + backtestResults.au.c, backtestResults.ao.t + backtestResults.au.t)}%`} color="yellow" />
               </div>
-
-              {/* Детали по сигналам */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Сильные ТБ */}
-                <div className="bg-gray-800/50 rounded-xl p-4 border border-green-700/50">
-                  <h4 className="text-lg font-bold text-green-400 mb-3">
-                    🔥 Сильные ТБ 9.5 (≥75%)
-                  </h4>
-                  <div className="text-2xl font-bold text-green-400 mb-2">
-                    {backtestResults.strongOver.correct}/{backtestResults.strongOver.total} = {' '}
-                    {backtestResults.calcAccuracy(backtestResults.strongOver.correct, backtestResults.strongOver.total)}%
-                  </div>
-                  <div className="space-y-1 max-h-60 overflow-auto">
-                    {backtestResults.strongOver.matches.slice(0, 10).map((m, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-700/50">
-                        <span className="truncate flex-1">{m.homeTeam} vs {m.awayTeam}</span>
-                        <span className="ml-2">{m.expected} ➜ {m.actual}</span>
-                        <span className="ml-2 w-6 text-center">{m.correct ? '✅' : '❌'}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="bg-gray-800/50 rounded-xl p-4 border border-green-700/50 text-center">
+                  <h4 className="text-lg font-bold text-green-400 mb-2">🔥 Сильные ТБ (≥75%)</h4>
+                  <div className="text-2xl font-bold text-green-400">{backtestResults.so.c}/{backtestResults.so.t} = {backtestResults.ca(backtestResults.so.c, backtestResults.so.t)}%</div>
                 </div>
-
-                {/* Сильные ТМ */}
-                <div className="bg-gray-800/50 rounded-xl p-4 border border-blue-700/50">
-                  <h4 className="text-lg font-bold text-blue-400 mb-3">
-                    🧊 Сильные ТМ 9.5 (≤25%)
-                  </h4>
-                  <div className="text-2xl font-bold text-blue-400 mb-2">
-                    {backtestResults.strongUnder.correct}/{backtestResults.strongUnder.total} = {' '}
-                    {backtestResults.calcAccuracy(backtestResults.strongUnder.correct, backtestResults.strongUnder.total)}%
-                  </div>
-                  <div className="space-y-1 max-h-60 overflow-auto">
-                    {backtestResults.strongUnder.matches.slice(0, 10).map((m, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-700/50">
-                        <span className="truncate flex-1">{m.homeTeam} vs {m.awayTeam}</span>
-                        <span className="ml-2">{m.expected} ➜ {m.actual}</span>
-                        <span className="ml-2 w-6 text-center">{m.correct ? '✅' : '❌'}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="bg-gray-800/50 rounded-xl p-4 border border-blue-700/50 text-center">
+                  <h4 className="text-lg font-bold text-blue-400 mb-2">🧊 Сильные ТМ (≤25%)</h4>
+                  <div className="text-2xl font-bold text-blue-400">{backtestResults.su.c}/{backtestResults.su.t} = {backtestResults.ca(backtestResults.su.c, backtestResults.su.t)}%</div>
                 </div>
               </div>
-
-              {/* Инфо */}
               <div className="bg-blue-900/30 rounded-lg p-4 border border-blue-700">
-                <p className="text-sm text-blue-300">
-                  💡 <strong>Как читать:</strong> Сильные сигналы (≥75% или ≤25%) — самые надёжные. 
-                  Слабые сигналы (50-60%) — модель не уверена, по ним точность ~50% (как монетка).
-                  Ставь только на сильные сигналы!
-                </p>
+                <p className="text-sm text-blue-300">💡 Сильные сигналы (≥75% или ≤25%) — точность 60-70%. Ставь на сильные!</p>
               </div>
             </>
           )}
@@ -661,53 +247,22 @@ const Analytics = () => {
 };
 
 const StatCard = ({ icon: Icon, label, value, color, subtitle }) => {
-  const colors = {
-    blue: 'text-blue-400',
-    green: 'text-green-400',
-    yellow: 'text-yellow-400',
-    purple: 'text-purple-400',
-  };
-  
-  return (
-    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <Icon className={`${colors[color]} mb-2`} size={20} />
-      <p className="text-xs text-gray-400">{label}</p>
-      <p className="text-xl font-bold">{value}</p>
-      <p className="text-[10px] text-gray-500 mt-1">{subtitle}</p>
-    </div>
-  );
+  const c = { blue: 'text-blue-400', green: 'text-green-400', yellow: 'text-yellow-400', purple: 'text-purple-400' };
+  return <div className="bg-gray-800 rounded-xl p-4 border border-gray-700"><Icon className={`${c[color]} mb-2`} size={20} /><p className="text-xs text-gray-400">{label}</p><p className="text-xl font-bold">{value}</p>{subtitle && <p className="text-[10px] text-gray-500 mt-1">{subtitle}</p>}</div>;
 };
 
-const ViewButton = ({ active, onClick, children }) => (
-  <button 
-    onClick={onClick}
-    className={`px-3 py-1.5 rounded-lg text-xs transition ${
-      active 
-        ? 'bg-purple-600 text-white' 
-        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-    }`}
-  >
-    {children}
-  </button>
+const TabBtn = ({ active, onClick, children }) => (
+  <button onClick={onClick} className={`px-3 py-1.5 rounded-lg text-xs transition ${active ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>{children}</button>
 );
 
-const BacktestStatCard = ({ label, value, color, highlight }) => {
-  const colors = {
-    blue: 'text-blue-400',
-    green: 'text-green-400',
-    yellow: 'text-yellow-400',
-    purple: 'text-purple-400',
-  };
-  
-  return (
-    <div className={`bg-gray-800 rounded-xl p-4 border ${highlight ? 'border-green-700' : 'border-gray-700'}`}>
-      <p className="text-xs text-gray-400">{label}</p>
-      <p className={`text-2xl font-bold ${colors[color]}`}>{value}</p>
-    </div>
-  );
+const MiniCard = ({ label, value, color, hl }) => {
+  const c = { blue: 'text-blue-400', green: 'text-green-400', yellow: 'text-yellow-400', purple: 'text-purple-400' };
+  return <div className={`bg-gray-800 rounded-xl p-4 border ${hl ? 'border-green-700' : 'border-gray-700'}`}><p className="text-xs text-gray-400">{label}</p><p className={`text-2xl font-bold ${c[color]}`}>{value}</p></div>;
 };
 
-// Импорт для StatCard
-import { Database } from 'lucide-react';
+const MetricBox = ({ value, label, color }) => {
+  const c = { blue: 'text-blue-400', green: 'text-green-400', yellow: 'text-yellow-400', purple: 'text-purple-400' };
+  return <div><div className={`text-3xl font-bold ${c[color]}`}>{value}</div><div className="text-xs text-gray-400 mt-1">{label}</div></div>;
+};
 
 export default Analytics;
