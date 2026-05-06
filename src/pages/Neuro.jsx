@@ -506,7 +506,7 @@ const Neuro = () => {
                 onClick={async () => {
                   try {
                     const model = await tf.loadLayersModel('localstorage://football-neuro-model');
-                    await model.save('downloads://football-neuro-model');
+                    await model.save('localstorage://football-neuro-model-backup');
                     addLog('📥 Модель скачана!');
                   } catch (e) {
                     addLog('❌ Ошибка экспорта: ' + e.message);
