@@ -206,26 +206,38 @@ const Neuro = () => {
       if (!matchesByLeague[m.leagueId]) matchesByLeague[m.leagueId] = [];
       matchesByLeague[m.leagueId].push(m);
     });
+    
     let totalCorrect = 0, totalTested = 0, totalAbsError = 0;
     const errors = [];
     const leagueResults = {};
+    
     for (const leagueId in matchesByLeague) {
       const leagueMatches = [...matchesByLeague[leagueId]].sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      // 🔧 Пропускаем лиги с менее чем 50 матчами
+      if (leagueMatches.length < 50) {
+        console.log(`⚠️ Лига ${leagueId}: ${leagueMatches.length} матчей — недостаточно для теста (нужно 50+)`);
+        continue;
+      }
+      
       const testStart = Math.floor(leagueMatches.length * 0.8);
       const lineTotalForLeague = getLineTotalForLeague(leagueId, allSeasons);
       let leagueCorrect = 0, leagueTested = 0;
+      
       for (let i = testStart; i < leagueMatches.length; i++) {
         const match = leagueMatches[i];
         const actualTotal = (match.homeCorners || 0) + (match.awayCorners || 0);
         const homePast = getLastMatches(leagueMatches, match.homeTeamId, match.date, 12);
         const awayPast = getLastMatches(leagueMatches, match.awayTeamId, match.date, 12);
         if (homePast.length < 5 || awayPast.length < 5) continue;
+        
         const homeStats = calculateFeatures(homePast, match.homeTeamId);
         const awayStats = calculateFeatures(awayPast, match.awayTeamId);
         const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, allSeasons);
         const round = match.round ? parseInt(match.round) || 0 : 0;
         let features = buildFeatures(homeStats, awayStats, round, leagueAvgTotal);
         if (features.some(f => isNaN(f) || !isFinite(f))) continue;
+        
         if (normParams) {
           features = features.map((val, i) => {
             const mean = normParams.mean[i] || 0;
@@ -233,29 +245,43 @@ const Neuro = () => {
             return (val - mean) / std;
           });
         }
+        
         const inputTensor = tf.tensor2d([features]);
         const predictionTensor = model.predict(inputTensor);
         let prediction = predictionTensor.dataSync()[0];
         inputTensor.dispose(); predictionTensor.dispose();
         prediction = Math.max(0, prediction);
+        
         totalAbsError += Math.abs(prediction - actualTotal);
         errors.push(actualTotal - prediction);
+        
         const actualOver = actualTotal > lineTotalForLeague;
         const modelOver = prediction > lineTotalForLeague;
         if (modelOver === actualOver) { totalCorrect++; leagueCorrect++; }
         totalTested++; leagueTested++;
       }
-      leagueResults[leagueId] = {
-        lineTotal: lineTotalForLeague,
-        correct: leagueCorrect, tested: leagueTested,
-        accuracy: leagueTested > 0 ? ((leagueCorrect / leagueTested) * 100).toFixed(1) : '0.0'
-      };
+      
+      if (leagueTested > 0) {
+        leagueResults[leagueId] = {
+          lineTotal: lineTotalForLeague,
+          correct: leagueCorrect, tested: leagueTested,
+          accuracy: ((leagueCorrect / leagueTested) * 100).toFixed(1)
+        };
+      }
     }
+    
     const accuracy = totalTested > 0 ? ((totalCorrect / totalTested) * 100).toFixed(1) : '0.0';
     const avgError = totalTested > 0 ? (totalAbsError / totalTested).toFixed(2) : '0';
     setLeagueStats(leagueResults);
     localStorage.setItem('neuro_historical_errors', JSON.stringify(errors));
     setHistoricalErrors(errors);
+    
+    console.log('📊 Точность по лигам:');
+    Object.entries(leagueResults).forEach(([leagueId, stats]) => {
+      const leagueName = data.leagues?.find(l => l.id === leagueId)?.name || leagueId;
+      console.log(` ${leagueName} (тотал ${stats.lineTotal}): ${stats.accuracy}% (${stats.correct}/${stats.tested})`);
+    });
+    
     return { accuracy, avgError, totalCorrect, totalTested, errors, leagueResults };
   };
 
