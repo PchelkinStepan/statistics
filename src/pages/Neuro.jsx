@@ -36,8 +36,8 @@ const Neuro = () => {
   const getDefaultTotal = (leagueId) => {
     const season = data.seasons?.find(s => s.leagueId === leagueId && s.isActive);
     const avg = season?.avgTotalCorners || 9.5;
-    return Math.round(avg * 2) / 2;
-  };
+    return Math.ceil(avg * 2) / 2;  // 🔧 Округляем ВВЕРХ
+};
 
   useEffect(() => {
     setSelectedTotal(getDefaultTotal(predictLeague));
@@ -96,8 +96,9 @@ const Neuro = () => {
   const getLineTotalForLeague = (leagueId, seasons) => {
     const season = seasons?.find(s => s.leagueId === leagueId && s.isActive);
     const avg = season?.avgTotalCorners || 9.5;
-    return Math.round(avg * 2) / 2;
-  };
+    return Math.ceil(avg * 2) / 2;  // 🔧 Округляем ВВЕРХ
+};
+
 
   const getLastMatches = (allMatches, teamId, beforeDate, count) => {
     return allMatches
