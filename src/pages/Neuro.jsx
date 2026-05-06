@@ -474,6 +474,24 @@ const Neuro = () => {
                 {modelReady && <button onClick={retrainModel} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center gap-2"><RefreshCw size={20} /> Дообучить</button>}
               </div>
             )}
+
+{modelReady && (
+              <button 
+                onClick={async () => {
+                  try {
+                    const model = await tf.loadLayersModel('localstorage://football-neuro-model');
+                    await model.save('downloads://football-neuro-model');
+                    addLog('📥 Модель скачана!');
+                  } catch (e) {
+                    addLog('❌ Ошибка экспорта: ' + e.message);
+                  }
+                }}
+                className="mt-3 bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2 mx-auto"
+              >
+                <Save size={16} /> Экспорт модели
+              </button>
+            )}
+            
             {isTraining && <div className="text-center py-4"><RefreshCw size={32} className="mx-auto mb-2 animate-spin text-purple-400" /><p>Обучение... 1-3 минуты</p></div>}
             {isRetraining && <div className="text-center py-4"><RefreshCw size={32} className="mx-auto mb-2 animate-spin text-green-400" /><p>Дообучение...</p></div>}
           </div>
