@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Brain, Zap, TrendingUp, Activity, Database, Target, Play, RefreshCw, BarChart3, Calculator, Home, User, Save, Clock, AlertCircle } from 'lucide-react';
+import { Brain, Activity, Database, Target, Play, RefreshCw, Calculator, Clock, Save } from 'lucide-react';
 import { getData, getActiveSeason } from '../data/store';
 import * as tf from '@tensorflow/tfjs';
 
@@ -33,15 +33,24 @@ const Neuro = () => {
   const activeSeason = getActiveSeason(predictLeague)?.id;
   const teamsInLeague = data.teams?.filter(t => t.leagueId === predictLeague) || [];
 
+  // 🔧 ФИКС: АПЛ всегда 10.5, остальные ceil
   const getDefaultTotal = (leagueId) => {
     const season = data.seasons?.find(s => s.leagueId === leagueId && s.isActive);
+    const league = data.leagues?.find(l => l.id === leagueId);
+    if (league?.name === 'АПЛ') return 10.5;
     const avg = season?.avgTotalCorners || 9.5;
-    return Math.ceil(avg * 2) / 2;  // 🔧 Округляем ВВЕРХ
-};
+    return Math.ceil(avg * 2) / 2;
+  };
 
-  useEffect(() => {
-    setSelectedTotal(getDefaultTotal(predictLeague));
-  }, [predictLeague, data.seasons]);
+  const getLineTotalForLeague = (leagueId, seasons) => {
+    const season = seasons?.find(s => s.leagueId === leagueId && s.isActive);
+    const league = data.leagues?.find(l => l.id === leagueId);
+    if (league?.name === 'АПЛ') return 10.5;
+    const avg = season?.avgTotalCorners || 9.5;
+    return Math.ceil(avg * 2) / 2;
+  };
+
+  useEffect(() => { setSelectedTotal(getDefaultTotal(predictLeague)); }, [predictLeague, data.seasons]);
 
   useEffect(() => {
     const loadSavedModel = async () => {
@@ -54,37 +63,29 @@ const Neuro = () => {
           const model = await tf.loadLayersModel('localstorage://football-neuro-model');
           model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError', metrics: ['mae'] });
           setLoadedModel(model);
-          const savedResults = localStorage.getItem('neuro_test_results');
-          if (savedResults) try { setTestResults(JSON.parse(savedResults)); } catch(e) {}
-          const savedHistory = localStorage.getItem('neuro_training_history');
-          if (savedHistory) try { setTrainingHistory(JSON.parse(savedHistory)); } catch(e) {}
-          const savedErrors = localStorage.getItem('neuro_historical_errors');
-          if (savedErrors) try { setHistoricalErrors(JSON.parse(savedErrors)); } catch(e) {}
+          const sr = localStorage.getItem('neuro_test_results');
+          if (sr) try { setTestResults(JSON.parse(sr)); } catch(e) {}
+          const sh = localStorage.getItem('neuro_training_history');
+          if (sh) try { setTrainingHistory(JSON.parse(sh)); } catch(e) {}
+          const se = localStorage.getItem('neuro_historical_errors');
+          if (se) try { setHistoricalErrors(JSON.parse(se)); } catch(e) {}
           addLog('✅ Модель загружена из кэша');
         } else {
-          addLog('⚡ Модель не найдена. Нажмите "Обучить" для начала.');
+          addLog('⚡ Модель не найдена. Нажмите "Обучить".');
         }
-      } catch (error) {
-        console.error('Ошибка загрузки модели:', error);
-        addLog(`❌ Ошибка загрузки модели: ${error.message}`);
-      }
+      } catch (error) { console.error(error); }
     };
     loadSavedModel();
   }, []);
 
-  const addLog = (message) => {
-    console.log(message);
-    setTrainingLog(prev => [...prev, { time: new Date().toLocaleTimeString(), text: message }]);
-  };
+  const addLog = (msg) => { console.log(msg); setTrainingLog(p => [...p, { time: new Date().toLocaleTimeString(), text: msg }]); };
 
-  const addToHistory = (type, matchesCount, accuracy, mae) => {
-    const entry = { type, date: new Date().toISOString(), matches: matchesCount, accuracy, mae };
-    const updatedHistory = [entry, ...trainingHistory].slice(0, 20);
-    setTrainingHistory(updatedHistory);
-    localStorage.setItem('neuro_training_history', JSON.stringify(updatedHistory));
+  const addHist = (t, m, a, mae) => {
+    const e = { type: t, date: new Date().toISOString(), matches: m, accuracy: a, mae };
+    const u = [e, ...trainingHistory].slice(0, 20);
+    setTrainingHistory(u);
+    localStorage.setItem('neuro_training_history', JSON.stringify(u));
   };
-
-  // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 
   const safe = (val, fallback = 0) => (val != null && isFinite(val) && !isNaN(val)) ? val : fallback;
 
@@ -92,13 +93,6 @@ const Neuro = () => {
     const season = seasons?.find(s => s.leagueId === leagueId && s.isActive);
     return season?.avgTotalCorners || 9.5;
   };
-
-  const getLineTotalForLeague = (leagueId, seasons) => {
-    const season = seasons?.find(s => s.leagueId === leagueId && s.isActive);
-    const avg = season?.avgTotalCorners || 9.5;
-    return Math.ceil(avg * 2) / 2;  // 🔧 Округляем ВВЕРХ
-};
-
 
   const getLastMatches = (allMatches, teamId, beforeDate, count) => {
     return allMatches
@@ -108,7 +102,7 @@ const Neuro = () => {
   };
 
   const calculateFeatures = (matches, teamId) => {
-    if (matches.length === 0) {
+    if (!matches.length) {
       return {
         avgCornersFor: 5, avgCornersAgainst: 4.5, cornersTrend: 0, avgXG: 1.2, avgPossession: 50,
         avgShotsInside: 6, formPoints: 0, matchesPlayed: 0, avgCornersForHome: 5, avgCornersAgainstHome: 4.5,
@@ -116,8 +110,10 @@ const Neuro = () => {
         avgCorners1HHome: 2.5, avgCorners2HHome: 2.5, avgCorners1HAway: 2.5, avgCorners2HAway: 2.5
       };
     }
+    
     let tf = 0, ta = 0, cfh = 0, cfa = 0, cah = 0, caa = 0, hc = 0, ac = 0, tx = 0, tp = 0, ts = 0, ct = [], pt = 0;
     let c1 = 0, c2 = 0, c1h = 0, c2h = 0, c1a = 0, c2a = 0;
+    
     matches.forEach(m => {
       const isHome = m.homeTeamId === teamId;
       const teamScore = isHome ? (m.homeScore || 0) : (m.awayScore || 0);
@@ -135,13 +131,17 @@ const Neuro = () => {
       ts += isHome ? (m.homeShotsInsideBox || 6) : (m.awayShotsInsideBox || 6);
       if (teamScore > oppScore) pt += 3; else if (teamScore === oppScore) pt += 1;
     });
+    
     const n = matches.length;
     const half = Math.floor(n / 2);
     const firstHalfAvg = ct.slice(0, half).reduce((a, b) => a + b, 0) / half;
     const secondHalfAvg = ct.slice(half).reduce((a, b) => a + b, 0) / (n - half);
-    const trend = firstHalfAvg - secondHalfAvg;
+    // 🔧 ФИКС: хардкод тренда ±3 (надёжно!)
+    const rawTrend = firstHalfAvg - secondHalfAvg;
+    const normalizedTrend = Math.max(-3, Math.min(3, rawTrend));
+    
     return {
-      avgCornersFor: tf / n, avgCornersAgainst: ta / n, cornersTrend: trend,
+      avgCornersFor: tf / n, avgCornersAgainst: ta / n, cornersTrend: normalizedTrend,
       avgXG: tx / n, avgPossession: tp / n, avgShotsInside: ts / n, formPoints: pt, matchesPlayed: n,
       avgCornersForHome: hc > 0 ? cfh / hc : tf / n, avgCornersAgainstHome: hc > 0 ? cah / hc : ta / n,
       avgCornersForAway: ac > 0 ? cfa / ac : tf / n, avgCornersAgainstAway: ac > 0 ? caa / ac : ta / n,
@@ -168,7 +168,7 @@ const Neuro = () => {
     ];
   };
 
-  const prepareTrainingData = (allMatches, teams, seasons) => {
+  const prepareTrainingData = (allMatches, seasons) => {
     const sortedMatches = [...allMatches].sort((a, b) => new Date(a.date) - new Date(b.date));
     const trainingExamples = [];
     for (let i = 20; i < sortedMatches.length; i++) {
@@ -200,7 +200,7 @@ const Neuro = () => {
     return model;
   };
 
-  const runHonestTest = (model, allMatches, teams, allSeasons, normParams) => {
+  const runHonestTest = (model, allMatches, allSeasons, normParams) => {
     const matchesByLeague = {};
     allMatches.forEach(m => {
       if (!matchesByLeague[m.leagueId]) matchesByLeague[m.leagueId] = [];
@@ -213,12 +213,7 @@ const Neuro = () => {
     
     for (const leagueId in matchesByLeague) {
       const leagueMatches = [...matchesByLeague[leagueId]].sort((a, b) => new Date(a.date) - new Date(b.date));
-      
-      // 🔧 Пропускаем лиги с менее чем 50 матчами
-      if (leagueMatches.length < 50) {
-        console.log(`⚠️ Лига ${leagueId}: ${leagueMatches.length} матчей — недостаточно для теста (нужно 50+)`);
-        continue;
-      }
+      if (leagueMatches.length < 30) continue;
       
       const testStart = Math.floor(leagueMatches.length * 0.8);
       const lineTotalForLeague = getLineTotalForLeague(leagueId, allSeasons);
@@ -277,9 +272,9 @@ const Neuro = () => {
     setHistoricalErrors(errors);
     
     console.log('📊 Точность по лигам:');
-    Object.entries(leagueResults).forEach(([leagueId, stats]) => {
-      const leagueName = data.leagues?.find(l => l.id === leagueId)?.name || leagueId;
-      console.log(` ${leagueName} (тотал ${stats.lineTotal}): ${stats.accuracy}% (${stats.correct}/${stats.tested})`);
+    Object.entries(leagueResults).forEach(([lid, st]) => {
+      const ln = data.leagues?.find(l => l.id === lid)?.name || lid;
+      console.log(` ${ln} (тотал ${st.lineTotal}): ${st.accuracy}% (${st.correct}/${st.tested})`);
     });
     
     return { accuracy, avgError, totalCorrect, totalTested, errors, leagueResults };
@@ -288,61 +283,64 @@ const Neuro = () => {
   const trainModel = async () => {
     setIsTraining(true); setTrainingLog([]);
     try {
-      addLog('🚀 НАЧАЛО ОБУЧЕНИЯ Neuro AI v5.0');
-      addLog(`📊 Данных: ${totalMatches} матчей`);
-      const trainingExamples = prepareTrainingData(data.matches, data.teams, data.seasons);
-      addLog(`✅ Подготовлено ${trainingExamples.length} примеров`);
-      if (trainingExamples.length < 100) { addLog(`❌ Недостаточно данных.`); setIsTraining(false); return; }
+      addLog('🚀 ОБУЧЕНИЕ Neuro AI');
+      addLog(`📊 ${totalMatches} матчей`);
+      
+      const trainingExamples = prepareTrainingData(data.matches, data.seasons);
+      addLog(`✅ ${trainingExamples.length} примеров`);
+      
+      if (trainingExamples.length < 100) { addLog('❌ Мало данных'); setIsTraining(false); return; }
+      
       const trainSize = Math.floor(trainingExamples.length * 0.8);
-      const trainExamples = trainingExamples.slice(0, trainSize);
-      const valExamples = trainingExamples.slice(trainSize);
-      const trainXs = trainExamples.map(ex => ex.features);
-      const trainYs = trainExamples.map(ex => ex.label);
-      const valXs = valExamples.map(ex => ex.features);
-      const valYs = valExamples.map(ex => ex.label);
-      const xsTensor = tf.tensor2d(trainXs);
+      const trainEx = trainingExamples.slice(0, trainSize);
+      const valEx = trainingExamples.slice(trainSize);
+      
+      const xsTensor = tf.tensor2d(trainEx.map(e => e.features));
       const moments = tf.moments(xsTensor, 0);
       const mean = moments.mean;
       const std = moments.variance.sqrt().add(1e-7);
       const normParams = { mean: await mean.array(), std: await std.array() };
       localStorage.setItem('neuro_norm_params', JSON.stringify(normParams));
-      const xsNormalized = xsTensor.sub(mean).div(std);
-      const ysTensor = tf.tensor2d(trainYs, [trainYs.length, 1]);
-      const valXsTensor = tf.tensor2d(valXs);
-      const valXsNormalized = valXsTensor.sub(mean).div(std);
-      const valYsTensor = tf.tensor2d(valYs, [valYs.length, 1]);
+      
+      const xsN = xsTensor.sub(mean).div(std);
+      const ysT = tf.tensor2d(trainEx.map(e => e.label), [trainEx.length, 1]);
+      const valXsT = tf.tensor2d(valEx.map(e => e.features));
+      const valXsN = valXsT.sub(mean).div(std);
+      const valYsT = tf.tensor2d(valEx.map(e => e.label), [valEx.length, 1]);
+      
       addLog('📊 Данные нормализованы');
       const model = createModel();
-      addLog('✅ Модель создана (64→32→16)');
+      addLog('✅ Модель создана');
       addLog('🎓 Обучение 120 эпох...');
-      const history = await model.fit(xsNormalized, ysTensor, {
+      
+      const history = await model.fit(xsN, ysT, {
         epochs: 120, batchSize: 32,
-        validationData: [valXsNormalized, valYsTensor],
+        validationData: [valXsN, valYsT],
         callbacks: {
           onEpochEnd: (epoch, logs) => {
             if (epoch % 20 === 0 || epoch === 119) {
-              addLog(` Эпоха ${epoch + 1}: loss=${logs.loss.toFixed(4)}, mae=${logs.mae.toFixed(2)}, val_mae=${logs.val_mae.toFixed(2)}`);
+              addLog(` Эпоха ${epoch+1}: loss=${logs.loss.toFixed(4)}, mae=${logs.mae.toFixed(2)}, val_mae=${logs.val_mae.toFixed(2)}`);
             }
           }
         }
       });
-      const finalTrainMae = history.history.mae[history.history.mae.length - 1];
-      const finalValMae = history.history.val_mae[history.history.val_mae.length - 1];
+      
+      const finalTrainMae = history.history.mae[history.history.mae.length-1];
+      const finalValMae = history.history.val_mae[history.history.val_mae.length-1];
       addLog(`✅ Train MAE: ±${finalTrainMae.toFixed(2)}, Val MAE: ±${finalValMae.toFixed(2)}`);
-      xsTensor.dispose(); ysTensor.dispose(); xsNormalized.dispose();
-      valXsTensor.dispose(); valXsNormalized.dispose(); valYsTensor.dispose();
+      
+      xsTensor.dispose(); xsN.dispose(); ysT.dispose(); valXsT.dispose(); valXsN.dispose(); valYsT.dispose();
+      
       addLog('🧪 ЧЕСТНОЕ тестирование...');
-      const results = runHonestTest(model, data.matches, data.teams, data.seasons, normParams);
+      const results = runHonestTest(model, data.matches, data.seasons, normParams);
       addLog(`📊 Точность: ${results.accuracy}% (${results.totalCorrect}/${results.totalTested})`);
       addLog(`📊 MAE: ±${results.avgError} угловых`);
-      Object.entries(results.leagueResults).forEach(([leagueId, stats]) => {
-        const leagueName = data.leagues?.find(l => l.id === leagueId)?.name || leagueId;
-        addLog(`📊 ${leagueName} (тотал ${stats.lineTotal}): ${stats.accuracy}%`);
-      });
+      
       setTestResults(results);
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
       setModelReady(true); setLoadedModel(model);
-      addToHistory('full', totalMatches, parseFloat(results.accuracy), parseFloat(results.avgError));
+      addHist('full', totalMatches, parseFloat(results.accuracy), parseFloat(results.avgError));
+      
       await model.save('localstorage://football-neuro-model');
       addLog('💾 Модель сохранена');
       localStorage.setItem('neuro_last_trained', new Date().toISOString());
@@ -356,32 +354,38 @@ const Neuro = () => {
     setIsRetraining(true); setTrainingLog([]);
     try {
       addLog('📚 ДООБУЧЕНИЕ');
-      const trainingExamples = prepareTrainingData(data.matches, data.teams, data.seasons);
+      const trainingExamples = prepareTrainingData(data.matches, data.seasons);
       addLog(`✅ ${trainingExamples.length} примеров`);
+      
       const recentSize = Math.floor(trainingExamples.length * 0.7);
-      const recentExamples = trainingExamples.slice(-recentSize);
-      const xs = recentExamples.map(ex => ex.features);
-      const ys = recentExamples.map(ex => ex.label);
+      const recent = trainingExamples.slice(-recentSize);
+      const xs = recent.map(e => e.features);
+      const ys = recent.map(e => e.label);
+      
       const normParams = JSON.parse(localStorage.getItem('neuro_norm_params') || 'null');
-      const xsTensor = tf.tensor2d(xs);
+      const xsT = tf.tensor2d(xs);
       const mean = tf.tensor1d(normParams.mean);
       const std = tf.tensor1d(normParams.std);
-      const xsNormalized = xsTensor.sub(mean).div(std);
-      const ysTensor = tf.tensor2d(ys, [ys.length, 1]);
+      const xsN = xsT.sub(mean).div(std);
+      const ysT = tf.tensor2d(ys, [ys.length, 1]);
+      
       addLog('🎓 Дообучение (60 эпох)...');
       loadedModel.compile({ optimizer: tf.train.adam(0.0001), loss: 'meanSquaredError', metrics: ['mae'] });
-      await loadedModel.fit(xsNormalized, ysTensor, {
+      await loadedModel.fit(xsN, ysT, {
         epochs: 60, batchSize: 32,
         callbacks: { onEpochEnd: (e, l) => { if (e % 15 === 0 || e === 59) addLog(` Эпоха ${e+1}: loss=${l.loss.toFixed(4)}, mae=${l.mae.toFixed(2)}`); } }
       });
-      xsTensor.dispose(); ysTensor.dispose(); xsNormalized.dispose();
-      const results = runHonestTest(loadedModel, data.matches, data.teams, data.seasons, normParams);
+      
+      xsT.dispose(); xsN.dispose(); ysT.dispose();
+      
+      const results = runHonestTest(loadedModel, data.matches, data.seasons, normParams);
       addLog(`📊 Точность: ${results.accuracy}% | MAE: ±${results.avgError}`);
+      
       setTestResults(results);
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
-      addToHistory('retrain', totalMatches, parseFloat(results.accuracy), parseFloat(results.avgError));
+      addHist('retrain', totalMatches, parseFloat(results.accuracy), parseFloat(results.avgError));
+      
       await loadedModel.save('localstorage://football-neuro-model');
-      addLog('💾 Модель обновлена');
       localStorage.setItem('neuro_last_trained', new Date().toISOString());
       localStorage.setItem('neuro_matches_count', totalMatches);
     } catch (error) { addLog(`❌ ${error.message}`); }
@@ -406,26 +410,41 @@ const Neuro = () => {
       const homePast = getLastMatches(allMatches, predictHomeTeam, new Date().toISOString(), 12);
       const awayPast = getLastMatches(allMatches, predictAwayTeam, new Date().toISOString(), 12);
       if (homePast.length < 3 || awayPast.length < 3) { setIsPredicting(false); return; }
+      
       const homeStats = calculateFeatures(homePast, predictHomeTeam);
       const awayStats = calculateFeatures(awayPast, predictAwayTeam);
+      
+      // 🔧 ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА ТРЕНДА В ПРЕДИКТЕ
+      homeStats.cornersTrend = Math.max(-3, Math.min(3, homeStats.cornersTrend || 0));
+      awayStats.cornersTrend = Math.max(-3, Math.min(3, awayStats.cornersTrend || 0));
+      
       const leagueAvgTotal = getLeagueAvgTotal(predictLeague, data.seasons);
       let features = buildFeatures(homeStats, awayStats, 0, leagueAvgTotal);
+      
       const normParams = JSON.parse(localStorage.getItem('neuro_norm_params') || 'null');
       if (normParams) {
-        features = features.map((val, i) => { return (val - (normParams.mean[i] || 0)) / (normParams.std[i] || 1); });
+        features = features.map((val, i) => {
+          const mean = normParams.mean[i] || 0;
+          const std = normParams.std[i] || 1;
+          return (val - mean) / std;
+        });
       }
+      
       const inputTensor = tf.tensor2d([features]);
       const predictionTensor = loadedModel.predict(inputTensor);
       let expectedTotal = predictionTensor.dataSync()[0];
       inputTensor.dispose(); predictionTensor.dispose();
-      expectedTotal = Math.max(0, expectedTotal);
+      expectedTotal = Math.max(2, Math.min(18, expectedTotal));
+      
       const overProb = getEmpiricalProbability(expectedTotal, selectedTotal);
       const underProb = 100 - overProb;
+      
       setNeuroPrediction({
         expectedTotal: expectedTotal.toFixed(2), overProbability: overProb, underProbability: underProb,
         recommendation: overProb > 70 ? `🔥 СТАВЛЮ! ТБ ${selectedTotal}` : overProb > 60 ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТБ ${selectedTotal}` : overProb < 30 ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТМ ${selectedTotal}` : overProb < 40 ? `🤔 ДУМАЮ! ТМ ${selectedTotal}` : `❌ НЕ ЛЕЗУ!`,
         confidence: Math.abs(overProb - 50) * 2
       });
+      
       try {
         const { predictMatch } = await import('../data/store');
         const poissonResult = predictMatch(predictHomeTeam, predictAwayTeam, predictLeague, activeSeason, selectedTotal);
@@ -440,22 +459,22 @@ const Neuro = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div><h2 className="text-2xl md:text-3xl font-bold mb-1 flex items-center gap-3"><Brain className="text-purple-400" /> Neuro AI v5.0</h2><p className="text-sm text-gray-400">Динамический тотал • Эмпирическая вероятность • 32 признака</p></div>
+      <div><h2 className="text-2xl md:text-3xl font-bold mb-1 flex items-center gap-3"><Brain className="text-purple-400" /> Neuro AI v5.1</h2><p className="text-sm text-gray-400">Тренд ±3 • АПЛ 10.5 • 32 признака</p></div>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SCard icon={Database} label="Матчей" v={totalMatches} c="blue" />
         <SCard icon={Brain} label="Статус" v={modelReady ? 'Готова' : '—'} c="purple" />
         <SCard icon={Target} label="Точность" v={testResults ? `${testResults.accuracy}%` : '—'} c="green" />
-        <SCard icon={TrendingUp} label="MAE" v={testResults ? `±${testResults.avgError}` : '—'} c="yellow" />
+        <SCard icon={Activity} label="MAE" v={testResults ? `±${testResults.avgError}` : '—'} c="yellow" />
       </div>
       
       {Object.keys(leagueStats).length > 0 && (
         <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-          <h4 className="font-semibold mb-3 flex items-center gap-2"><BarChart3 size={16} className="text-blue-400" /> Точность по лигам</h4>
+          <h4 className="font-semibold mb-3 flex items-center gap-2"><Target size={16} className="text-blue-400" /> Точность по лигам</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {Object.entries(leagueStats).map(([lid, st]) => {
               const ln = data.leagues?.find(l => l.id === lid)?.name || lid;
-              return <div key={lid} className="bg-gray-700/30 rounded-lg p-3 text-center"><p className="text-sm font-medium text-gray-300">{ln}</p><p className="text-xs text-gray-400">тотал {st.lineTotal}</p><p className="text-2xl font-bold text-green-400">{st.accuracy}%</p><p className="text-xs text-gray-500">{st.correct}/{st.tested}</p></div>;
+              return <div key={lid} className="bg-gray-700/30 rounded-lg p-3 text-center"><p className="text-sm font-medium">{ln}</p><p className="text-xs text-gray-400">тотал {st.lineTotal}</p><p className="text-2xl font-bold text-green-400">{st.accuracy}%</p><p className="text-xs text-gray-500">{st.correct}/{st.tested}</p></div>;
             })}
           </div>
         </div>
@@ -463,7 +482,10 @@ const Neuro = () => {
       
       {needsRetraining && (
         <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3"><AlertCircle className="text-yellow-400" size={20} /><div><p className="font-medium text-yellow-400">+{totalMatches - lastTrainedCount} новых матчей</p><p className="text-sm text-gray-400">Рекомендуется дообучить</p></div></div>
+          <div className="flex items-center gap-3">
+            <span className="text-yellow-400">⚠️</span>
+            <div><p className="font-medium text-yellow-400">+{totalMatches - lastTrainedCount} новых матчей</p><p className="text-sm text-gray-400">Рекомендуется дообучить</p></div>
+          </div>
           <button onClick={retrainModel} disabled={isRetraining} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-sm">Дообучить</button>
         </div>
       )}
@@ -492,66 +514,25 @@ const Neuro = () => {
         <div className="space-y-4">
           <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50 text-center">
             <Brain size={48} className="mx-auto mb-4 text-purple-400" />
-            <h3 className="text-xl font-bold mb-2">TensorFlow.js v5.0</h3>
-            <p className="text-gray-400 mb-4">L2 регуляризация • 32 признака • Эмпирическая вероятность</p>
+            <h3 className="text-xl font-bold mb-2">TensorFlow.js v5.1</h3>
+            <p className="text-gray-400 mb-4">Тренд ±3 • АПЛ 10.5 • 32 признака</p>
             {!isTraining && !isRetraining && (
               <div className="flex gap-3 justify-center flex-wrap">
                 <button onClick={trainModel} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center gap-2"><Play size={20} /> {modelReady ? 'Переобучить' : 'Обучить'}</button>
                 {modelReady && <button onClick={retrainModel} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center gap-2"><RefreshCw size={20} /> Дообучить</button>}
               </div>
             )}
-
-{modelReady && (
-  <div className="flex gap-2 justify-center flex-wrap mt-3">
-    {/* Кнопка бэкапа в localStorage */}
-    <button 
-      onClick={async () => {
-        try {
-          const model = await tf.loadLayersModel('localstorage://football-neuro-model');
-          await model.save('localstorage://football-neuro-model-backup');
-          addLog('📥 Бэкап сохранён в браузере!');
-        } catch (e) {
-          addLog('❌ Ошибка: ' + e.message);
-        }
-      }}
-      className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
-    >
-      <Save size={16} /> Бэкап в браузере
-    </button>
-    
-    {/* Кнопка скачивания */}
-    <button 
-      onClick={() => {
-        try {
-          const keys = ['info', 'model_metadata', 'model_topology', 'weight_data', 'weight_specs'];
-          const exportData = {};
-          keys.forEach(key => {
-            const data = localStorage.getItem(`tensorflowjs_models/football-neuro-model/${key}`);
-            if (data) exportData[key] = data;
-          });
-          exportData.neuro_norm_params = localStorage.getItem('neuro_norm_params');
-          exportData.neuro_test_results = localStorage.getItem('neuro_test_results');
-          
-          const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `neuro-model-backup-${new Date().toISOString().split('T')[0]}.json`;
-          a.click();
-          addLog('📥 Модель скачана! Файл: neuro-model-backup.json');
-        } catch (e) {
-          addLog('❌ Ошибка скачивания: ' + e.message);
-        }
-      }}
-      className="bg-blue-700 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
-    >
-      <Save size={16} /> Скачать файлом
-    </button>
-  </div>
-)}
-            
-          
-            
+            {modelReady && (
+              <button onClick={async () => {
+                try {
+                  const model = await tf.loadLayersModel('localstorage://football-neuro-model');
+                  await model.save('localstorage://football-neuro-model-backup');
+                  addLog('📥 Бэкап сохранён!');
+                } catch (e) { addLog('❌ ' + e.message); }
+              }} className="mt-3 bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2 mx-auto">
+                <Save size={16} /> 💾 Бэкап модели
+              </button>
+            )}
             {isTraining && <div className="text-center py-4"><RefreshCw size={32} className="mx-auto mb-2 animate-spin text-purple-400" /><p>Обучение... 1-3 минуты</p></div>}
             {isRetraining && <div className="text-center py-4"><RefreshCw size={32} className="mx-auto mb-2 animate-spin text-green-400" /><p>Дообучение...</p></div>}
           </div>
