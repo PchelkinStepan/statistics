@@ -1,0 +1,1 @@
+import{M as e,s as t,u as n}from"./index.esm-B0IbF12j.js";export{e as collection,t as getDocs,n as writeBatch};
