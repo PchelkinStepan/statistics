@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 
 // Определение сезона по дате
 const getSeasonFromDate = (dateStr) => {
@@ -215,8 +215,21 @@ export const deleteTeam = async (teamId) => { const data = getData(); await save
 
 export const addMatch = async (match) => { const data = getData(); await saveData({ ...data, matches: [...data.matches, { ...match, id: Date.now().toString() }] }); return match; };
 export const updateMatch = async (matchId, updates) => { const data = getData(); await saveData({ ...data, matches: data.matches.map(m => m.id === matchId ? { ...m, ...updates } : m) }); };
-export const deleteMatch = async (matchId) => { const data = getData(); await saveData({ ...data, matches: data.matches.filter(m => m.id !== matchId) }); };
-export const getMatchesForSeason = (leagueId, seasonId) => { const data = getData(); let m = data.matches.filter(m => m.leagueId === leagueId); if (seasonId) m = m.filter(m => m.seasonId === seasonId); return m.sort((a, b) => new Date(b.date) - new Date(a.date)); };
+export const deleteMatch = async (matchId) => {
+  const data = getData();
+  const updatedData = { ...data, matches: data.matches.filter(m => m.id !== matchId) };
+  
+  // Удаляем документ из коллекции Firebase
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, 'football', 'stats', 'matches', matchId));
+    console.log('🗑️ Документ удалён из коллекции:', matchId);
+  } catch(e) {
+    console.warn('⚠️ Не удалось удалить из коллекции:', e.message);
+  }
+  
+  await saveData(updatedData);
+};export const getMatchesForSeason = (leagueId, seasonId) => { const data = getData(); let m = data.matches.filter(m => m.leagueId === leagueId); if (seasonId) m = m.filter(m => m.seasonId === seasonId); return m.sort((a, b) => new Date(b.date) - new Date(a.date)); };
 
 export const getLeagueAverages = (leagueId, seasonId) => {
   const data = getData();
