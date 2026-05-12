@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Brain, Activity, Database, Target, Play, RefreshCw, Calculator, Clock, Save } from 'lucide-react';
+import { Brain, Activity, Database, Target, Play, RefreshCw, Calculator, Clock, Save, Wallet, TrendingUp } from 'lucide-react';
 import { getData, getActiveSeason } from '../data/store';
 import * as tf from '@tensorflow/tfjs';
+import BetModal from '../components/BetModal';
 
 const Neuro = () => {
   const data = getData();
@@ -17,6 +18,7 @@ const Neuro = () => {
   const [trainingHistory, setTrainingHistory] = useState([]);
   const [historicalErrors, setHistoricalErrors] = useState([]);
   const [leagueStats, setLeagueStats] = useState({});
+  const [showBetModal, setShowBetModal] = useState(false);
 
   const [selectedTotal, setSelectedTotal] = useState(9.5);
   const availableTotals = [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
@@ -25,13 +27,30 @@ const Neuro = () => {
   const [predictHomeTeam, setPredictHomeTeam] = useState('');
   const [predictAwayTeam, setPredictAwayTeam] = useState('');
   const [neuroPrediction, setNeuroPrediction] = useState(null);
-  const [poissonPrediction, setPoissonPrediction] = useState(null);
   const [isPredicting, setIsPredicting] = useState(false);
+  
+  // 🔥 Value калькулятор
+  const [manualKef, setManualKef] = useState('1.85');
+  const [valueResult, setValueResult] = useState(null);
 
   const modelLoadedRef = useRef(false);
 
   const activeSeason = getActiveSeason(predictLeague)?.id;
   const teamsInLeague = data.teams?.filter(t => t.leagueId === predictLeague) || [];
+
+  // 🔥 Расчёт value при изменении кэфа или прогноза
+  useEffect(() => {
+    if (neuroPrediction && manualKef && testResults) {
+      const kef = parseFloat(manualKef);
+      const accuracy = parseFloat(testResults.accuracy || 58);
+      if (kef > 0) {
+        const value = ((accuracy / 100) * kef * 100 - 100).toFixed(1);
+        const isValue = value > 5;
+        const isSuper = value > 10;
+        setValueResult({ value, isValue, isSuper, accuracy });
+      }
+    }
+  }, [manualKef, neuroPrediction, testResults]);
 
   const getDefaultTotal = (leagueId) => {
     const season = data.seasons?.find(s => s.leagueId === leagueId && s.isActive);
@@ -68,7 +87,6 @@ const Neuro = () => {
           if (sh) try { setTrainingHistory(JSON.parse(sh)); } catch(e) {}
           const se = localStorage.getItem('neuro_historical_errors');
           if (se) try { setHistoricalErrors(JSON.parse(se)); } catch(e) {}
-          // 🔧 ЗАГРУЖАЕМ ТОЧНОСТЬ ПО ЛИГАМ
           const sl = localStorage.getItem('neuro_league_stats');
           if (sl) try { setLeagueStats(JSON.parse(sl)); } catch(e) {}
           addLog('✅ Модель загружена из кэша');
@@ -269,7 +287,6 @@ const Neuro = () => {
     const accuracy = totalTested > 0 ? ((totalCorrect / totalTested) * 100).toFixed(1) : '0.0';
     const avgError = totalTested > 0 ? (totalAbsError / totalTested).toFixed(2) : '0';
     setLeagueStats(leagueResults);
-    // 🔧 СОХРАНЯЕМ ТОЧНОСТЬ ПО ЛИГАМ
     localStorage.setItem('neuro_league_stats', JSON.stringify(leagueResults));
     localStorage.setItem('neuro_historical_errors', JSON.stringify(errors));
     setHistoricalErrors(errors);
@@ -446,12 +463,6 @@ const Neuro = () => {
         recommendation: overProb > 70 ? `🔥 СТАВЛЮ! ТБ ${selectedTotal}` : overProb > 60 ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТБ ${selectedTotal}` : overProb < 30 ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТМ ${selectedTotal}` : overProb < 40 ? `🤔 ДУМАЮ! ТМ ${selectedTotal}` : `❌ НЕ ЛЕЗУ!`,
         confidence: Math.abs(overProb - 50) * 2
       });
-      
-      try {
-        const { predictMatch } = await import('../data/store');
-        const poissonResult = predictMatch(predictHomeTeam, predictAwayTeam, predictLeague, activeSeason, selectedTotal);
-        setPoissonPrediction(poissonResult);
-      } catch (e) {}
     } catch (error) { console.error(error); }
     setIsPredicting(false);
   };
@@ -461,7 +472,7 @@ const Neuro = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div><h2 className="text-2xl md:text-3xl font-bold mb-1 flex items-center gap-3"><Brain className="text-purple-400" /> Neuro AI v5.1</h2><p className="text-sm text-gray-400">Тренд ±3 • АПЛ 10.5 • 32 признака</p></div>
+      <div><h2 className="text-2xl md:text-3xl font-bold mb-1 flex items-center gap-3"><Brain className="text-purple-400" /> Neuro AI v5.2</h2><p className="text-sm text-gray-400">Value-калькулятор • Тренд ±3 • АПЛ 10.5</p></div>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SCard icon={Database} label="Матчей" v={totalMatches} c="blue" />
@@ -516,8 +527,8 @@ const Neuro = () => {
         <div className="space-y-4">
           <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50 text-center">
             <Brain size={48} className="mx-auto mb-4 text-purple-400" />
-            <h3 className="text-xl font-bold mb-2">TensorFlow.js v5.1</h3>
-            <p className="text-gray-400 mb-4">Тренд ±3 • АПЛ 10.5 • 32 признака</p>
+            <h3 className="text-xl font-bold mb-2">TensorFlow.js v5.2</h3>
+            <p className="text-gray-400 mb-4">Value-калькулятор • Тренд ±3 • АПЛ 10.5</p>
             {!isTraining && !isRetraining && (
               <div className="flex gap-3 justify-center flex-wrap">
                 <button onClick={trainModel} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center gap-2"><Play size={20} /> {modelReady ? 'Переобучить' : 'Обучить'}</button>
@@ -525,51 +536,44 @@ const Neuro = () => {
               </div>
             )}
             {modelReady && (
-              <button onClick={async () => {
-                try {
-                  const model = await tf.loadLayersModel('localstorage://football-neuro-model');
-                  await model.save('localstorage://football-neuro-model-backup');
-                  addLog('📥 Бэкап сохранён!');
-                } catch (e) { addLog('❌ ' + e.message); }
-              }} className="mt-3 bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2 mx-auto">
-                <Save size={16} /> 💾 Бэкап модели
-              </button>
+              <div className="flex gap-2 justify-center flex-wrap mt-3">
+                <button onClick={async () => {
+                  try {
+                    const model = await tf.loadLayersModel('localstorage://football-neuro-model');
+                    await model.save('localstorage://football-neuro-model-backup');
+                    addLog('📥 Бэкап сохранён!');
+                  } catch (e) { addLog('❌ ' + e.message); }
+                }} className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2">
+                  <Save size={16} /> 💾 Бэкап
+                </button>
+                <button onClick={() => {
+                  try {
+                    const exportData = {};
+                    const keys = ['info', 'model_metadata', 'model_topology', 'weight_data', 'weight_specs'];
+                    keys.forEach(key => {
+                      const data = localStorage.getItem(`tensorflowjs_models/football-neuro-model/${key}`);
+                      if (data) exportData[`tensorflowjs_models/football-neuro-model/${key}`] = data;
+                    });
+                    const testResults = localStorage.getItem('neuro_test_results');
+                    if (testResults) exportData['neuro_test_results'] = testResults;
+                    const leagueStats = localStorage.getItem('neuro_league_stats');
+                    if (leagueStats) exportData['neuro_league_stats'] = leagueStats;
+                    const normParams = localStorage.getItem('neuro_norm_params');
+                    if (normParams) exportData['neuro_norm_params'] = normParams;
+                    
+                    const blob = new Blob([JSON.stringify(exportData)], {type: 'application/json'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `neuro-model-${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    addLog('📥 Модель скачана!');
+                  } catch (e) { addLog('❌ Ошибка: ' + e.message); }
+                }} className="bg-blue-700 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2">
+                  <Save size={16} /> 📥 Скачать
+                </button>
+              </div>
             )}
-
-{/* Кнопка скачивания модели */}
-{modelReady && (
-  <button 
-    onClick={() => {
-      try {
-        const exportData = {};
-        const keys = ['info', 'model_metadata', 'model_topology', 'weight_data', 'weight_specs'];
-        keys.forEach(key => {
-          const data = localStorage.getItem(`tensorflowjs_models/football-neuro-model/${key}`);
-          if (data) exportData[`tensorflowjs_models/football-neuro-model/${key}`] = data;
-        });
-        // Добавляем результаты тестов
-        const testResults = localStorage.getItem('neuro_test_results');
-        if (testResults) exportData['neuro_test_results'] = testResults;
-        const leagueStats = localStorage.getItem('neuro_league_stats');
-        if (leagueStats) exportData['neuro_league_stats'] = leagueStats;
-        const normParams = localStorage.getItem('neuro_norm_params');
-        if (normParams) exportData['neuro_norm_params'] = normParams;
-        
-        const blob = new Blob([JSON.stringify(exportData)], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `neuro-model-${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        addLog('📥 Модель скачана!');
-      } catch (e) { addLog('❌ Ошибка: ' + e.message); }
-    }}
-    className="mt-2 bg-blue-700 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2 mx-auto"
-  >
-    <Save size={16} /> 📥 Скачать модель
-  </button>
-)}
-
             {isTraining && <div className="text-center py-4"><RefreshCw size={32} className="mx-auto mb-2 animate-spin text-purple-400" /><p>Обучение... 1-3 минуты</p></div>}
             {isRetraining && <div className="text-center py-4"><RefreshCw size={32} className="mx-auto mb-2 animate-spin text-green-400" /><p>Дообучение...</p></div>}
           </div>
@@ -594,31 +598,156 @@ const Neuro = () => {
               </div>
               <button onClick={predictWithNeuro} disabled={!predictHomeTeam || !predictAwayTeam || isPredicting} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg disabled:opacity-50">{isPredicting ? 'Анализирую...' : 'Получить прогноз'}</button>
               
-              {(neuroPrediction || poissonPrediction) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  {neuroPrediction && (
-                    <div className="bg-purple-900/20 rounded-lg p-4 border border-purple-700/50">
-                      <h4 className="font-semibold text-purple-400 mb-3"><Brain size={16} className="inline mr-1" /> Neuro</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between"><span>Тотал</span><span className="text-xl font-bold text-white">{neuroPrediction.expectedTotal}</span></div>
-                        <div className="flex justify-between"><span>ТБ {selectedTotal}</span><span className="text-lg font-bold text-green-400">{neuroPrediction.overProbability}%</span></div>
-                        <div className="flex justify-between"><span>ТМ {selectedTotal}</span><span className="text-lg font-bold text-red-400">{neuroPrediction.underProbability}%</span></div>
-                        <div className={`mt-3 p-3 rounded-lg text-center font-semibold ${neuroPrediction.recommendation.includes('СТАВЛЮ') ? 'bg-green-600/30 text-green-400' : neuroPrediction.recommendation.includes('ДУМАЮ') ? 'bg-yellow-600/30 text-yellow-400' : 'bg-gray-600/30 text-gray-400'}`}>{neuroPrediction.recommendation}</div>
-                        <div className="text-xs text-gray-500 text-center">Уверенность: {neuroPrediction.confidence.toFixed(0)}%</div>
+              {/* 🔥 РЕЗУЛЬТАТ ПРОГНОЗА + VALUE + КНОПКА ПОСТАВИТЬ */}
+              {neuroPrediction && (
+                <div className="mt-4 space-y-4">
+                  {/* Карточка прогноза Neuro */}
+                  <div className="bg-purple-900/20 rounded-xl p-5 border border-purple-700/50">
+                    <h4 className="font-semibold text-purple-400 mb-4 text-lg flex items-center gap-2"><Brain size={20} /> Neuro AI</h4>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="text-center">
+                        <p className="text-xs text-gray-400 mb-1">Ожидаемый тотал</p>
+                        <p className="text-2xl font-bold text-white">{neuroPrediction.expectedTotal}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-gray-400 mb-1">ТБ {selectedTotal}</p>
+                        <p className="text-2xl font-bold text-green-400">{neuroPrediction.overProbability}%</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-gray-400 mb-1">ТМ {selectedTotal}</p>
+                        <p className="text-2xl font-bold text-red-400">{neuroPrediction.underProbability}%</p>
                       </div>
                     </div>
-                  )}
-                  {poissonPrediction && (
-                    <div className="bg-yellow-900/20 rounded-lg p-4 border border-yellow-700/50">
-                      <h4 className="font-semibold text-yellow-400 mb-3"><Calculator size={16} className="inline mr-1" /> Пуассон</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between"><span>Тотал</span><span className="font-semibold">{poissonPrediction.totalExpected}</span></div>
-                        <div className="flex justify-between"><span>ТБ {selectedTotal}</span><span className="text-lg font-bold text-green-400">{poissonPrediction.totalProbability}%</span></div>
-                        <div className="flex justify-between"><span>ТМ {selectedTotal}</span><span className="text-lg font-bold text-red-400">{poissonPrediction.underProbability}%</span></div>
-                        <div className={`mt-3 p-3 rounded-lg text-center text-sm font-semibold ${poissonPrediction.recommendation.includes('СТАВЛЮ') ? 'bg-green-600/30 text-green-400' : poissonPrediction.recommendation.includes('ДУМАЮ') ? 'bg-yellow-600/30 text-yellow-400' : 'bg-gray-600/30 text-gray-400'}`}>{poissonPrediction.recommendation}</div>
-                      </div>
+                    <div className={`p-4 rounded-lg text-center font-semibold text-lg ${
+                      neuroPrediction.recommendation.includes('СТАВЛЮ') ? 'bg-green-600/30 text-green-400' : 
+                      neuroPrediction.recommendation.includes('ДУМАЮ') ? 'bg-yellow-600/30 text-yellow-400' : 
+                      'bg-gray-600/30 text-gray-400'
+                    }`}>
+                      {neuroPrediction.recommendation}
                     </div>
-                  )}
+                  </div>
+                  
+                  {/* 🔥 VALUE CALCULATOR */}
+                  <div className="bg-gray-800/80 rounded-xl p-5 border border-gray-600">
+                    <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
+                      <TrendingUp size={18} className="text-green-400" />
+                      Value Betting
+                      <span className="text-xs text-gray-400 font-normal ml-2">(точность модели {testResults?.accuracy || '58'}%)</span>
+                    </h4>
+                    <div className="flex items-center gap-4 mb-3">
+                      <label className="text-sm text-gray-400 whitespace-nowrap">Введите кэф:</label>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        value={manualKef} 
+                        onChange={(e) => setManualKef(e.target.value)}
+                        className="w-24 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white text-center font-bold text-lg"
+                      />
+                      {valueResult && (
+                        <div className={`flex-1 p-3 rounded-lg text-center font-bold text-lg ${
+                          valueResult.isSuper ? 'bg-green-600/30 text-green-400' : 
+                          valueResult.isValue ? 'bg-yellow-600/30 text-yellow-400' : 
+                          'bg-red-600/30 text-red-400'
+                        }`}>
+                          Value: {valueResult.value > 0 ? '+' : ''}{valueResult.value}%
+                          {valueResult.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' : valueResult.isValue ? ' ✅ ВАЛУЙ!' : ' ❌ МИМО'}
+                        </div>
+                      )}
+                    </div>
+                    {valueResult && (
+                      <p className="text-xs text-gray-500">
+                        Безубыточный кэф: <span className="text-white font-bold">{(100 / valueResult.accuracy).toFixed(2)}</span>
+                      </p>
+                    )}
+                                        {valueResult && (
+                      <div className="mt-2 pt-2 border-t border-gray-700">
+                        <p className="text-xs text-gray-400 mb-1">
+                          💰 Келли (1/4): 
+                          <span className="text-white font-bold ml-1">
+                            {(() => {
+                              const accuracy = parseFloat(valueResult.accuracy) / 100;
+                              const kef = parseFloat(manualKef);
+                              const kelly = (accuracy * kef - 1) / (kef - 1);
+                              const fractionalKelly = kelly * 0.25; // 1/4 Келли
+                              const percent = (fractionalKelly * 100).toFixed(1);
+                              return percent > 0 ? `${percent}% от банка` : 'Не ставить';
+                            })()}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(() => {
+                            const accuracy = parseFloat(valueResult.accuracy) / 100;
+                            const kef = parseFloat(manualKef);
+                            const kelly = (accuracy * kef - 1) / (kef - 1);
+                            const fractionalKelly = kelly * 0.25;
+                            const amount = (fractionalKelly * 10000).toFixed(0);
+                            return amount > 0 ? `При банке 10,000₽ → ставка ${amount}₽` : '';
+                          })()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {/* 🔥 УМНАЯ ПОДСКАЗКА */}
+{valueResult && neuroPrediction && (
+  <div className="mt-3 bg-gray-800/60 rounded-lg p-4 border border-gray-600">
+    <h5 className="text-sm font-semibold text-white mb-2">🧠 Анализ:</h5>
+    <div className="space-y-2 text-sm">
+      {/* Уверенность */}
+      <div className="flex items-center gap-2">
+        <span className={neuroPrediction.confidence > 60 ? 'text-green-400' : neuroPrediction.confidence < 40 ? 'text-red-400' : 'text-yellow-400'}>
+          {neuroPrediction.confidence > 60 ? '✅' : neuroPrediction.confidence < 40 ? '⚠️' : '⚡'} 
+          Уверенность: {neuroPrediction.confidence.toFixed(0)}%
+        </span>
+      </div>
+      
+      {/* Value */}
+      <div className="flex items-center gap-2">
+        <span className={valueResult.isSuper ? 'text-green-400' : valueResult.isValue ? 'text-yellow-400' : 'text-red-400'}>
+          {valueResult.isSuper ? '🔥' : valueResult.isValue ? '✅' : '❌'} 
+          Value: {valueResult.value > 0 ? '+' : ''}{valueResult.value}%
+        </span>
+      </div>
+      
+      {/* Кэф */}
+      <div className="flex items-center gap-2">
+        <span className={parseFloat(manualKef) < 1.5 ? 'text-red-400' : parseFloat(manualKef) < 1.7 ? 'text-yellow-400' : 'text-green-400'}>
+          {parseFloat(manualKef) < 1.5 ? '❌' : parseFloat(manualKef) < 1.7 ? '⚠️' : '✅'} 
+          Кэф: {manualKef} {parseFloat(manualKef) < 1.5 ? '(слишком низкий)' : parseFloat(manualKef) < 1.7 ? '(низковат)' : '(хороший)'}
+        </span>
+      </div>
+      
+      {/* Итоговая рекомендация */}
+      <div className="mt-3 pt-3 border-t border-gray-700">
+        {(() => {
+          const conf = neuroPrediction.confidence;
+          const val = parseFloat(valueResult.value);
+          const kef = parseFloat(manualKef);
+          
+          // Супер-сигнал
+          if (conf > 60 && val > 10 && kef >= 1.7) return (
+            <p className="text-green-400 font-bold">🔥 СТАВЛЮ УВЕРЕННО! Все показатели отличные!</p>
+          );
+          // Хороший сигнал
+          if (conf > 50 && val > 5 && kef >= 1.6) return (
+            <p className="text-green-400 font-bold">✅ МОЖНО СТАВИТЬ! Показатели хорошие.</p>
+          );
+          // Плохой сигнал
+          // Всё остальное — НЕ СТАВИТЬ
+          return (
+            <p className="text-red-400 font-bold">❌ НЕ СТАВИТЬ! Не соответсвует строгим критериям.</p>
+          );
+        })()}
+      </div>
+    </div>
+  </div>
+)}
+                  {/* Кнопка ПОСТАВИТЬ */}
+                  <button 
+                    onClick={() => setShowBetModal(true)}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
+                  >
+                    <Wallet size={18} /> 💰 Поставить
+                  </button>
                 </div>
               )}
             </div>
@@ -626,6 +755,19 @@ const Neuro = () => {
         </div>
       )}
       {activeTab !== 'tensorflow' && <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700 text-center"><h3 className="text-xl font-bold mb-2">{activeTab === 'randomforest' ? '🌲' : '⚡'} {activeTab === 'randomforest' ? 'Random Forest' : 'XGBoost'}</h3><p className="text-gray-400">Будут добавлены позже</p></div>}
+      
+      <BetModal 
+        isOpen={showBetModal} 
+        onClose={() => setShowBetModal(false)}
+        matchData={{
+          homeTeam: data.teams?.find(t => t.id === predictHomeTeam)?.name || '',
+          awayTeam: data.teams?.find(t => t.id === predictAwayTeam)?.name || '',
+          leagueId: predictLeague
+        }}
+        total={selectedTotal}
+        recommendation={neuroPrediction?.recommendation}
+        overProb={neuroPrediction?.overProbability}
+      />
     </div>
   );
 };
