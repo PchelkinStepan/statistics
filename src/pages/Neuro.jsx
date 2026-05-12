@@ -535,6 +535,41 @@ const Neuro = () => {
                 <Save size={16} /> 💾 Бэкап модели
               </button>
             )}
+
+{/* Кнопка скачивания модели */}
+{modelReady && (
+  <button 
+    onClick={() => {
+      try {
+        const exportData = {};
+        const keys = ['info', 'model_metadata', 'model_topology', 'weight_data', 'weight_specs'];
+        keys.forEach(key => {
+          const data = localStorage.getItem(`tensorflowjs_models/football-neuro-model/${key}`);
+          if (data) exportData[`tensorflowjs_models/football-neuro-model/${key}`] = data;
+        });
+        // Добавляем результаты тестов
+        const testResults = localStorage.getItem('neuro_test_results');
+        if (testResults) exportData['neuro_test_results'] = testResults;
+        const leagueStats = localStorage.getItem('neuro_league_stats');
+        if (leagueStats) exportData['neuro_league_stats'] = leagueStats;
+        const normParams = localStorage.getItem('neuro_norm_params');
+        if (normParams) exportData['neuro_norm_params'] = normParams;
+        
+        const blob = new Blob([JSON.stringify(exportData)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `neuro-model-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        addLog('📥 Модель скачана!');
+      } catch (e) { addLog('❌ Ошибка: ' + e.message); }
+    }}
+    className="mt-2 bg-blue-700 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2 mx-auto"
+  >
+    <Save size={16} /> 📥 Скачать модель
+  </button>
+)}
+
             {isTraining && <div className="text-center py-4"><RefreshCw size={32} className="mx-auto mb-2 animate-spin text-purple-400" /><p>Обучение... 1-3 минуты</p></div>}
             {isRetraining && <div className="text-center py-4"><RefreshCw size={32} className="mx-auto mb-2 animate-spin text-green-400" /><p>Дообучение...</p></div>}
           </div>
