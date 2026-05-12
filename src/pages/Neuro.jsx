@@ -33,7 +33,6 @@ const Neuro = () => {
   const activeSeason = getActiveSeason(predictLeague)?.id;
   const teamsInLeague = data.teams?.filter(t => t.leagueId === predictLeague) || [];
 
-  // 🔧 ФИКС: АПЛ всегда 10.5, остальные ceil
   const getDefaultTotal = (leagueId) => {
     const season = data.seasons?.find(s => s.leagueId === leagueId && s.isActive);
     const league = data.leagues?.find(l => l.id === leagueId);
@@ -69,6 +68,9 @@ const Neuro = () => {
           if (sh) try { setTrainingHistory(JSON.parse(sh)); } catch(e) {}
           const se = localStorage.getItem('neuro_historical_errors');
           if (se) try { setHistoricalErrors(JSON.parse(se)); } catch(e) {}
+          // 🔧 ЗАГРУЖАЕМ ТОЧНОСТЬ ПО ЛИГАМ
+          const sl = localStorage.getItem('neuro_league_stats');
+          if (sl) try { setLeagueStats(JSON.parse(sl)); } catch(e) {}
           addLog('✅ Модель загружена из кэша');
         } else {
           addLog('⚡ Модель не найдена. Нажмите "Обучить".');
@@ -136,7 +138,6 @@ const Neuro = () => {
     const half = Math.floor(n / 2);
     const firstHalfAvg = ct.slice(0, half).reduce((a, b) => a + b, 0) / half;
     const secondHalfAvg = ct.slice(half).reduce((a, b) => a + b, 0) / (n - half);
-    // 🔧 ФИКС: хардкод тренда ±3 (надёжно!)
     const rawTrend = firstHalfAvg - secondHalfAvg;
     const normalizedTrend = Math.max(-3, Math.min(3, rawTrend));
     
@@ -268,6 +269,8 @@ const Neuro = () => {
     const accuracy = totalTested > 0 ? ((totalCorrect / totalTested) * 100).toFixed(1) : '0.0';
     const avgError = totalTested > 0 ? (totalAbsError / totalTested).toFixed(2) : '0';
     setLeagueStats(leagueResults);
+    // 🔧 СОХРАНЯЕМ ТОЧНОСТЬ ПО ЛИГАМ
+    localStorage.setItem('neuro_league_stats', JSON.stringify(leagueResults));
     localStorage.setItem('neuro_historical_errors', JSON.stringify(errors));
     setHistoricalErrors(errors);
     
@@ -414,7 +417,6 @@ const Neuro = () => {
       const homeStats = calculateFeatures(homePast, predictHomeTeam);
       const awayStats = calculateFeatures(awayPast, predictAwayTeam);
       
-      // 🔧 ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА ТРЕНДА В ПРЕДИКТЕ
       homeStats.cornersTrend = Math.max(-3, Math.min(3, homeStats.cornersTrend || 0));
       awayStats.cornersTrend = Math.max(-3, Math.min(3, awayStats.cornersTrend || 0));
       

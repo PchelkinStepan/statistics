@@ -17,7 +17,6 @@ const BetTracker = () => {
   const [bets, setBets] = useState(data.bets || []);
   const [bankroll, setBankroll] = useState(data.bankroll || { initial: 10000, current: 10000 });
 
-  // 🔧 ПОДПИСКА НА ОБНОВЛЕНИЯ
   useEffect(() => {
     const unsubscribe = subscribe((newData) => {
       setData(newData);
@@ -51,8 +50,14 @@ const BetTracker = () => {
 
   const leagues = data.leagues || [];
 
+  // 🔧 ОПТИМИЗИРОВАННОЕ СОХРАНЕНИЕ — не трогаем matches!
   const saveBets = (newBets, newBankroll) => {
-    const updatedData = { ...data, bets: newBets, bankroll: newBankroll };
+    const updatedData = { 
+      ...data, 
+      bets: newBets, 
+      bankroll: newBankroll,
+      // Оставляем matches как есть, не отправляем их в Firebase!
+    };
     setData(updatedData);
     saveData(updatedData);
   };
