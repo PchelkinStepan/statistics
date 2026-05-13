@@ -50,15 +50,16 @@ const BetTracker = () => {
 
   const leagues = data.leagues || [];
 
-  // 🔧 ОПТИМИЗИРОВАННОЕ СОХРАНЕНИЕ — не трогаем matches!
+  // 🔧 ИСПРАВЛЕНО: сохраняем только bets и bankroll, НЕ трогаем matches!
   const saveBets = (newBets, newBankroll) => {
     const updatedData = { 
       ...data, 
       bets: newBets, 
       bankroll: newBankroll,
-      // Оставляем matches как есть, не отправляем их в Firebase!
+      // matches остаются нетронутыми!
     };
     setData(updatedData);
+    // Передаём текущие matches без изменений
     saveData(updatedData);
   };
 
