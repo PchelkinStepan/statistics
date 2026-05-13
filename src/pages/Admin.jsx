@@ -45,6 +45,9 @@ const Admin = () => {
   const [message, setMessage] = useState('');
   const [formTab, setFormTab] = useState('match');
   
+  // 🔒 ЗАЩИТА от двойных нажатий
+  const [isSaving, setIsSaving] = useState(false);
+  
   const isMobile = useIsMobile();
   const activeSeason = getActiveSeason(selectedLeagueFilter);
   
@@ -80,11 +83,17 @@ const Admin = () => {
   });
 
   useEffect(() => { const unsubscribe = subscribe((newData) => setData(newData)); return () => unsubscribe(); }, []);
+  
+  // 🔧 ИСПРАВЛЕНО: добавлена проверка чтобы не вызывать лишний раз
   useEffect(() => {
-    if (activeSeason) { setSelectedSeasonFilter(activeSeason.id); setMatchForm(prev => ({ ...prev, seasonId: activeSeason.id, leagueId: selectedLeagueFilter })); }
-  }, [selectedLeagueFilter, activeSeason]);
+    if (activeSeason && activeSeason.id !== matchForm.seasonId) { 
+      setSelectedSeasonFilter(activeSeason.id); 
+      setMatchForm(prev => ({ ...prev, seasonId: activeSeason.id, leagueId: selectedLeagueFilter })); 
+    }
+  }, [selectedLeagueFilter, activeSeason?.id]);
 
   const refreshData = () => setData(getData());
+  
   const exportData = () => {
     const data = getData();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -153,94 +162,124 @@ const Admin = () => {
     });
   };
 
+  // 🔧 ИСПРАВЛЕНО: защита от двойных нажатий + убран refreshData
   const handleMatchSubmit = async (e) => {
-    e.preventDefault(); const formData = { ...matchForm };
-    if (!formData.seasonId || formData.seasonId === '') formData.seasonId = activeSeason?.id || '';
-    if (!formData.leagueId) formData.leagueId = defaultLeagueId;
-    Object.keys(formData).forEach(key => {
-      if (typeof formData[key] === 'string' && key !== 'date' && key !== 'leagueId' && key !== 'seasonId' && key !== 'homeTeamId' && key !== 'awayTeamId') {
-        if (key.includes('XG')) formData[key] = formData[key] === '' ? 0 : parseFloat(formData[key]) || 0;
-        else if (key.toLowerCase().includes('possession')) { let v = parseInt(formData[key]) || 50; if (v > 100) v = 100; if (v < 0) v = 0; formData[key] = v; }
-        else formData[key] = formData[key] === '' ? 0 : parseInt(formData[key]) || 0;
+    e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
+    
+    try {
+      const formData = { ...matchForm };
+      if (!formData.seasonId || formData.seasonId === '') formData.seasonId = activeSeason?.id || '';
+      if (!formData.leagueId) formData.leagueId = defaultLeagueId;
+      Object.keys(formData).forEach(key => {
+        if (typeof formData[key] === 'string' && key !== 'date' && key !== 'leagueId' && key !== 'seasonId' && key !== 'homeTeamId' && key !== 'awayTeamId') {
+          if (key.includes('XG')) formData[key] = formData[key] === '' ? 0 : parseFloat(formData[key]) || 0;
+          else if (key.toLowerCase().includes('possession')) { let v = parseInt(formData[key]) || 50; if (v > 100) v = 100; if (v < 0) v = 0; formData[key] = v; }
+          else formData[key] = formData[key] === '' ? 0 : parseInt(formData[key]) || 0;
+        }
+      });
+      if (!formData.homeCorners1H && !formData.awayCorners1H) {
+        formData.homeCorners1H = Math.round(formData.homeCorners * 0.5); formData.awayCorners1H = Math.round(formData.awayCorners * 0.5);
+        formData.homeCorners2H = formData.homeCorners - formData.homeCorners1H; formData.awayCorners2H = formData.awayCorners - formData.awayCorners1H;
       }
-    });
-    if (!formData.homeCorners1H && !formData.awayCorners1H) {
-      formData.homeCorners1H = Math.round(formData.homeCorners * 0.5); formData.awayCorners1H = Math.round(formData.awayCorners * 0.5);
-      formData.homeCorners2H = formData.homeCorners - formData.homeCorners1H; formData.awayCorners2H = formData.awayCorners - formData.awayCorners1H;
+      if (editingMatch) { await updateMatch(editingMatch.id, formData); setMessage('✅ Матч обновлен!'); }
+      else { await addMatch(formData); setMessage('✅ Матч добавлен!'); }
+      // refreshData() УБРАН — subscribe сам обновит
+      setShowMobileForm(false); setEditingMatch(null); setMatchForm(getInitialMatchForm()); setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setTimeout(() => setIsSaving(false), 2000);
     }
-    if (editingMatch) { await updateMatch(editingMatch.id, formData); setMessage('✅ Матч обновлен!'); }
-    else { await addMatch(formData); setMessage('✅ Матч добавлен!'); }
-    refreshData(); setShowMobileForm(false); setEditingMatch(null); setMatchForm(getInitialMatchForm()); setTimeout(() => setMessage(''), 3000);
   };
 
+  // 🔧 ИСПРАВЛЕНО: защита от двойных нажатий + убран refreshData
   const handleLeagueSubmit = async (e) => {
     e.preventDefault();
-    if (editingLeague) {
-      const updatedData = { ...data, leagues: data.leagues.map(l => l.id === editingLeague.id ? { ...leagueForm, id: editingLeague.id } : l) };
-      await saveData(updatedData); setMessage('✅ Лига обновлена!'); setEditingLeague(null);
-    } else { await addLeague(leagueForm); setMessage('✅ Лига добавлена!'); }
-    refreshData(); setLeagueForm({ name: '', country: '' }); setTimeout(() => setMessage(''), 3000);
+    if (isSaving) return;
+    setIsSaving(true);
+    
+    try {
+      if (editingLeague) {
+        const updatedData = { ...data, leagues: data.leagues.map(l => l.id === editingLeague.id ? { ...leagueForm, id: editingLeague.id } : l) };
+        await saveData(updatedData); setMessage('✅ Лига обновлена!'); setEditingLeague(null);
+      } else { await addLeague(leagueForm); setMessage('✅ Лига добавлена!'); }
+      // refreshData() УБРАН
+      setLeagueForm({ name: '', country: '' }); setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setTimeout(() => setIsSaving(false), 2000);
+    }
   };
 
+  // 🔧 ИСПРАВЛЕНО: защита от двойных нажатий + убран refreshData
   const handleTeamSubmit = async (e) => {
     e.preventDefault();
-    if (editingTeam) { await updateTeam(editingTeam.id, teamForm); setMessage('✅ Команда обновлена!'); setEditingTeam(null); }
-    else { await addTeam(teamForm); setMessage('✅ Команда добавлена!'); }
-    refreshData(); setTeamForm({ name: '', leagueId: defaultLeagueId, seasonIds: [] }); setTimeout(() => setMessage(''), 3000);
+    if (isSaving) return;
+    setIsSaving(true);
+    
+    try {
+      if (editingTeam) { await updateTeam(editingTeam.id, teamForm); setMessage('✅ Команда обновлена!'); setEditingTeam(null); }
+      else { await addTeam(teamForm); setMessage('✅ Команда добавлена!'); }
+      // refreshData() УБРАН
+      setTeamForm({ name: '', leagueId: defaultLeagueId, seasonIds: [] }); setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setTimeout(() => setIsSaving(false), 2000);
+    }
   };
 
-  // 🔧 ИСПРАВЛЕНО: Добавлен авто-бэкап перед сохранением сезона
+  // 🔧 ИСПРАВЛЕНО: защита от двойных нажатий + убран refreshData
   const handleSeasonSubmit = async (e) => {
     e.preventDefault(); 
+    if (isSaving) return;
+    setIsSaving(true);
     
-    // Авто-бэкап перед изменением сезона
-    const backupData = getData();
-    localStorage.setItem('football_pre_season_backup', JSON.stringify(backupData));
-    console.log('✅ Авто-бэкап создан перед изменением сезона');
-    
-    const formData = { ...seasonForm };
-    formData.avgTotalCorners = parseFloat(formData.avgTotalCorners) || 9; 
-    formData.avgCornersHome = parseFloat(formData.avgCornersHome) || 5;
-    formData.avgCornersAway = parseFloat(formData.avgCornersAway) || 4; 
-    formData.avgXG = parseFloat(formData.avgXG) || 1.2;
-    formData.avgShotsInsideBox = parseFloat(formData.avgShotsInsideBox) || 7; 
-    formData.isActive = editingSeason ? seasonForm.isActive : false;
-    
-    // ВАЖНО: leagueId берётся из формы (выпадашки)!
-    if (editingSeason) { 
-      await updateSeason(editingSeason.id, formData); 
-      setMessage('✅ Сезон обновлен!'); 
-      setEditingSeason(null); 
-    } else { 
-      await addSeason(formData); 
-      setMessage('✅ Сезон добавлен!'); 
+    try {
+      const backupData = getData();
+      localStorage.setItem('football_pre_season_backup', JSON.stringify(backupData));
+      console.log('✅ Авто-бэкап создан перед изменением сезона');
+      
+      const formData = { ...seasonForm };
+      formData.avgTotalCorners = parseFloat(formData.avgTotalCorners) || 9; 
+      formData.avgCornersHome = parseFloat(formData.avgCornersHome) || 5;
+      formData.avgCornersAway = parseFloat(formData.avgCornersAway) || 4; 
+      formData.avgXG = parseFloat(formData.avgXG) || 1.2;
+      formData.avgShotsInsideBox = parseFloat(formData.avgShotsInsideBox) || 7; 
+      formData.isActive = editingSeason ? seasonForm.isActive : false;
+      
+      if (editingSeason) { 
+        await updateSeason(editingSeason.id, formData); 
+        setMessage('✅ Сезон обновлен!'); 
+        setEditingSeason(null); 
+      } else { 
+        await addSeason(formData); 
+        setMessage('✅ Сезон добавлен!'); 
+      }
+      
+      setSelectedLeagueForSeasons(formData.leagueId);
+      // refreshData() УБРАН
+      setShowSeasonForm(false);
+      setSeasonForm({ 
+        id: '', name: '', 
+        leagueId: formData.leagueId,
+        avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' 
+      });
+      setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setTimeout(() => setIsSaving(false), 2000);
     }
-    
-    // Переключаем выпадашку на лигу сезона
-    setSelectedLeagueForSeasons(formData.leagueId);
-    refreshData(); 
-    setShowSeasonForm(false);
-    // Сбрасываем форму, оставляя выбранную лигу
-    setSeasonForm({ 
-      id: '', name: '', 
-      leagueId: formData.leagueId, // ← Оставляем выбранную лигу!
-      avgTotalCorners: '', avgCornersHome: '', avgCornersAway: '', avgXG: '', avgShotsInsideBox: '' 
-    });
-    setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleDeleteMatch = async (matchId) => { if (window.confirm('Удалить матч?')) { await deleteMatch(matchId); refreshData(); setMessage('🗑️ Матч удален'); setTimeout(() => setMessage(''), 3000); } };
+  const handleDeleteMatch = async (matchId) => { if (window.confirm('Удалить матч?')) { await deleteMatch(matchId); setMessage('🗑️ Матч удален'); setTimeout(() => setMessage(''), 3000); } };
   const handleDeleteLeague = async (leagueId) => {
     if (data.teams?.some(t => t.leagueId === leagueId)) { setMessage('❌ Сначала удалите все команды'); setTimeout(() => setMessage(''), 3000); return; }
-    if (window.confirm('Удалить лигу?')) { await deleteLeague(leagueId); refreshData(); setMessage('🗑️ Лига удалена'); setTimeout(() => setMessage(''), 3000); }
+    if (window.confirm('Удалить лигу?')) { await deleteLeague(leagueId); setMessage('🗑️ Лига удалена'); setTimeout(() => setMessage(''), 3000); }
   };
   const handleDeleteTeam = async (teamId) => {
     if (data.matches?.some(m => m.homeTeamId === teamId || m.awayTeamId === teamId)) { setMessage('❌ Сначала удалите все матчи'); setTimeout(() => setMessage(''), 3000); return; }
-    if (window.confirm('Удалить команду?')) { await deleteTeam(teamId); refreshData(); setMessage('🗑️ Команда удалена'); setTimeout(() => setMessage(''), 3000); }
+    if (window.confirm('Удалить команду?')) { await deleteTeam(teamId); setMessage('🗑️ Команда удалена'); setTimeout(() => setMessage(''), 3000); }
   };
   const handleDeleteSeason = async (seasonId) => {
     if (data.matches?.some(m => m.seasonId === seasonId)) { setMessage('❌ Сначала удалите все матчи'); setTimeout(() => setMessage(''), 3000); return; }
-    if (window.confirm('Удалить сезон?')) { await deleteSeason(seasonId); refreshData(); setMessage('🗑️ Сезон удален'); setTimeout(() => setMessage(''), 3000); }
+    if (window.confirm('Удалить сезон?')) { await deleteSeason(seasonId); setMessage('🗑️ Сезон удален'); setTimeout(() => setMessage(''), 3000); }
   };
 
   const seasons = getSeasons(selectedLeagueFilter);
@@ -405,17 +444,15 @@ const Admin = () => {
                   <div key={season.id} className={`flex items-center justify-between p-3 rounded-lg ${season.isActive ? 'bg-green-600/30 border border-green-600' : 'bg-gray-700/50'}`}>
                     <div className="flex-1"><div className="flex items-center gap-2"><span className="text-sm font-medium">{season.name}</span>{season.isActive && <span className="text-[10px] px-1.5 py-0.5 bg-green-600 rounded text-white flex items-center gap-1"><CheckCircle size={10} /> Активный</span>}</div><div className="text-xs text-gray-400">Тотал: {season.avgTotalCorners?.toFixed(1)} • Дома: {season.avgCornersHome?.toFixed(1)} • В гостях: {season.avgCornersAway?.toFixed(1)}</div></div>
                     <div className="flex items-center gap-1">
-                      {/* 🔧 ИСПРАВЛЕНО: Добавлен авто-бэкап перед обновлением средних */}
                       <button onClick={async () => { 
                         const backupData = getData();
                         localStorage.setItem('football_pre_average_backup', JSON.stringify(backupData));
                         console.log('✅ Авто-бэкап перед обновлением средних');
                         await updateSeasonAverages(season.id); 
-                        refreshData(); 
                         setMessage('✅ Средние обновлены!'); 
                         setTimeout(() => setMessage(''), 3000); 
                       }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><RefreshCw size={16} /></button>
-                      {!season.isActive && <button onClick={async () => { await setActiveSeason(selectedLeagueForSeasons, season.id); refreshData(); setMessage(`✅ Сезон ${season.name} активирован!`); setTimeout(() => setMessage(''), 3000); }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><CheckCircle size={16} /></button>}
+                      {!season.isActive && <button onClick={async () => { await setActiveSeason(selectedLeagueForSeasons, season.id); setMessage(`✅ Сезон ${season.name} активирован!`); setTimeout(() => setMessage(''), 3000); }} className="p-2 text-green-400 hover:bg-green-600/20 rounded-lg"><CheckCircle size={16} /></button>}
                       <button onClick={() => { setEditingSeason(season); setSeasonForm({ id: season.id, name: season.name, leagueId: season.leagueId, isActive: season.isActive, avgTotalCorners: season.avgTotalCorners?.toString() || '', avgCornersHome: season.avgCornersHome?.toString() || '', avgCornersAway: season.avgCornersAway?.toString() || '', avgXG: season.avgXG?.toString() || '', avgShotsInsideBox: season.avgShotsInsideBox?.toString() || '' }); setShowSeasonForm(true); }} className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"><Edit size={16} /></button>
                       <button onClick={() => handleDeleteSeason(season.id)} className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"><Trash2 size={16} /></button>
                     </div>
