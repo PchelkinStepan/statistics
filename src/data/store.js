@@ -310,6 +310,43 @@ export const getTeamStats = (teamId, seasonId, matchesCount = 10) => {
   return { ...st, avgCornersFor: st.totalCornersFor / n, avgCornersAgainst: st.totalCornersAgainst / n, avgCornersForHome: hm > 0 ? st.cornersForHome / hm : 0, avgCornersForAway: am > 0 ? st.cornersForAway / am : 0, avgXG: st.xG / n, avgXGA: st.xGA / n, avgShotsInsideBox: st.shotsInsideBox / n, avgShotsInsideBoxAgainst: st.shotsInsideBoxAgainst / n, avgPossession: st.possession / n, avgSaves: st.saves / n, matchesPlayed: n };
 };
 
+/** P(T <= maxK) для T ~ Poisson(lambda), суммирование PMF от 0 */
+export const poissonCdf = (lambda, maxK) => {
+  if (!isFinite(lambda) || lambda <= 0) return maxK < 0 ? 0 : 1;
+  if (maxK < 0) return 0;
+  let sum = 0;
+  let pmf = Math.exp(-lambda);
+  sum += pmf;
+  for (let k = 1; k <= maxK; k++) {
+    pmf = (pmf * lambda) / k;
+    sum += pmf;
+    if (sum >= 1 - 1e-12) return 1;
+  }
+  return sum;
+};
+
+/**
+ * Вероятность ТБ для линии с «половиной» (9.5, 10.5): тотал целый, ТБ если угловых >= floor(line)+1
+ * @returns {number} процент 0–100
+ */
+export const poissonOverProbabilityPct = (lambdaTotal, lineTotal) => {
+  const maxUnder = Math.floor(lineTotal);
+  const pUnder = poissonCdf(lambdaTotal, maxUnder);
+  const pOver = Math.max(0, Math.min(1, 1 - pUnder));
+  return pOver * 100;
+};
+
+const poissonRecommendation = (tp, selectedTotal) => {
+  const t = Math.round(tp);
+  if (tp >= 72) return `🔥 СИЛЬНЫЙ ТБ ${selectedTotal} (${t}%)`;
+  if (tp >= 62) return `✅ ХОРОШИЙ ТБ ${selectedTotal} (${t}%)`;
+  if (tp >= 54) return `🤔 Слабый ТБ ${selectedTotal} (${t}%)`;
+  if (tp >= 48) return `➖ Рядом с линией ${selectedTotal} (${t}%)`;
+  if (tp >= 40) return `🤔 Слабый ТМ ${selectedTotal} (${100 - t}%)`;
+  if (tp >= 30) return `✅ ХОРОШИЙ ТМ ${selectedTotal} (${100 - t}%)`;
+  return `🔥 СИЛЬНЫЙ ТМ ${selectedTotal} (${100 - t}%)`;
+};
+
 export const predictMatch = (homeTeamId, awayTeamId, leagueId, seasonId, selectedTotal = 9.5) => {
   const data = getData();
   const la = getLeagueAverages(leagueId, seasonId);
@@ -326,17 +363,20 @@ export const predictMatch = (homeTeamId, awayTeamId, leagueId, seasonId, selecte
   let ae = la.avgCornersAway * acr * hdc;
   if (isNaN(ae) || ae < 0.5) ae = la.avgCornersAway; if (ae > 12) ae = 10;
   he = Math.round(he * 100) / 100; ae = Math.round(ae * 100) / 100;
-  const te = he + ae;
-  let tp = 50, rec = '';
-  if (te > selectedTotal + 2) { tp = 85; rec = `🔥 СТАВЛЮ! ТБ ${selectedTotal} угловых (85%)`; }
-  else if (te > selectedTotal + 1.5) { tp = 75; rec = `⚠️ СТАВЛЮ ОСТОРОЖНО! ТБ ${selectedTotal} угловых (75%)`; }
-  else if (te > selectedTotal + 1) { tp = 68; rec = `🤔 ДУМАЮ! ТБ ${selectedTotal} угловых (68%)`; }
-  else if (te > selectedTotal + 0.5) { tp = 60; rec = `❌ НЕ ЛЕЗУ! ТБ ${selectedTotal} угловых (60%)`; }
-  else if (te > selectedTotal - 0.5) { tp = 52; rec = `❌ НЕ ЛЕЗУ! Близко к ${selectedTotal} (52%)`; }
-  else if (te > selectedTotal - 1) { tp = 42; rec = `❌ НЕ ЛЕЗУ! ТМ ${selectedTotal} угловых (42%)`; }
-  else if (te > selectedTotal - 1.5) { tp = 35; rec = `🤔 ДУМАЮ! ТМ ${selectedTotal} угловых (35%)`; }
-  else { tp = 25; rec = `⚠️ СТАВЛЮ ОСТОРОЖНО! ТМ ${selectedTotal} угловых (25%)`; }
-  return { homeExpected: he.toFixed(2), awayExpected: ae.toFixed(2), totalExpected: te.toFixed(2), totalProbability: tp, underProbability: 100 - tp, recommendation: rec, selectedTotal };
+  const lambdaTotal = Math.max(0.35, he + ae);
+  const tp = Math.round(poissonOverProbabilityPct(lambdaTotal, selectedTotal));
+  const underPct = Math.max(0, Math.min(100, 100 - tp));
+  const rec = poissonRecommendation(tp, selectedTotal);
+  return {
+    homeExpected: he.toFixed(2),
+    awayExpected: ae.toFixed(2),
+    totalExpected: (he + ae).toFixed(2),
+    lambdaTotal,
+    totalProbability: tp,
+    underProbability: underPct,
+    recommendation: rec,
+    selectedTotal,
+  };
 };
 
 export const getLeagueTable = (leagueId, seasonId) => {

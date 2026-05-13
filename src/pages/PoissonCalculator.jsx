@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { getData, predictMatch, getTeamStats, getActiveSeason } from '../data/store';
+import { fetchNeuroCornersForecast } from '../utils/neuroPoissonBridge';
 import { Calculator, TrendingUp, Target, Zap, AlertCircle, ChevronDown, Brain, GitCompare } from 'lucide-react';
 
 const PoissonCalculator = () => {
@@ -8,8 +9,7 @@ const PoissonCalculator = () => {
   const [homeTeam, setHomeTeam] = useState('');
   const [awayTeam, setAwayTeam] = useState('');
   const [prediction, setPrediction] = useState(null);
-  const [homeStats, setHomeStats] = useState(null);
-  const [awayStats, setAwayStats] = useState(null);
+  const [neuroPrediction, setNeuroPrediction] = useState(null);
   const [bettingOdds, setBettingOdds] = useState({ over: '', under: '' });
   const [selectedTotal, setSelectedTotal] = useState(9.5);
   const [showTotalSelector, setShowTotalSelector] = useState(false);
@@ -18,45 +18,60 @@ const PoissonCalculator = () => {
   const availableTotals = [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
   const activeSeason = getActiveSeason(selectedLeague)?.id;
   const teamsInLeague = data.teams?.filter(t => t.leagueId === selectedLeague) || [];
-  const league = data.leagues?.find(l => l.id === selectedLeague);
   const totalMatches = data.matches?.length || 0;
 
-  useEffect(() => {
-    if (homeTeam) setHomeStats(getTeamStats(homeTeam, activeSeason));
-    if (awayTeam) setAwayStats(getTeamStats(awayTeam, activeSeason));
-  }, [homeTeam, awayTeam, activeSeason]);
+  const homeStats = useMemo(
+    () => (homeTeam ? getTeamStats(homeTeam, activeSeason) : null),
+    [homeTeam, activeSeason],
+  );
+  const awayStats = useMemo(
+    () => (awayTeam ? getTeamStats(awayTeam, activeSeason) : null),
+    [awayTeam, activeSeason],
+  );
 
-  const handleCalculate = () => {
+  const handleCalculate = useCallback(async () => {
+    setNeuroPrediction(null);
     console.log('=== НАЧАЛО РАСЧЁТА ===');
     console.log('homeTeam:', homeTeam);
     console.log('awayTeam:', awayTeam);
     console.log('selectedLeague:', selectedLeague);
     console.log('activeSeason:', activeSeason);
     console.log('selectedTotal:', selectedTotal);
-    
+
     if (homeTeam && awayTeam && selectedLeague) {
-      // Проверяем статистику команд
-      const homeStats = getTeamStats(homeTeam, activeSeason);
-      const awayStats = getTeamStats(awayTeam, activeSeason);
-      console.log('Домашняя статистика:', homeStats);
-      console.log('Гостевая статистика:', awayStats);
-      
-      if (!homeStats) {
+      const hs = getTeamStats(homeTeam, activeSeason);
+      const as = getTeamStats(awayTeam, activeSeason);
+      console.log('Домашняя статистика:', hs);
+      console.log('Гостевая статистика:', as);
+
+      if (!hs) {
         console.error('❌ Нет статистики для домашней команды!');
         alert('Нет данных для команды хозяев. Добавьте матчи с её участием.');
         return;
       }
-      if (!awayStats) {
+      if (!as) {
         console.error('❌ Нет статистики для гостевой команды!');
         alert('Нет данных для команды гостей. Добавьте матчи с её участием.');
         return;
       }
-      
+
       const result = predictMatch(homeTeam, awayTeam, selectedLeague, activeSeason, selectedTotal);
       console.log('Результат predictMatch:', result);
-      
+
       if (result) {
         setPrediction(result);
+        if (activeMode === 'neuro' || activeMode === 'compare') {
+          const neuro = await fetchNeuroCornersForecast({
+            homeTeamId: homeTeam,
+            awayTeamId: awayTeam,
+            leagueId: selectedLeague,
+            seasons: data.seasons,
+            selectedTotal,
+            poissonHome: parseFloat(result.homeExpected),
+            poissonAway: parseFloat(result.awayExpected),
+          });
+          setNeuroPrediction(neuro);
+        }
       } else {
         console.error('❌ predictMatch вернул null!');
         alert('Не удалось построить прогноз. Проверьте данные команд.');
@@ -64,39 +79,19 @@ const PoissonCalculator = () => {
     } else {
       console.log('❌ Не выбраны команды или лига!');
     }
-  };
+  }, [homeTeam, awayTeam, selectedLeague, activeSeason, selectedTotal, activeMode, data.seasons]);
+
+  /** В одиночном режиме Neuro показываем нейросеть, если она посчиталась, иначе Пуассон */
+  const displayPrediction =
+    activeMode === 'neuro' && neuroPrediction ? neuroPrediction : prediction;
 
   const calculateValue = (probability, odds) => {
     if (!probability || !odds) return 0;
     return (parseFloat(probability) / 100) * parseFloat(odds) * 100 - 100;
   };
 
-  const overValue = calculateValue(prediction?.totalProbability, bettingOdds.over);
-  const underValue = calculateValue(prediction?.underProbability, bettingOdds.under);
-
-  // Симуляция прогноза нейросети (пока нет реальной модели)
-  const getNeuroPrediction = () => {
-    if (!prediction) return null;
-    const poissonTotal = parseFloat(prediction.totalExpected);
-    // Нейросеть чуть точнее (добавляем/убавляем случайно, но ближе к "истине")
-    const neuroTotal = poissonTotal + (Math.random() - 0.5) * 0.8;
-    const neuroProb = Math.min(95, Math.max(5, 
-      parseFloat(prediction.totalProbability) + (Math.random() - 0.5) * 10
-    ));
-    
-    return {
-      totalExpected: neuroTotal.toFixed(2),
-      homeExpected: (parseFloat(prediction.homeExpected) + (Math.random() - 0.5) * 0.6).toFixed(2),
-      awayExpected: (parseFloat(prediction.awayExpected) + (Math.random() - 0.5) * 0.4).toFixed(2),
-      totalProbability: Math.round(neuroProb),
-      underProbability: Math.round(100 - neuroProb),
-      recommendation: neuroProb > 60 ? `🧠 Neuro: ТБ ${selectedTotal} угловых` :
-                     neuroProb < 40 ? `🧠 Neuro: ТМ ${selectedTotal} угловых` :
-                     `🧠 Neuro: Близко к ${selectedTotal}`,
-    };
-  };
-
-  const neuroPrediction = activeMode !== 'poisson' ? getNeuroPrediction() : null;
+  const overValue = calculateValue(displayPrediction?.totalProbability, bettingOdds.over);
+  const underValue = calculateValue(displayPrediction?.underProbability, bettingOdds.under);
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -106,9 +101,11 @@ const PoissonCalculator = () => {
           Калькулятор прогнозов
         </h2>
         <p className="text-sm md:text-base text-gray-400">
-          {activeMode === 'compare' ? 'Сравнение Пуассон vs Neuro AI' :
-           activeMode === 'neuro' ? 'Нейросетевой прогноз (требуется 500+ матчей)' :
-           'Модель Пуассона с расширенной статистикой'}
+          {activeMode === 'compare'
+            ? 'Пуассон по λ = ожидаемый тотал и реальная модель Neuro (если обучена)'
+            : activeMode === 'neuro'
+              ? 'Тот же TensorFlow, что на вкладке Neuro AI; без модели показывается Пуассон'
+              : 'Ожидания по статистике и вероятности ТБ/ТМ по распределению Пуассона'}
         </p>
       </div>
 
@@ -125,7 +122,6 @@ const PoissonCalculator = () => {
           active={activeMode === 'neuro'} 
           onClick={() => setActiveMode('neuro')}
           icon={Brain}
-          disabled={totalMatches < 500}
         >
           Neuro AI
         </ModeButton>
@@ -138,16 +134,10 @@ const PoissonCalculator = () => {
         </ModeButton>
       </div>
 
-      {/* Предупреждение если мало данных */}
-      {activeMode !== 'poisson' && totalMatches < 500 && (
-        <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 flex items-start gap-2">
-          <AlertCircle size={18} className="text-yellow-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm text-yellow-400 font-medium">Недостаточно данных для Neuro AI</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Нужно 500+ матчей. Сейчас: {totalMatches}. Прогноз будет неточным.
-            </p>
-          </div>
+      {activeMode !== 'poisson' && (
+        <div className="bg-blue-900/20 border border-blue-800/60 rounded-lg p-3 text-sm text-gray-300">
+          Neuro использует веса из вкладки Neuro AI (браузер). Вероятности ТБ/ТМ — как там: по ошибкам
+          последнего честного теста, если они есть; иначе — по Пуассону от ожидаемого тотала нейросети.
         </div>
       )}
 
@@ -163,6 +153,7 @@ const PoissonCalculator = () => {
                 setHomeTeam('');
                 setAwayTeam('');
                 setPrediction(null);
+                setNeuroPrediction(null);
               }}
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm"
             >
@@ -175,7 +166,11 @@ const PoissonCalculator = () => {
             <label className="block text-sm font-medium text-gray-300 mb-2">Хозяева</label>
             <select
               value={homeTeam}
-              onChange={(e) => setHomeTeam(e.target.value)}
+              onChange={(e) => {
+                setHomeTeam(e.target.value);
+                setPrediction(null);
+                setNeuroPrediction(null);
+              }}
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm"
             >
               <option value="">Выберите команду</option>
@@ -188,7 +183,11 @@ const PoissonCalculator = () => {
             <label className="block text-sm font-medium text-gray-300 mb-2">Гости</label>
             <select
               value={awayTeam}
-              onChange={(e) => setAwayTeam(e.target.value)}
+              onChange={(e) => {
+                setAwayTeam(e.target.value);
+                setPrediction(null);
+                setNeuroPrediction(null);
+              }}
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm"
             >
               <option value="">Выберите команду</option>
@@ -224,6 +223,7 @@ const PoissonCalculator = () => {
                       setSelectedTotal(total);
                       setShowTotalSelector(false);
                       setPrediction(null);
+                      setNeuroPrediction(null);
                     }}
                     className={`w-full text-left px-4 py-3 hover:bg-gray-700 transition text-sm ${
                       selectedTotal === total ? 'bg-blue-600/30 text-blue-400' : ''
@@ -238,6 +238,7 @@ const PoissonCalculator = () => {
         </div>
 
         <button
+          type="button"
           onClick={handleCalculate}
           disabled={!homeTeam || !awayTeam}
           className={`w-full text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 ${
@@ -290,7 +291,7 @@ const PoissonCalculator = () => {
       {prediction && (
         <div className="space-y-4 md:space-y-6">
           {/* Режим сравнения */}
-          {activeMode === 'compare' && neuroPrediction && (
+          {activeMode === 'compare' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Пуассон */}
               <div className="bg-gray-800 rounded-xl p-4 border border-yellow-700/50">
@@ -304,56 +305,76 @@ const PoissonCalculator = () => {
                   <MiniRow label="Рекомендация" value={prediction.recommendation} />
                 </div>
               </div>
-              
+
               {/* Neuro */}
               <div className="bg-gray-800 rounded-xl p-4 border border-purple-700/50">
                 <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Brain size={16} className="text-purple-400" />
                   Neuro AI
                 </h4>
-                <div className="space-y-2">
-                  <MiniRow label="Ожидаемый тотал" value={neuroPrediction.totalExpected} />
-                  <MiniRow label="Вероятность ТБ" value={`${neuroPrediction.totalProbability}%`} />
-                  <MiniRow label="Рекомендация" value={neuroPrediction.recommendation} />
-                </div>
+                {neuroPrediction ? (
+                  <div className="space-y-2">
+                    <MiniRow label="Ожидаемый тотал" value={neuroPrediction.totalExpected} />
+                    <MiniRow label="Вероятность ТБ" value={`${neuroPrediction.totalProbability}%`} />
+                    <MiniRow label="Рекомендация" value={neuroPrediction.recommendation} />
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Нет сохранённой модели в браузере или мало последних матчей для признаков. Обучите и
+                    сохраните веса на вкладке Neuro AI.
+                  </p>
+                )}
               </div>
-              
+
               {/* Итог сравнения */}
               <div className="md:col-span-2 bg-gradient-to-r from-gray-800 to-gray-700 rounded-xl p-4 border border-gray-600">
                 <div className="flex items-center gap-2 mb-2">
                   <GitCompare size={18} className="text-blue-400" />
                   <span className="font-medium">Итог сравнения</span>
                 </div>
-                <p className="text-sm text-gray-300">
-                  {Math.abs(parseFloat(neuroPrediction.totalExpected) - parseFloat(prediction.totalExpected)) < 0.5
-                    ? '➖ Модели дают близкие прогнозы'
-                    : parseFloat(neuroPrediction.totalProbability) > parseFloat(prediction.totalProbability)
-                    ? '🧠 Neuro AI более уверен в ТБ'
-                    : '📊 Пуассон более уверен в ТБ'}
-                </p>
+                {neuroPrediction ? (
+                  <p className="text-sm text-gray-300">
+                    {Math.abs(parseFloat(neuroPrediction.totalExpected) - parseFloat(prediction.totalExpected)) < 0.5
+                      ? '➖ Модели дают близкие прогнозы по тоталу'
+                      : parseFloat(neuroPrediction.totalProbability) > parseFloat(prediction.totalProbability)
+                        ? '🧠 Neuro AI более уверен в ТБ'
+                        : '📊 Пуассон более уверен в ТБ'}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-400">
+                    Колонка Пуассона — по данным матчей. Neuro появится после сохранения модели из вкладки Neuro AI.
+                  </p>
+                )}
               </div>
             </div>
           )}
 
           {/* Обычный прогноз (Пуассон или Neuro) */}
-          {activeMode !== 'compare' && (
+          {activeMode !== 'compare' && displayPrediction && (
             <>
               {/* Рекомендация */}
               <div className={`bg-gradient-to-r rounded-xl p-4 md:p-6 border ${
-                prediction.recommendation.includes('СИЛЬНЫЙ') 
-                  ? 'from-green-900/50 to-green-800/50 border-green-700'
-                  : prediction.recommendation.includes('ХОРОШИЙ')
-                  ? 'from-blue-900/50 to-blue-800/50 border-blue-700'
-                  : prediction.recommendation.includes('ТМ')
-                  ? 'from-purple-900/50 to-purple-800/50 border-purple-700'
-                  : 'from-gray-800 to-gray-700 border-gray-600'
+                (() => {
+                  const r = displayPrediction.recommendation;
+                  const strongTb = r.includes('СИЛЬНЫЙ') || (r.includes('🔥') && r.includes('ТБ'));
+                  const strongTm = r.includes('ТМ') && (r.includes('🔥') || r.includes('СИЛЬНЫЙ'));
+                  if (strongTb) return 'from-green-900/50 to-green-800/50 border-green-700';
+                  if (strongTm) return 'from-purple-900/50 to-purple-800/50 border-purple-700';
+                  if (r.includes('ХОРОШИЙ') || r.includes('⚠️')) return 'from-blue-900/50 to-blue-800/50 border-blue-700';
+                  if (r.includes('ТМ')) return 'from-purple-900/50 to-purple-800/50 border-purple-700';
+                  return 'from-gray-800 to-gray-700 border-gray-600';
+                })()
               }`}>
                 <div className="flex items-center gap-3">
                   <Zap className={
-                    prediction.recommendation.includes('СИЛЬНЫЙ') ? 'text-green-400' : 
-                    prediction.recommendation.includes('ТМ') ? 'text-purple-400' : 'text-yellow-400'
+                    (() => {
+                      const r = displayPrediction.recommendation;
+                      if (r.includes('СИЛЬНЫЙ') || (r.includes('🔥') && r.includes('ТБ'))) return 'text-green-400';
+                      if (r.includes('ТМ') && (r.includes('🔥') || r.includes('СИЛЬНЫЙ'))) return 'text-purple-400';
+                      return 'text-yellow-400';
+                    })()
                   } size={24} />
-                  <h3 className="text-lg md:text-xl font-bold">{prediction.recommendation}</h3>
+                  <h3 className="text-lg md:text-xl font-bold">{displayPrediction.recommendation}</h3>
                 </div>
               </div>
 
@@ -363,12 +384,12 @@ const PoissonCalculator = () => {
                     Ожидаемые угловые
                   </h4>
                   <div className="space-y-3">
-                    <PredictionRow label="Хозяева" value={prediction.homeExpected} />
-                    <PredictionRow label="Гости" value={prediction.awayExpected} />
-                    <PredictionRow label="Тотал" value={prediction.totalExpected} highlight />
+                    <PredictionRow label="Хозяева" value={displayPrediction.homeExpected} />
+                    <PredictionRow label="Гости" value={displayPrediction.awayExpected} />
+                    <PredictionRow label="Тотал" value={displayPrediction.totalExpected} highlight />
                   </div>
                 </div>
-                
+
                 <div className="bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-700">
                   <h4 className="text-base md:text-lg font-semibold mb-3 md:mb-4 text-gray-300">
                     Вероятность для тотала {selectedTotal}
@@ -377,24 +398,30 @@ const PoissonCalculator = () => {
                     <div className="flex justify-between py-2">
                       <span className="text-gray-400">Тотал БОЛЬШЕ {selectedTotal}</span>
                       <span className={`text-xl font-bold ${
-                        prediction.totalProbability > 55 ? 'text-green-400' :
-                        prediction.totalProbability > 45 ? 'text-yellow-400' : 'text-red-400'
+                        displayPrediction.totalProbability > 55 ? 'text-green-400' :
+                        displayPrediction.totalProbability > 45 ? 'text-yellow-400' : 'text-red-400'
                       }`}>
-                        {prediction.totalProbability}%
+                        {displayPrediction.totalProbability}%
                       </span>
                     </div>
                     <div className="flex justify-between py-2 border-t border-gray-700">
                       <span className="text-gray-400">Тотал МЕНЬШЕ {selectedTotal}</span>
                       <span className={`text-xl font-bold ${
-                        prediction.underProbability > 55 ? 'text-green-400' :
-                        prediction.underProbability > 45 ? 'text-yellow-400' : 'text-red-400'
+                        displayPrediction.underProbability > 55 ? 'text-green-400' :
+                        displayPrediction.underProbability > 45 ? 'text-yellow-400' : 'text-red-400'
                       }`}>
-                        {prediction.underProbability}%
+                        {displayPrediction.underProbability}%
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
-                      Справедливый кэф ТБ {selectedTotal}: {(100 / prediction.totalProbability).toFixed(2)}
+                      Справедливый кэф ТБ {selectedTotal}:{' '}
+                      {(100 / Math.max(1, Number(displayPrediction.totalProbability) || 0)).toFixed(2)}
                     </div>
+                    {prediction?.lambdaTotal != null && activeMode === 'poisson' && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        λ (суммарное ожидание угловых): {Number(prediction.lambdaTotal).toFixed(2)}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -438,16 +465,16 @@ const PoissonCalculator = () => {
                 {bettingOdds.over && (
                   <ValueRow 
                     bet={`ТБ ${selectedTotal}`}
-                    probability={prediction.totalProbability}
+                    probability={displayPrediction.totalProbability}
                     odds={bettingOdds.over}
                     value={overValue}
                   />
                 )}
-                
+
                 {bettingOdds.under && (
                   <ValueRow 
                     bet={`ТМ ${selectedTotal}`}
-                    probability={prediction.underProbability}
+                    probability={displayPrediction.underProbability}
                     odds={bettingOdds.under}
                     value={underValue}
                   />
@@ -521,7 +548,8 @@ const ValueRow = ({ bet, probability, odds, value }) => {
 };
 
 const ModeButton = ({ active, onClick, icon: Icon, disabled, children }) => (
-  <button 
+  <button
+    type="button"
     onClick={onClick}
     disabled={disabled}
     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition ${

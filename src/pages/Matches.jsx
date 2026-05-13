@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
-import { getData, getSeasons, getTeamsForSeason, getMatchesForSeason, getActiveSeason } from '../data/store';
+import { getData, getSeasons, getTeamsForSeason, getMatchesForSeason, getActiveSeason, subscribe } from '../data/store';
 import { Calendar, X, ChevronRight, Trophy, Target } from 'lucide-react';
 
 const Matches = () => {
-  const data = getData();
+  const [data, setData] = useState(getData());
+  
+  useEffect(() => {
+    const unsubscribe = subscribe((newData) => {
+      setData(newData);
+    });
+    return () => unsubscribe();
+  }, []);
+  
   const defaultLeagueId = data.leagues?.[0]?.id || 'rpl';
   
   const [selectedLeague, setSelectedLeague] = useState(defaultLeagueId);
@@ -57,8 +65,6 @@ const Matches = () => {
   // Рендер статистики для выбранной вкладки
   const renderStats = (suffix) => {
     const s = suffix || '';
-    const home = selectedMatch ? `home` : '';
-    const away = selectedMatch ? `away` : '';
     
     return (
       <div className="space-y-0">

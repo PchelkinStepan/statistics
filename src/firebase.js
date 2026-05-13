@@ -3,13 +3,13 @@ import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDyi0gYdxk8l2occz_iMP0hUtzTJAkPysk",
-  authDomain: "football-stats-tracker-585c9.firebaseapp.com",
-  databaseURL: "https://football-stats-tracker-585c9-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "football-stats-tracker-585c9",
-  storageBucket: "football-stats-tracker-585c9.firebasestorage.app",
-  messagingSenderId: "756760552926",
-  appId: "1:756760552926:web:36e94d71f03c43839ba94f"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase
