@@ -53,16 +53,16 @@ const Dashboard = () => {
       {/* Ссылки на инструменты */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link
-          to="/poisson"
-          className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border border-blue-700 rounded-xl p-6 hover:scale-[1.02] transition"
+          to="/neuro"
+          className="bg-gradient-to-br from-purple-900/50 to-purple-800/50 border border-purple-700 rounded-xl p-6 hover:scale-[1.02] transition"
         >
           <div className="flex items-center space-x-4">
-            <div className="bg-blue-600 p-4 rounded-xl">
+            <div className="bg-purple-600 p-4 rounded-xl">
               <TrendingUp size={32} />
             </div>
             <div>
-              <h3 className="text-xl font-bold mb-1">Калькулятор Пуассона</h3>
-              <p className="text-gray-300">Расчет вероятностей по угловым →</p>
+              <h3 className="text-xl font-bold mb-1">Neuro AI Прогнозы</h3>
+              <p className="text-gray-300">ML-модели и сравнение →</p>
             </div>
           </div>
         </Link>

@@ -6,7 +6,6 @@ import Dashboard from './pages/Dashboard';
 import LeagueTable from './pages/LeagueTable';
 import Matches from './pages/Matches';
 import Admin from './pages/Admin';
-import PoissonCalculator from './pages/PoissonCalculator';
 import BetTracker from './pages/BetTracker';
 import { initStore } from './data/store';
 import Neuro from './pages/Neuro';
@@ -88,7 +87,6 @@ function App() {
           <Route path="/table/:leagueId" element={<LeagueTable />} />
           <Route path="/matches" element={<Matches />} />
           <Route path="/bets" element={<BetTracker />} />
-          <Route path="/poisson" element={<PoissonCalculator />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route 
             path="/admin" 
