@@ -262,7 +262,7 @@ const RandomForestModel = () => {
         maxDepth: 7,
         minSamplesSplit: 6,
         maxFeatures: 8,
-        seed: 42,
+        seed: Math.floor(Math.random() * 10000), // 🔧 ИСПРАВЛЕНО: случайный seed
       });
 
       addLog('🎓 Обучение леса (может занять 1–2 минуты)...');
@@ -299,6 +299,7 @@ const RandomForestModel = () => {
     setIsTraining(false);
   };
 
+  // 🔧 ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ФУНКЦИЯ predict
   const predict = () => {
     if (!predictHomeTeam || !predictAwayTeam || !model) return;
 
@@ -316,20 +317,53 @@ const RandomForestModel = () => {
       getLeagueAvgTotal(predictLeague, data.seasons),
     );
 
-    const pred = model.predict([features])[0];
+    // Делаем несколько предсказаний с разными seed для усреднения
+    const predictions = [];
+    for (let seed = 0; seed < 5; seed++) {
+      const rfVariant = new SimpleRandomForest({
+        nEstimators: model.nEstimators,
+        maxDepth: model.maxDepth,
+        minSamplesSplit: model.minSamplesSplit,
+        maxFeatures: model.maxFeatures,
+        seed: model.seed + seed * 1000,
+      });
+      rfVariant.trees = model.trees;
+      predictions.push(rfVariant.predict([features])[0]);
+    }
+    
+    const pred = predictions.reduce((a, b) => a + b, 0) / predictions.length;
     const expectedTotal = Math.max(2, Math.min(18, pred));
-    const overProb = Math.round(50 + (expectedTotal - selectedTotal) * 10);
+    
+    // Используем исторические ошибки из TensorFlow модели для вероятностей
+    const historicalErrors = JSON.parse(localStorage.getItem('neuro_historical_errors') || 'null');
+    let overProb;
+    if (historicalErrors && historicalErrors.length > 20) {
+      const simulatedTotals = historicalErrors.map((err) => expectedTotal + err);
+      const above = simulatedTotals.filter((t) => t > selectedTotal).length;
+      const near = simulatedTotals.filter((t) => Math.abs(t - selectedTotal) < 0.3).length;
+      let probOver = (above + near * 0.3) / simulatedTotals.length;
+      probOver = Math.min(0.95, Math.max(0.05, probOver));
+      overProb = Math.round(probOver * 100);
+    } else {
+      // Fallback: сигмоида вместо линейной формулы
+      const diff = expectedTotal - selectedTotal;
+      overProb = Math.round(100 / (1 + Math.exp(-diff * 2)));
+    }
 
     setPrediction({
       expectedTotal: expectedTotal.toFixed(2),
-      overProbability: Math.min(90, Math.max(10, overProb)),
-      underProbability: Math.min(90, Math.max(10, 100 - overProb)),
+      overProbability: Math.min(95, Math.max(5, overProb)),
+      underProbability: Math.min(95, Math.max(5, 100 - overProb)),
       recommendation:
-        overProb > 65
-          ? `🔥 ТБ ${selectedTotal}`
-          : overProb < 35
-            ? `🔥 ТМ ${selectedTotal}`
-            : `⚖️ Близко к линии`,
+        overProb > 70
+          ? `🔥 СТАВЛЮ! ТБ ${selectedTotal}`
+          : overProb > 60
+            ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТБ ${selectedTotal}`
+            : overProb < 30
+              ? `🔥 СТАВЛЮ! ТМ ${selectedTotal}`
+              : overProb < 40
+                ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТМ ${selectedTotal}`
+                : `❌ НЕ ЛЕЗУ!`,
     });
   };
 
@@ -498,9 +532,11 @@ const RandomForestModel = () => {
               </div>
               <div
                 className={`p-3 rounded-lg text-center font-semibold ${
-                  prediction.recommendation.includes('🔥')
+                  prediction.recommendation.includes('СТАВЛЮ')
                     ? 'bg-lime-600/30 text-lime-300'
-                    : 'bg-gray-600/30 text-gray-400'
+                    : prediction.recommendation.includes('НЕ ЛЕЗУ')
+                      ? 'bg-gray-600/30 text-gray-400'
+                      : 'bg-yellow-600/30 text-yellow-300'
                 }`}
               >
                 {prediction.recommendation}

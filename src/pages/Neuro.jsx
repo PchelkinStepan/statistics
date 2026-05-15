@@ -4,6 +4,7 @@ import { getData } from '../data/store';
 import TensorFlowNeuroTab from '../components/models/TensorFlowNeuroTab';
 import RandomForestModel from '../components/models/RandomForestModel';
 import XGBoostModel from '../components/models/XGBoostModel';
+import ModelsComparison from '../components/models/ModelsComparison';
 
 const Neuro = () => {
   const data = getData();
@@ -40,11 +41,19 @@ const Neuro = () => {
         >
           ⚡ XGB
         </TabBtn>
+        <TabBtn
+          a={activeTab === 'comparison'}
+          onClick={() => setActiveTab('comparison')}
+          activeClass="bg-blue-600 text-white"
+        >
+          ⚖️ Сравнение
+        </TabBtn>
       </div>
 
       {activeTab === 'tensorflow' && <TensorFlowNeuroTab />}
       {activeTab === 'randomforest' && <RandomForestModel />}
       {activeTab === 'xgboost' && <XGBoostModel />}
+      {activeTab === 'comparison' && <ModelsComparison />}
     </div>
   );
 };

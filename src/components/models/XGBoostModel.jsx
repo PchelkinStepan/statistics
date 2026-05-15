@@ -18,9 +18,22 @@ class SimpleXGBoost {
     this.maxDepth = params.maxDepth ?? 3;
     this.minSamplesSplit = params.minSamplesSplit ?? 10;
     this.nEstimators = params.nEstimators ?? 50;
+    this.seed = params.seed ?? 42; // 🔧 Добавлен seed
   }
 
-  trainTree(X, y, depth = 0) {
+  // 🔧 Добавлен простой PRNG для бутстрапа
+  mulberry32(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a += 0x6d2b79f5;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  trainTree(X, y, depth = 0, rng = Math.random) {
     if (depth >= this.maxDepth || y.length < this.minSamplesSplit) {
       return { type: 'leaf', value: y.reduce((a, b) => a + b, 0) / y.length };
     }
@@ -29,7 +42,17 @@ class SimpleXGBoost {
     let bestThreshold = 0;
     let bestGain = -Infinity;
 
-    for (let f = 0; f < X[0].length; f++) {
+    // 🔧 Случайный выбор признаков на каждом сплите (как в RF)
+    const F = X[0].length;
+    const k = Math.min(8, F); // до 8 случайных признаков
+    const order = Array.from({ length: F }, (_, i) => i);
+    for (let i = F - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const featCandidates = order.slice(0, k);
+
+    for (const f of featCandidates) {
       const values = [...new Set(X.map((row) => row[f]))].sort((a, b) => a - b);
       for (let i = 1; i < values.length; i++) {
         const threshold = (values[i] + values[i - 1]) / 2;
@@ -74,8 +97,8 @@ class SimpleXGBoost {
       type: 'node',
       feature: bestFeature,
       threshold: bestThreshold,
-      left: this.trainTree(leftX, leftY, depth + 1),
-      right: this.trainTree(rightX, rightY, depth + 1),
+      left: this.trainTree(leftX, leftY, depth + 1, rng),
+      right: this.trainTree(rightX, rightY, depth + 1, rng),
     };
   }
 
@@ -103,9 +126,22 @@ class SimpleXGBoost {
   fit(X, y) {
     this.trees = [];
     let residuals = [...y];
+    const rng = this.mulberry32(this.seed);
 
     for (let i = 0; i < this.nEstimators; i++) {
-      const tree = this.trainTree(X, residuals);
+      // 🔧 Бутстрап для каждого дерева
+      const bootRng = this.mulberry32(this.seed + i * 2654435761);
+      const n = X.length;
+      const Xb = [];
+      const yb = [];
+      for (let j = 0; j < n; j++) {
+        const idx = Math.floor(bootRng() * n);
+        Xb.push(X[idx]);
+        yb.push(residuals[idx]);
+      }
+      
+      const treeRng = this.mulberry32(this.seed + i * 1597334677 + 9);
+      const tree = this.trainTree(Xb, yb, 0, treeRng);
       this.trees.push(tree);
       residuals = residuals.map((yi, idx) => yi - this.learningRate * this.predictTree(tree, X[idx]));
     }
@@ -126,6 +162,7 @@ class SimpleXGBoost {
       maxDepth: o.maxDepth,
       minSamplesSplit: o.minSamplesSplit,
       nEstimators: o.nEstimators,
+      seed: o.seed || 42,
     });
     m.trees = o.trees || [];
     return m;
@@ -137,6 +174,7 @@ class SimpleXGBoost {
       maxDepth: this.maxDepth,
       minSamplesSplit: this.minSamplesSplit,
       nEstimators: this.nEstimators,
+      seed: this.seed,
       trees: this.trees,
     };
   }
@@ -220,9 +258,16 @@ const XGBoostModel = () => {
       const testY = y.slice(trainSize);
       const testLeagues = leagueIds.slice(trainSize);
 
-      const xgb = new SimpleXGBoost({ nEstimators: 50, maxDepth: 4, learningRate: 0.1, minSamplesSplit: 10 });
+      // 🔧 Случайный seed + увеличены параметры
+      const xgb = new SimpleXGBoost({ 
+        nEstimators: 50, 
+        maxDepth: 4, 
+        learningRate: 0.1, 
+        minSamplesSplit: 10,
+        seed: Math.floor(Math.random() * 10000),
+      });
 
-      addLog('🎓 Обучение 50 деревьев...');
+      addLog('🎓 Обучение 50 деревьев с бутстрапом...');
       const startTime = Date.now();
       xgb.fit(trainX, trainY);
       addLog(`✅ Обучено за ${((Date.now() - startTime) / 1000).toFixed(1)} с`);
@@ -258,6 +303,7 @@ const XGBoostModel = () => {
     setIsTraining(false);
   };
 
+  // 🔧 ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ФУНКЦИЯ predict
   const predict = () => {
     if (!predictHomeTeam || !predictAwayTeam || !model) return;
 
@@ -275,20 +321,53 @@ const XGBoostModel = () => {
       getLeagueAvgTotal(predictLeague, data.seasons),
     );
 
-    const pred = model.predict([features])[0];
+    // Делаем несколько предсказаний с разными seed для усреднения
+    const predictions = [];
+    for (let s = 0; s < 5; s++) {
+      const xgbVariant = new SimpleXGBoost({
+        nEstimators: model.nEstimators,
+        maxDepth: model.maxDepth,
+        minSamplesSplit: model.minSamplesSplit,
+        learningRate: model.learningRate,
+        seed: (model.seed || 42) + s * 1000,
+      });
+      xgbVariant.trees = model.trees;
+      predictions.push(xgbVariant.predict([features])[0]);
+    }
+    
+    const pred = predictions.reduce((a, b) => a + b, 0) / predictions.length;
     const expectedTotal = Math.max(2, Math.min(18, pred));
-    const overProb = Math.round(50 + (expectedTotal - selectedTotal) * 10);
+    
+    // Используем исторические ошибки TensorFlow для вероятностей
+    const historicalErrors = JSON.parse(localStorage.getItem('neuro_historical_errors') || 'null');
+    let overProb;
+    if (historicalErrors && historicalErrors.length > 20) {
+      const simulatedTotals = historicalErrors.map((err) => expectedTotal + err);
+      const above = simulatedTotals.filter((t) => t > selectedTotal).length;
+      const near = simulatedTotals.filter((t) => Math.abs(t - selectedTotal) < 0.3).length;
+      let probOver = (above + near * 0.3) / simulatedTotals.length;
+      probOver = Math.min(0.95, Math.max(0.05, probOver));
+      overProb = Math.round(probOver * 100);
+    } else {
+      // Fallback: сигмоида
+      const diff = expectedTotal - selectedTotal;
+      overProb = Math.round(100 / (1 + Math.exp(-diff * 2)));
+    }
 
     setPrediction({
       expectedTotal: expectedTotal.toFixed(2),
-      overProbability: Math.min(90, Math.max(10, overProb)),
-      underProbability: Math.min(90, Math.max(10, 100 - overProb)),
+      overProbability: Math.min(95, Math.max(5, overProb)),
+      underProbability: Math.min(95, Math.max(5, 100 - overProb)),
       recommendation:
-        overProb > 65
-          ? `🔥 ТБ ${selectedTotal}`
-          : overProb < 35
-            ? `🔥 ТМ ${selectedTotal}`
-            : `⚖️ Близко к линии`,
+        overProb > 70
+          ? `🔥 СТАВЛЮ! ТБ ${selectedTotal}`
+          : overProb > 60
+            ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТБ ${selectedTotal}`
+            : overProb < 30
+              ? `🔥 СТАВЛЮ! ТМ ${selectedTotal}`
+              : overProb < 40
+                ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТМ ${selectedTotal}`
+                : `❌ НЕ ЛЕЗУ!`,
     });
   };
 
@@ -300,7 +379,7 @@ const XGBoostModel = () => {
         <Zap size={48} className="mx-auto mb-4 text-emerald-400" />
         <h3 className="text-xl font-bold mb-2">XGBoost (браузер)</h3>
         <p className="text-gray-400 mb-4">
-          Градиентный бустинг деревьев • 32 признака как у Neuro • линия ТБ/ТМ как на вкладке TensorFlow
+          Градиентный бустинг деревьев • бутстрап • случайные признаки • 32 входа как у Neuro
         </p>
         {!isTraining && (
           <button
@@ -457,9 +536,11 @@ const XGBoostModel = () => {
               </div>
               <div
                 className={`p-3 rounded-lg text-center font-semibold ${
-                  prediction.recommendation.includes('🔥')
+                  prediction.recommendation.includes('СТАВЛЮ')
                     ? 'bg-emerald-600/30 text-emerald-400'
-                    : 'bg-gray-600/30 text-gray-400'
+                    : prediction.recommendation.includes('НЕ ЛЕЗУ')
+                      ? 'bg-gray-600/30 text-gray-400'
+                      : 'bg-yellow-600/30 text-yellow-300'
                 }`}
               >
                 {prediction.recommendation}

@@ -344,14 +344,14 @@ const TensorFlowNeuroTab = () => {
       const xsN = xsT.sub(mean).div(std);
       const ysT = tf.tensor2d(ys, [ys.length, 1]);
 
-      addLog('🎓 Дообучение (60 эпох)...');
-      loadedModel.compile({ optimizer: tf.train.adam(0.0001), loss: 'meanSquaredError', metrics: ['mae'] });
+      addLog('🎓 Дообучение (8 эпох, lr=0.00005)...');
+      loadedModel.compile({ optimizer: tf.train.adam(0.00005), loss: 'meanSquaredError', metrics: ['mae'] });
       await loadedModel.fit(xsN, ysT, {
-        epochs: 60,
+        epochs: 8,
         batchSize: 32,
         callbacks: {
           onEpochEnd: (e, l) => {
-            if (e % 15 === 0 || e === 59) {
+            if (e % 2 === 0 || e === 7) {
               addLog(` Эпоха ${e + 1}: loss=${l.loss.toFixed(4)}, mae=${l.mae.toFixed(2)}`);
             }
           },
@@ -635,7 +635,7 @@ const TensorFlowNeuroTab = () => {
         {modelReady && (
           <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Calculator className="text-purple-400" /> Прогноз
+              <Calculator className="text-purple-400" /> Прогноз TensorFlow
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
