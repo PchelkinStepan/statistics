@@ -14,6 +14,7 @@ import Analytics from './pages/Analytics';
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(null);
+  console.log('work')
 
   useEffect(() => {
     let timeout;

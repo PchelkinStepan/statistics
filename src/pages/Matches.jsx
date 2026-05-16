@@ -5,6 +5,7 @@ import { Calendar, X, ChevronRight, Trophy, Target } from 'lucide-react';
 const Matches = () => {
   const [data, setData] = useState(getData());
   
+  // 🔧 ФИКС: подписка на обновления данных
   useEffect(() => {
     const unsubscribe = subscribe((newData) => {
       setData(newData);
@@ -19,10 +20,11 @@ const Matches = () => {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [modalTab, setModalTab] = useState('match'); // match | half1 | half2
 
+  // 🔧 ФИКС: теперь зависит от data, а не только от selectedLeague
   useEffect(() => {
     const activeSeason = getActiveSeason(selectedLeague);
     if (activeSeason) setSelectedSeason(activeSeason.id);
-  }, [selectedLeague]);
+  }, [selectedLeague, data]);
 
   const seasons = getSeasons(selectedLeague);
   const matches = getMatchesForSeason(selectedLeague, selectedSeason);

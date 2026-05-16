@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getData, getSeasons, getLeagueTable, getActiveSeason } from '../data/store';
+import { getData, getSeasons, getLeagueTable, getActiveSeason, subscribe } from '../data/store';
 
 const LeagueTable = () => {
   const { leagueId } = useParams();
-  const data = getData();
+  const [data, setData] = useState(getData());
   const defaultLeagueId = leagueId || data.leagues?.[0]?.id || 'rpl';
   
   const [selectedLeague, setSelectedLeague] = useState(defaultLeagueId);
   const [selectedSeason, setSelectedSeason] = useState('');
+
+  // 🔧 ФИКС: подписка на обновления данных
+  useEffect(() => {
+    const unsubscribe = subscribe((newData) => {
+      setData(newData);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (leagueId) {
