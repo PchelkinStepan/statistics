@@ -84,7 +84,6 @@ const Admin = () => {
 
   useEffect(() => { const unsubscribe = subscribe((newData) => setData(newData)); return () => unsubscribe(); }, []);
   
-  // 🔧 ИСПРАВЛЕНО: добавлена проверка чтобы не вызывать лишний раз
   useEffect(() => {
     if (activeSeason && activeSeason.id !== matchForm.seasonId) { 
       setSelectedSeasonFilter(activeSeason.id); 
@@ -162,7 +161,6 @@ const Admin = () => {
     });
   };
 
-  // 🔧 ИСПРАВЛЕНО: защита от двойных нажатий + убран refreshData
   const handleMatchSubmit = async (e) => {
     e.preventDefault();
     if (isSaving) return;
@@ -185,14 +183,12 @@ const Admin = () => {
       }
       if (editingMatch) { await updateMatch(editingMatch.id, formData); setMessage('✅ Матч обновлен!'); }
       else { await addMatch(formData); setMessage('✅ Матч добавлен!'); }
-      // refreshData() УБРАН — subscribe сам обновит
       setShowMobileForm(false); setEditingMatch(null); setMatchForm(getInitialMatchForm()); setTimeout(() => setMessage(''), 3000);
     } finally {
       setTimeout(() => setIsSaving(false), 2000);
     }
   };
 
-  // 🔧 ИСПРАВЛЕНО: защита от двойных нажатий + убран refreshData
   const handleLeagueSubmit = async (e) => {
     e.preventDefault();
     if (isSaving) return;
@@ -203,14 +199,12 @@ const Admin = () => {
         const updatedData = { ...data, leagues: data.leagues.map(l => l.id === editingLeague.id ? { ...leagueForm, id: editingLeague.id } : l) };
         await saveData(updatedData); setMessage('✅ Лига обновлена!'); setEditingLeague(null);
       } else { await addLeague(leagueForm); setMessage('✅ Лига добавлена!'); }
-      // refreshData() УБРАН
       setLeagueForm({ name: '', country: '' }); setTimeout(() => setMessage(''), 3000);
     } finally {
       setTimeout(() => setIsSaving(false), 2000);
     }
   };
 
-  // 🔧 ИСПРАВЛЕНО: защита от двойных нажатий + убран refreshData
   const handleTeamSubmit = async (e) => {
     e.preventDefault();
     if (isSaving) return;
@@ -219,24 +213,19 @@ const Admin = () => {
     try {
       if (editingTeam) { await updateTeam(editingTeam.id, teamForm); setMessage('✅ Команда обновлена!'); setEditingTeam(null); }
       else { await addTeam(teamForm); setMessage('✅ Команда добавлена!'); }
-      // refreshData() УБРАН
       setTeamForm({ name: '', leagueId: defaultLeagueId, seasonIds: [] }); setTimeout(() => setMessage(''), 3000);
     } finally {
       setTimeout(() => setIsSaving(false), 2000);
     }
   };
 
-  // 🔧 ИСПРАВЛЕНО: защита от двойных нажатий + убран refreshData
+  // 🔧 ФИКС: убран авто-бэкап перед сохранением сезона
   const handleSeasonSubmit = async (e) => {
     e.preventDefault(); 
     if (isSaving) return;
     setIsSaving(true);
     
     try {
-      const backupData = getData();
-      localStorage.setItem('football_pre_season_backup', JSON.stringify(backupData));
-      console.log('✅ Авто-бэкап создан перед изменением сезона');
-      
       const formData = { ...seasonForm };
       formData.avgTotalCorners = parseFloat(formData.avgTotalCorners) || 9; 
       formData.avgCornersHome = parseFloat(formData.avgCornersHome) || 5;
@@ -255,7 +244,6 @@ const Admin = () => {
       }
       
       setSelectedLeagueForSeasons(formData.leagueId);
-      // refreshData() УБРАН
       setShowSeasonForm(false);
       setSeasonForm({ 
         id: '', name: '', 
@@ -445,9 +433,6 @@ const Admin = () => {
                     <div className="flex-1"><div className="flex items-center gap-2"><span className="text-sm font-medium">{season.name}</span>{season.isActive && <span className="text-[10px] px-1.5 py-0.5 bg-green-600 rounded text-white flex items-center gap-1"><CheckCircle size={10} /> Активный</span>}</div><div className="text-xs text-gray-400">Тотал: {season.avgTotalCorners?.toFixed(1)} • Дома: {season.avgCornersHome?.toFixed(1)} • В гостях: {season.avgCornersAway?.toFixed(1)}</div></div>
                     <div className="flex items-center gap-1">
                       <button onClick={async () => { 
-                        const backupData = getData();
-                        localStorage.setItem('football_pre_average_backup', JSON.stringify(backupData));
-                        console.log('✅ Авто-бэкап перед обновлением средних');
                         await updateSeasonAverages(season.id); 
                         setMessage('✅ Средние обновлены!'); 
                         setTimeout(() => setMessage(''), 3000); 

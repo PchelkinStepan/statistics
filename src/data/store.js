@@ -156,8 +156,9 @@ export const saveData = async (data, changedMatchId = null, skipMatches = false)
   };
   
   try {
+    // 🔧 Экономим место: не дублируем auto_backup если skipMatches
     localStorage.setItem('football_cache', JSON.stringify(dataWithTimestamp));
-    if (dataWithTimestamp.matchesCount > 10) {
+    if (!skipMatches && dataWithTimestamp.matchesCount > 10) {
       localStorage.setItem('football_auto_backup', JSON.stringify(dataWithTimestamp));
     }
     
