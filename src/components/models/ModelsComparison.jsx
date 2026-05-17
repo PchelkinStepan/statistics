@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Scale, TrendingUp, Brain, TreePine, Zap } from 'lucide-react';
+import { Scale, TrendingUp, Brain, TreePine, Zap, Save } from 'lucide-react';
 import { getData } from '../../data/store';
 import {
   getLastMatches,
@@ -17,6 +17,7 @@ const ModelsComparison = () => {
   const [selectedTotal, setSelectedTotal] = useState(9.5);
   const [results, setResults] = useState(null);
   const [isPredicting, setIsPredicting] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   const [valueType, setValueType] = useState('over');
   const [manualKef, setManualKef] = useState('1.85');
@@ -65,7 +66,6 @@ const ModelsComparison = () => {
       const modelData = JSON.parse(raw);
       if (!modelData.trees || modelData.trees.length === 0) return null;
       
-      // Простой predict для RF
       const predictTree = (node, x) => {
         if (node.type === 'leaf') return node.value;
         return x[node.feature] <= node.threshold
@@ -129,6 +129,7 @@ const ModelsComparison = () => {
     if (!predictHomeTeam || !predictAwayTeam) return;
     setIsPredicting(true);
     setResults(null);
+    setSaveMessage('');
 
     try {
       const allMatches = [...(data.matches || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -240,6 +241,45 @@ const ModelsComparison = () => {
     setIsPredicting(false);
   };
 
+  // 🔥 Запись прогнозов в подколлекцию predictions
+  const savePredictions = async () => {
+    if (!results) return;
+    
+    const homeTeam = data.teams?.find((t) => t.id === predictHomeTeam)?.name || predictHomeTeam;
+    const awayTeam = data.teams?.find((t) => t.id === predictAwayTeam)?.name || predictAwayTeam;
+    
+    const logEntry = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      match: `${homeTeam} - ${awayTeam}`,
+      leagueId: predictLeague,
+      homeTeamId: predictHomeTeam,
+      awayTeamId: predictAwayTeam,
+      selectedTotal,
+      predictions: {
+        tf: results.tf || null,
+        rf: results.rf || null,
+        xgb: results.xgb || null,
+      },
+      ensembleVote: results.ensemble?.vote || '—',
+      result: null,
+    };
+    
+    try {
+      const { doc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('../../firebase');
+      await setDoc(doc(db, 'football', 'stats', 'predictions', logEntry.id), logEntry);
+      
+      setSaveMessage('✅ Прогнозы записаны!');
+      setTimeout(() => setSaveMessage(''), 3000);
+      console.log('📝 Прогноз записан в predictions:', logEntry.match);
+    } catch (error) {
+      console.error('❌ Ошибка записи прогноза:', error);
+      setSaveMessage('❌ Ошибка записи');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
   const ModelCard = ({ icon: Icon, title, result, color, gradient }) => (
     <div className={`bg-gray-800/50 rounded-xl p-4 border ${gradient}`}>
       <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -310,10 +350,25 @@ const ModelsComparison = () => {
           </div>
         </div>
 
-        <button type="button" onClick={compareModels} disabled={!predictHomeTeam || !predictAwayTeam || isPredicting}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg disabled:opacity-50 mb-4">
-          {isPredicting ? 'Анализирую...' : '⚖️ Сравнить все модели'}
-        </button>
+        <div className="flex gap-3 mb-4">
+          <button type="button" onClick={compareModels} disabled={!predictHomeTeam || !predictAwayTeam || isPredicting}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg disabled:opacity-50">
+            {isPredicting ? 'Анализирую...' : '⚖️ Сравнить все модели'}
+          </button>
+          
+          {results && (
+            <button type="button" onClick={savePredictions}
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center gap-2 transition">
+              <Save size={18} /> 📝 Записать
+            </button>
+          )}
+        </div>
+        
+        {saveMessage && (
+          <div className={`px-4 py-3 rounded-lg text-sm mb-4 ${saveMessage.includes('❌') ? 'bg-red-600/20 border border-red-600 text-red-400' : 'bg-green-600/20 border border-green-600 text-green-400'}`}>
+            {saveMessage}
+          </div>
+        )}
 
         {results && (
           <div className="space-y-4">
@@ -337,7 +392,6 @@ const ModelsComparison = () => {
       <TrendingUp size={18} className="text-green-400" /> Value Betting
     </h4>
     
-    {/* Выбор тотала для Value */}
     <div className="mb-4">
       <label className="block text-xs text-gray-400 mb-2">
         Тотал для Value: <span className="text-white font-bold">{selectedTotal}</span>
@@ -358,7 +412,6 @@ const ModelsComparison = () => {
       </div>
     </div>
 
-    {/* Переключатель ТБ/ТМ */}
     <div className="flex gap-2 mb-4">
       <button type="button" onClick={() => setValueType('over')}
         className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${valueType === 'over' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
