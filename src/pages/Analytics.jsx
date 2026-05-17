@@ -201,7 +201,7 @@ const Analytics = () => {
                     <p className="text-xl font-bold text-white">{second.stats.accuracy}%</p>
                     <p className="text-[10px] text-gray-500">{second.stats.correct}/{second.stats.total}</p>
                     <p className="text-[10px] text-gray-500 mt-1">MAE ±{second.stats.mae}</p>
-                    <p className="text-[10px] text-yellow-400">🥇 {second.stats.bestCount} раз</p>
+                    <p className="text-[10px] text-yellow-400">🎯 Точнее всех: {second.stats.bestCount} раз</p>
                   </div>
                   <div className="w-full h-16 bg-gray-500 rounded-b-lg flex items-center justify-center">
                     <span className="text-xs text-white font-bold">2 место</span>
@@ -218,7 +218,7 @@ const Analytics = () => {
                     <p className="text-2xl font-bold text-white">{first.stats.accuracy}%</p>
                     <p className="text-[10px] text-gray-500">{first.stats.correct}/{first.stats.total}</p>
                     <p className="text-[10px] text-gray-500 mt-1">MAE ±{first.stats.mae}</p>
-                    <p className="text-[10px] text-yellow-400">🥇 {first.stats.bestCount} раз</p>
+                    <p className="text-[10px] text-yellow-400">🎯 Точнее всех: {first.stats.bestCount} раз</p>
                   </div>
                   <div className="w-full h-20 bg-yellow-500 rounded-b-lg flex items-center justify-center">
                     <span className="text-sm text-black font-bold">1 место</span>
@@ -235,7 +235,7 @@ const Analytics = () => {
                     <p className="text-xl font-bold text-white">{third.stats.accuracy}%</p>
                     <p className="text-[10px] text-gray-500">{third.stats.correct}/{third.stats.total}</p>
                     <p className="text-[10px] text-gray-500 mt-1">MAE ±{third.stats.mae}</p>
-                    <p className="text-[10px] text-yellow-400">🥇 {third.stats.bestCount} раз</p>
+                    <p className="text-[10px] text-yellow-400">🎯 Точнее всех: {third.stats.bestCount} раз</p>
                   </div>
                   <div className="w-full h-12 bg-orange-700 rounded-b-lg flex items-center justify-center">
                     <span className="text-xs text-white font-bold">3 место</span>
@@ -317,6 +317,7 @@ const Analytics = () => {
                   </div>
 
                   <div className="grid grid-cols-3 divide-x divide-gray-700">
+                    {/* TensorFlow */}
                     <div className="p-4">
                       <p className="text-xs text-purple-400 font-medium mb-2 flex items-center gap-1.5">
                         <Brain size={14} /> TensorFlow
@@ -328,17 +329,26 @@ const Analytics = () => {
                             {isMatched && getBestBadge('tf', pred.bestModel)}
                           </p>
                           <p className="text-[11px] text-gray-400">
-                            ТБ {pred.selectedTotal}: <span className="text-green-400 font-medium">{pred.predictions.tf.overProbability}%</span>
+                            Прогноз: <span className="text-green-400 font-medium">ТБ {pred.selectedTotal} {pred.predictions.tf.overProbability}%</span>
                           </p>
                           {isMatched ? (
-                            <div className="flex items-center gap-2 pt-1">
-                              {getCorrectIcon(pred.tfCorrect)}
-                              <span className={`text-xs font-medium ${
-                                parseFloat(pred.tfError) <= 1 ? 'text-green-400' : 
-                                parseFloat(pred.tfError) <= 2 ? 'text-yellow-400' : 'text-red-400'
-                              }`}>
-                                ошибка ±{pred.tfError} угл.
-                              </span>
+                            <div className="space-y-1 pt-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-500">Направление:</span>
+                                {getCorrectIcon(pred.tfCorrect)}
+                                <span className={`text-[10px] font-medium ${pred.tfCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                  {pred.tfCorrect ? 'угадала' : 'ошибка'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-500">Точность:</span>
+                                <span className={`text-[10px] font-medium ${
+                                  parseFloat(pred.tfError) <= 1 ? 'text-green-400' : 
+                                  parseFloat(pred.tfError) <= 2 ? 'text-yellow-400' : 'text-red-400'
+                                }`}>
+                                  ±{pred.tfError} угл.
+                                </span>
+                              </div>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-1">
@@ -352,6 +362,7 @@ const Analytics = () => {
                       )}
                     </div>
 
+                    {/* Random Forest */}
                     <div className="p-4">
                       <p className="text-xs text-lime-400 font-medium mb-2 flex items-center gap-1.5">
                         <TreePine size={14} /> Random Forest
@@ -363,17 +374,26 @@ const Analytics = () => {
                             {isMatched && getBestBadge('rf', pred.bestModel)}
                           </p>
                           <p className="text-[11px] text-gray-400">
-                            ТБ {pred.selectedTotal}: <span className="text-green-400 font-medium">{pred.predictions.rf.overProbability}%</span>
+                            Прогноз: <span className="text-green-400 font-medium">ТБ {pred.selectedTotal} {pred.predictions.rf.overProbability}%</span>
                           </p>
                           {isMatched ? (
-                            <div className="flex items-center gap-2 pt-1">
-                              {getCorrectIcon(pred.rfCorrect)}
-                              <span className={`text-xs font-medium ${
-                                parseFloat(pred.rfError) <= 1 ? 'text-green-400' : 
-                                parseFloat(pred.rfError) <= 2 ? 'text-yellow-400' : 'text-red-400'
-                              }`}>
-                                ошибка ±{pred.rfError} угл.
-                              </span>
+                            <div className="space-y-1 pt-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-500">Направление:</span>
+                                {getCorrectIcon(pred.rfCorrect)}
+                                <span className={`text-[10px] font-medium ${pred.rfCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                  {pred.rfCorrect ? 'угадала' : 'ошибка'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-500">Точность:</span>
+                                <span className={`text-[10px] font-medium ${
+                                  parseFloat(pred.rfError) <= 1 ? 'text-green-400' : 
+                                  parseFloat(pred.rfError) <= 2 ? 'text-yellow-400' : 'text-red-400'
+                                }`}>
+                                  ±{pred.rfError} угл.
+                                </span>
+                              </div>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-1">
@@ -387,6 +407,7 @@ const Analytics = () => {
                       )}
                     </div>
 
+                    {/* XGBoost */}
                     <div className="p-4">
                       <p className="text-xs text-emerald-400 font-medium mb-2 flex items-center gap-1.5">
                         <Zap size={14} /> XGBoost
@@ -398,17 +419,26 @@ const Analytics = () => {
                             {isMatched && getBestBadge('xgb', pred.bestModel)}
                           </p>
                           <p className="text-[11px] text-gray-400">
-                            ТБ {pred.selectedTotal}: <span className="text-green-400 font-medium">{pred.predictions.xgb.overProbability}%</span>
+                            Прогноз: <span className="text-green-400 font-medium">ТБ {pred.selectedTotal} {pred.predictions.xgb.overProbability}%</span>
                           </p>
                           {isMatched ? (
-                            <div className="flex items-center gap-2 pt-1">
-                              {getCorrectIcon(pred.xgbCorrect)}
-                              <span className={`text-xs font-medium ${
-                                parseFloat(pred.xgbError) <= 1 ? 'text-green-400' : 
-                                parseFloat(pred.xgbError) <= 2 ? 'text-yellow-400' : 'text-red-400'
-                              }`}>
-                                ошибка ±{pred.xgbError} угл.
-                              </span>
+                            <div className="space-y-1 pt-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-500">Направление:</span>
+                                {getCorrectIcon(pred.xgbCorrect)}
+                                <span className={`text-[10px] font-medium ${pred.xgbCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                  {pred.xgbCorrect ? 'угадала' : 'ошибка'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-500">Точность:</span>
+                                <span className={`text-[10px] font-medium ${
+                                  parseFloat(pred.xgbError) <= 1 ? 'text-green-400' : 
+                                  parseFloat(pred.xgbError) <= 2 ? 'text-yellow-400' : 'text-red-400'
+                                }`}>
+                                  ±{pred.xgbError} угл.
+                                </span>
+                              </div>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-1">
