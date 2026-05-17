@@ -29,7 +29,6 @@ const Analytics = () => {
         
         snap.forEach(d => {
           const pred = d.data();
-          // Проверяем: есть ли матч с теми же командами и датой ±7 дней
           const matchExists = data.matches?.some(m => 
             m.homeTeamId === pred.homeTeamId && 
             m.awayTeamId === pred.awayTeamId &&
@@ -37,15 +36,12 @@ const Analytics = () => {
           );
           
           if (matchExists || pred.actualTotal !== null) {
-            // Матч есть в базе или уже был сверен — оставляем
             logs.push(pred);
           } else {
-            // Матча нет и не сверен — удаляем
             toDelete.push(deleteDoc(doc(db, 'football', 'stats', 'predictions', d.id)));
           }
         });
         
-        // Удаляем осиротевшие прогнозы
         if (toDelete.length > 0) {
           await Promise.all(toDelete);
           console.log(`🗑️ Удалено ${toDelete.length} прогнозов (матчи не найдены)`);
@@ -110,9 +106,9 @@ const Analytics = () => {
     };
   });
 
-  // 🔥 РАСШИРЕННАЯ СТАТИСТИКА МОДЕЛЕЙ
+  // 🔥 ФИКС: статистика только по СВЕРЕННЫМ матчам
   const getModelStats = (modelKey) => {
-    const relevant = enrichedPredictions.filter(p => p[`${modelKey}Expected`] !== null);
+    const relevant = enrichedPredictions.filter(p => p.actualTotal !== null && p[`${modelKey}Expected`] !== null);
     if (relevant.length === 0) return null;
     
     const correct = relevant.filter(p => p[`${modelKey}Correct`]).length;
@@ -149,7 +145,6 @@ const Analytics = () => {
     ].filter(s => s.stats);
     
     if (stats.length === 0) return null;
-    // Сортировка: сначала по MAE (меньше = лучше), при равном — по accuracy (выше = лучше)
     return stats.sort((a, b) => {
       const maeDiff = parseFloat(a.stats.mae) - parseFloat(b.stats.mae);
       if (maeDiff !== 0) return maeDiff;
@@ -306,7 +301,6 @@ const Analytics = () => {
               
               return (
                 <div key={pred.id || i} className="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
-                  {/* Заголовок матча */}
                   <div className="bg-gray-700/50 px-5 py-3 flex items-center justify-between flex-wrap gap-3">
                     <div>
                       <p className="font-semibold text-white">{pred.match}</p>
@@ -337,7 +331,6 @@ const Analytics = () => {
                     </div>
                   </div>
 
-                  {/* Три модели в ряд */}
                   <div className="grid grid-cols-3 divide-x divide-gray-700">
                     {/* TensorFlow */}
                     <div className="p-4">
