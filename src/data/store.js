@@ -104,8 +104,10 @@ export const initStore = (callback) => {
       
       console.log('☁️ Синхронизировано:', currentData.matches?.length || 0, 'матчей,', currentData.bets?.length || 0, 'ставок');
       
+      // 🔧 Создаём auto_backup только из Firebase (надёжный источник)
       if (currentData.matches?.length > 10) {
         localStorage.setItem('football_cache', JSON.stringify(currentData));
+        localStorage.setItem('football_auto_backup', JSON.stringify(currentData));
       }
       
       subscribers.forEach(cb => cb(currentData));
@@ -145,7 +147,7 @@ export const subscribe = (callback) => {
   return () => { subscribers = subscribers.filter(cb => cb !== callback); };
 };
 
-// 🔧 ИСПРАВЛЕНО: saveData с параметром skipMatches
+// 🔧 ИСПРАВЛЕНО: saveData — auto_backup создаётся только из initStore
 export const saveData = async (data, changedMatchId = null, skipMatches = false) => {
   isSavingFromLocal = true;
   
@@ -156,20 +158,15 @@ export const saveData = async (data, changedMatchId = null, skipMatches = false)
   };
   
   try {
-    // 🔧 Экономим место: не дублируем auto_backup если skipMatches
+    // 🔧 Только football_cache, без auto_backup (экономия места)
     localStorage.setItem('football_cache', JSON.stringify(dataWithTimestamp));
-    if (!skipMatches && dataWithTimestamp.matchesCount > 10) {
-      localStorage.setItem('football_auto_backup', JSON.stringify(dataWithTimestamp));
-    }
     
     const { writeBatch } = await import('firebase/firestore');
     const batch = writeBatch(db);
     
     const { matches, ...metaData } = dataWithTimestamp;
-    // Сохраняем метаданные (1 запись)
     batch.set(doc(db, 'football', 'stats'), { ...metaData, matches: [] });
     
-    // 🔥 КЛЮЧЕВОЕ: skipMatches — сохраняем только метаданные, матчи не трогаем
     if (skipMatches) {
       // Ничего не делаем с матчами — экономим квоту
     } else if (changedMatchId) {
@@ -178,7 +175,6 @@ export const saveData = async (data, changedMatchId = null, skipMatches = false)
         batch.set(doc(db, 'football', 'stats', 'matches', changedMatchId), changedMatch);
       }
     } else {
-      // Полная перезапись только при первой синхронизации или восстановлении
       dataWithTimestamp.matches?.forEach(match => {
         batch.set(doc(db, 'football', 'stats', 'matches', match.id), match);
       });
@@ -234,7 +230,7 @@ export const addTeam = async (team) => { const data = getData(); await saveData(
 export const updateTeam = async (teamId, updates) => { const data = getData(); await saveData({ ...data, teams: data.teams.map(t => t.id === teamId ? { ...t, ...updates } : t) }, null, true); };
 export const deleteTeam = async (teamId) => { const data = getData(); await saveData({ ...data, teams: data.teams.filter(t => t.id !== teamId), matches: data.matches.filter(m => m.homeTeamId !== teamId && m.awayTeamId !== teamId) }); };
 
-// ===== ФУНКЦИИ МАТЧЕЙ (ИСПРАВЛЕНО) =====
+// ===== ФУНКЦИИ МАТЧЕЙ =====
 export const addMatch = async (match) => {
   const data = getData();
   const newMatch = { ...match, id: match.id || Date.now().toString() };
