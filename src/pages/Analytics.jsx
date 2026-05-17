@@ -17,7 +17,6 @@ const Analytics = () => {
     return () => unsubscribe();
   }, []);
 
-  // 🔥 Загружаем прогнозы и чистим те, чьи матчи удалены
   useEffect(() => {
     const loadPredictions = async () => {
       try {
@@ -60,7 +59,6 @@ const Analytics = () => {
   const totalMatches = data.matches?.length || 0;
   const leagues = data.leagues || [];
 
-  // 🔥 ПОЛНАЯ СВЕРКА ПРОГНОЗОВ
   const enrichedPredictions = predictionLog.map(pred => {
     const match = data.matches?.find(m => 
       m.homeTeamId === pred.homeTeamId && 
@@ -106,7 +104,6 @@ const Analytics = () => {
     };
   });
 
-  // 🔥 ФИКС: статистика только по СВЕРЕННЫМ матчам
   const getModelStats = (modelKey) => {
     const relevant = enrichedPredictions.filter(p => p.actualTotal !== null && p[`${modelKey}Expected`] !== null);
     if (relevant.length === 0) return null;
@@ -129,7 +126,6 @@ const Analytics = () => {
   const rfStats = getModelStats('rf');
   const xgbStats = getModelStats('xgb');
 
-  // Фильтрация
   const filteredPredictions = enrichedPredictions.filter(p => {
     if (filterLeague !== 'all' && p.leagueId !== filterLeague) return false;
     if (filterModel === 'onlyMatched' && p.actualTotal === null) return false;
@@ -159,7 +155,6 @@ const Analytics = () => {
         </p>
       </div>
 
-      {/* Карточки */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={Database} label="Всего матчей в базе" value={totalMatches} color="blue" />
         <StatCard icon={Target} label="Записано прогнозов" value={predictionLog.length} color="yellow" />
@@ -170,14 +165,13 @@ const Analytics = () => {
       {/* 🏆 ПЬЕДЕСТАЛ */}
       {(() => {
         const allStats = [
-          { model: 'TensorFlow', key: 'tf', stats: tfStats, icon: Brain, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-700/50', place: null },
-          { model: 'Random Forest', key: 'rf', stats: rfStats, icon: TreePine, color: 'text-lime-400', bg: 'bg-lime-900/20', border: 'border-lime-700/50', place: null },
-          { model: 'XGBoost', key: 'xgb', stats: xgbStats, icon: Zap, color: 'text-emerald-400', bg: 'bg-emerald-900/20', border: 'border-emerald-700/50', place: null },
+          { model: 'TensorFlow', key: 'tf', stats: tfStats, icon: Brain, color: 'text-purple-400', bg: 'bg-purple-900/30', border: 'border-purple-600/50' },
+          { model: 'Random Forest', key: 'rf', stats: rfStats, icon: TreePine, color: 'text-lime-400', bg: 'bg-lime-900/30', border: 'border-lime-600/50' },
+          { model: 'XGBoost', key: 'xgb', stats: xgbStats, icon: Zap, color: 'text-emerald-400', bg: 'bg-emerald-900/30', border: 'border-emerald-600/50' },
         ].filter(s => s.stats);
         
         if (allStats.length === 0) return null;
         
-        // Сортируем: сначала по accuracy (выше = лучше), при равном — по MAE (меньше = лучше)
         const sorted = [...allStats].sort((a, b) => {
           const accDiff = parseFloat(b.stats.accuracy) - parseFloat(a.stats.accuracy);
           if (accDiff !== 0) return accDiff;
@@ -187,25 +181,67 @@ const Analytics = () => {
         sorted.forEach((s, i) => s.place = i + 1);
         const medals = ['🥇', '🥈', '🥉'];
         
+        const second = sorted[1];
+        const first = sorted[0];
+        const third = sorted[2];
+        
         return (
           <div className="bg-gray-800/50 rounded-xl p-6 border border-yellow-700/50">
-            <h3 className="text-lg font-bold text-yellow-400 mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-bold text-yellow-400 mb-8 text-center flex items-center justify-center gap-2">
               <Trophy size={20} /> Пьедестал
             </h3>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              {sorted.map((s) => (
-                <div key={s.key} className={`${s.bg} rounded-xl p-4 border ${s.border}`}>
-                  <div className="text-2xl mb-1">{medals[s.place - 1]}</div>
-                  <s.icon size={28} className={`mx-auto mb-2 ${s.color}`} />
-                  <p className="text-xs text-gray-400 mb-1">{s.model}</p>
-                  <p className="text-2xl font-bold text-white">{s.stats.accuracy}%</p>
-                  <p className="text-xs text-gray-500">{s.stats.correct}/{s.stats.total} верно</p>
-                  <div className="border-t border-gray-700 mt-2 pt-2">
-                    <p className="text-xs text-gray-500">MAE: ±{s.stats.mae} угл.</p>
-                    <p className="text-xs text-yellow-400">🥇 Лучшая: {s.stats.bestCount} раз ({s.stats.bestRate}%)</p>
+            
+            <div className="flex items-end justify-center gap-0">
+              {second && (
+                <div className="flex flex-col items-center w-40">
+                  <div className="text-2xl mb-2">🥈</div>
+                  <div className={`${second.bg} ${second.border} border rounded-t-xl p-3 w-full flex flex-col items-center text-center`}>
+                    <second.icon size={22} className={`mb-1 ${second.color}`} />
+                    <p className="text-[11px] text-gray-400">{second.model}</p>
+                    <p className="text-xl font-bold text-white">{second.stats.accuracy}%</p>
+                    <p className="text-[10px] text-gray-500">{second.stats.correct}/{second.stats.total}</p>
+                    <p className="text-[10px] text-gray-500 mt-1">MAE ±{second.stats.mae}</p>
+                    <p className="text-[10px] text-yellow-400">🥇 {second.stats.bestCount} раз</p>
+                  </div>
+                  <div className="w-full h-16 bg-gray-500 rounded-b-lg flex items-center justify-center">
+                    <span className="text-xs text-white font-bold">2 место</span>
                   </div>
                 </div>
-              ))}
+              )}
+              
+              {first && (
+                <div className="flex flex-col items-center w-44 -mt-8 z-10">
+                  <div className="text-4xl mb-2">🥇</div>
+                  <div className={`${first.bg} ${first.border} border-2 rounded-t-xl p-4 w-full flex flex-col items-center text-center`}>
+                    <first.icon size={32} className={`mb-2 ${first.color}`} />
+                    <p className="text-xs text-gray-400">{first.model}</p>
+                    <p className="text-2xl font-bold text-white">{first.stats.accuracy}%</p>
+                    <p className="text-[10px] text-gray-500">{first.stats.correct}/{first.stats.total}</p>
+                    <p className="text-[10px] text-gray-500 mt-1">MAE ±{first.stats.mae}</p>
+                    <p className="text-[10px] text-yellow-400">🥇 {first.stats.bestCount} раз</p>
+                  </div>
+                  <div className="w-full h-20 bg-yellow-500 rounded-b-lg flex items-center justify-center">
+                    <span className="text-sm text-black font-bold">1 место</span>
+                  </div>
+                </div>
+              )}
+              
+              {third && (
+                <div className="flex flex-col items-center w-40">
+                  <div className="text-2xl mb-2">🥉</div>
+                  <div className={`${third.bg} ${third.border} border rounded-t-xl p-3 w-full flex flex-col items-center text-center`}>
+                    <third.icon size={22} className={`mb-1 ${third.color}`} />
+                    <p className="text-[11px] text-gray-400">{third.model}</p>
+                    <p className="text-xl font-bold text-white">{third.stats.accuracy}%</p>
+                    <p className="text-[10px] text-gray-500">{third.stats.correct}/{third.stats.total}</p>
+                    <p className="text-[10px] text-gray-500 mt-1">MAE ±{third.stats.mae}</p>
+                    <p className="text-[10px] text-yellow-400">🥇 {third.stats.bestCount} раз</p>
+                  </div>
+                  <div className="w-full h-12 bg-orange-700 rounded-b-lg flex items-center justify-center">
+                    <span className="text-xs text-white font-bold">3 место</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -281,7 +317,6 @@ const Analytics = () => {
                   </div>
 
                   <div className="grid grid-cols-3 divide-x divide-gray-700">
-                    {/* TensorFlow */}
                     <div className="p-4">
                       <p className="text-xs text-purple-400 font-medium mb-2 flex items-center gap-1.5">
                         <Brain size={14} /> TensorFlow
@@ -317,7 +352,6 @@ const Analytics = () => {
                       )}
                     </div>
 
-                    {/* Random Forest */}
                     <div className="p-4">
                       <p className="text-xs text-lime-400 font-medium mb-2 flex items-center gap-1.5">
                         <TreePine size={14} /> Random Forest
@@ -353,7 +387,6 @@ const Analytics = () => {
                       )}
                     </div>
 
-                    {/* XGBoost */}
                     <div className="p-4">
                       <p className="text-xs text-emerald-400 font-medium mb-2 flex items-center gap-1.5">
                         <Zap size={14} /> XGBoost
