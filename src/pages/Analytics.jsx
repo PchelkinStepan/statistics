@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getData, subscribe } from '../data/store';
 import { 
   Brain, BarChart3, Target, Trophy, Database,
-  Zap, TreePine, Check, X, Clock, Medal, TrendingUp
+  Zap, TreePine, Check, X, Clock, Medal
 } from 'lucide-react';
 
 const Analytics = () => {
@@ -17,14 +17,40 @@ const Analytics = () => {
     return () => unsubscribe();
   }, []);
 
+  // 🔥 Загружаем прогнозы и чистим те, чьи матчи удалены
   useEffect(() => {
     const loadPredictions = async () => {
       try {
-        const { getDocs, collection } = await import('firebase/firestore');
+        const { getDocs, collection, deleteDoc, doc } = await import('firebase/firestore');
         const { db } = await import('../firebase');
         const snap = await getDocs(collection(db, 'football', 'stats', 'predictions'));
         const logs = [];
-        snap.forEach(doc => logs.push(doc.data()));
+        const toDelete = [];
+        
+        snap.forEach(d => {
+          const pred = d.data();
+          // Проверяем: есть ли матч с теми же командами и датой ±7 дней
+          const matchExists = data.matches?.some(m => 
+            m.homeTeamId === pred.homeTeamId && 
+            m.awayTeamId === pred.awayTeamId &&
+            Math.abs(new Date(m.date) - new Date(pred.date)) < 7 * 86400000
+          );
+          
+          if (matchExists || pred.actualTotal !== null) {
+            // Матч есть в базе или уже был сверен — оставляем
+            logs.push(pred);
+          } else {
+            // Матча нет и не сверен — удаляем
+            toDelete.push(deleteDoc(doc(db, 'football', 'stats', 'predictions', d.id)));
+          }
+        });
+        
+        // Удаляем осиротевшие прогнозы
+        if (toDelete.length > 0) {
+          await Promise.all(toDelete);
+          console.log(`🗑️ Удалено ${toDelete.length} прогнозов (матчи не найдены)`);
+        }
+        
         logs.sort((a, b) => new Date(b.date) - new Date(a.date));
         setPredictionLog(logs);
       } catch (e) {
@@ -51,10 +77,6 @@ const Analytics = () => {
     const actualTotal = (match.homeCorners || 0) + (match.awayCorners || 0);
     const actualOver = actualTotal > pred.selectedTotal;
     
-    // Для каждой модели считаем:
-    // - Угадала ли направление (correct)
-    // - Ошибка в тотале (error = |прогноз - факт|)
-    // - Кто ближе к факту (определим ниже)
     const tfExpected = pred.predictions?.tf ? parseFloat(pred.predictions.tf.expectedTotal) : null;
     const rfExpected = pred.predictions?.rf ? parseFloat(pred.predictions.rf.expectedTotal) : null;
     const xgbExpected = pred.predictions?.xgb ? parseFloat(pred.predictions.xgb.expectedTotal) : null;
@@ -63,7 +85,6 @@ const Analytics = () => {
     const rfError = rfExpected !== null ? Math.abs(rfExpected - actualTotal).toFixed(2) : null;
     const xgbError = xgbExpected !== null ? Math.abs(xgbExpected - actualTotal).toFixed(2) : null;
     
-    // Какая модель ближе к факту?
     const errors = [
       { model: 'tf', error: tfError !== null ? parseFloat(tfError) : Infinity },
       { model: 'rf', error: rfError !== null ? parseFloat(rfError) : Infinity },
@@ -119,7 +140,7 @@ const Analytics = () => {
     return true;
   });
 
-  // 🔥 КТО ЛИДИРУЕТ?
+  // 🔥 ЛИДЕР по MAE (при равном — по accuracy)
   const getLeader = () => {
     const stats = [
       { model: 'TensorFlow', key: 'tf', stats: tfStats, icon: Brain, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-700/50' },
@@ -128,7 +149,7 @@ const Analytics = () => {
     ].filter(s => s.stats);
     
     if (stats.length === 0) return null;
-    // Лидер = лучший по MAE (меньше ошибка в тотале). При равном MAE — по accuracy.
+    // Сортировка: сначала по MAE (меньше = лучше), при равном — по accuracy (выше = лучше)
     return stats.sort((a, b) => {
       const maeDiff = parseFloat(a.stats.mae) - parseFloat(b.stats.mae);
       if (maeDiff !== 0) return maeDiff;
@@ -180,11 +201,11 @@ const Analytics = () => {
               Точность: {leader.stats.accuracy}% • MAE: ±{leader.stats.mae} • Лучший в {leader.stats.bestRate}% случаев
             </p>
           </div>
-          <div className="text-4xl">{leader.stats.accuracy}%</div>
+          <div className="text-4xl font-bold">{leader.stats.mae}</div>
         </div>
       )}
 
-      {/* 🏁 ГОНКА МОДЕЛЕЙ — ТРИ КОЛОНКИ */}
+      {/* 🏁 ГОНКА МОДЕЛЕЙ */}
       <div className="bg-gray-800/50 rounded-xl p-6 border border-yellow-700/50">
         <h3 className="text-lg font-bold text-yellow-400 mb-4 flex items-center gap-2">
           <Trophy size={20} /> Гонка моделей
