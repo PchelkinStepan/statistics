@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, Calculator, Play, RefreshCw, TreePine } from 'lucide-react';
+import { Activity, Calculator, Play, RefreshCw, TreePine, Save } from 'lucide-react';
 import { getData } from '../../data/store';
 import {
   buildChronologicalTrainingExamples,
@@ -262,7 +262,7 @@ const RandomForestModel = () => {
         maxDepth: 7,
         minSamplesSplit: 6,
         maxFeatures: 8,
-        seed: Math.floor(Math.random() * 10000), // 🔧 ИСПРАВЛЕНО: случайный seed
+        seed: Math.floor(Math.random() * 10000),
       });
 
       addLog('🎓 Обучение леса (может занять 1–2 минуты)...');
@@ -299,7 +299,6 @@ const RandomForestModel = () => {
     setIsTraining(false);
   };
 
-  // 🔧 ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ФУНКЦИЯ predict
   const predict = () => {
     if (!predictHomeTeam || !predictAwayTeam || !model) return;
 
@@ -317,7 +316,6 @@ const RandomForestModel = () => {
       getLeagueAvgTotal(predictLeague, data.seasons),
     );
 
-    // Делаем несколько предсказаний с разными seed для усреднения
     const predictions = [];
     for (let seed = 0; seed < 5; seed++) {
       const rfVariant = new SimpleRandomForest({
@@ -334,7 +332,6 @@ const RandomForestModel = () => {
     const pred = predictions.reduce((a, b) => a + b, 0) / predictions.length;
     const expectedTotal = Math.max(2, Math.min(18, pred));
     
-    // Используем исторические ошибки из TensorFlow модели для вероятностей
     const historicalErrors = JSON.parse(localStorage.getItem('neuro_historical_errors') || 'null');
     let overProb;
     if (historicalErrors && historicalErrors.length > 20) {
@@ -345,7 +342,6 @@ const RandomForestModel = () => {
       probOver = Math.min(0.95, Math.max(0.05, probOver));
       overProb = Math.round(probOver * 100);
     } else {
-      // Fallback: сигмоида вместо линейной формулы
       const diff = expectedTotal - selectedTotal;
       overProb = Math.round(100 / (1 + Math.exp(-diff * 2)));
     }
@@ -390,6 +386,54 @@ const RandomForestModel = () => {
           <div className="text-center py-4">
             <RefreshCw size={32} className="mx-auto mb-2 animate-spin text-lime-400" />
             <p>Обучение леса…</p>
+          </div>
+        )}
+        {modelReady && (
+          <div className="flex gap-2 justify-center flex-wrap mt-3">
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const model = localStorage.getItem('neuro_rf_model_json');
+                  if (model) {
+                    localStorage.setItem('neuro_rf_model_json_backup', model);
+                    const meta = localStorage.getItem('neuro_rf_meta');
+                    if (meta) localStorage.setItem('neuro_rf_meta_backup', meta);
+                    addLog('📥 Бэкап сохранён!');
+                  }
+                } catch (e) {
+                  addLog(`❌ ${e.message}`);
+                }
+              }}
+              className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
+            >
+              <Save size={16} /> 💾 Бэкап
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const model = localStorage.getItem('neuro_rf_model_json');
+                  const meta = localStorage.getItem('neuro_rf_meta');
+                  const exportData = {};
+                  if (model) exportData.neuro_rf_model_json = model;
+                  if (meta) exportData.neuro_rf_meta = meta;
+                  
+                  const blob = new Blob([JSON.stringify(exportData)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `rf-model-${new Date().toISOString().split('T')[0]}.json`;
+                  a.click();
+                  addLog('📥 Модель скачана!');
+                } catch (e) {
+                  addLog(`❌ Ошибка: ${e.message}`);
+                }
+              }}
+              className="bg-blue-700 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
+            >
+              <Save size={16} /> 📥 Скачать
+            </button>
           </div>
         )}
       </div>

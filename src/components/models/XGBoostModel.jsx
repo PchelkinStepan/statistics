@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, Calculator, Play, RefreshCw, Zap } from 'lucide-react';
+import { Activity, Calculator, Play, RefreshCw, Zap, Save } from 'lucide-react';
 import { getData } from '../../data/store';
 import {
   buildChronologicalTrainingExamples,
@@ -18,10 +18,9 @@ class SimpleXGBoost {
     this.maxDepth = params.maxDepth ?? 3;
     this.minSamplesSplit = params.minSamplesSplit ?? 10;
     this.nEstimators = params.nEstimators ?? 50;
-    this.seed = params.seed ?? 42; // 🔧 Добавлен seed
+    this.seed = params.seed ?? 42;
   }
 
-  // 🔧 Добавлен простой PRNG для бутстрапа
   mulberry32(seed) {
     let a = seed >>> 0;
     return () => {
@@ -42,9 +41,8 @@ class SimpleXGBoost {
     let bestThreshold = 0;
     let bestGain = -Infinity;
 
-    // 🔧 Случайный выбор признаков на каждом сплите (как в RF)
     const F = X[0].length;
-    const k = Math.min(8, F); // до 8 случайных признаков
+    const k = Math.min(8, F);
     const order = Array.from({ length: F }, (_, i) => i);
     for (let i = F - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1));
@@ -129,7 +127,6 @@ class SimpleXGBoost {
     const rng = this.mulberry32(this.seed);
 
     for (let i = 0; i < this.nEstimators; i++) {
-      // 🔧 Бутстрап для каждого дерева
       const bootRng = this.mulberry32(this.seed + i * 2654435761);
       const n = X.length;
       const Xb = [];
@@ -258,7 +255,6 @@ const XGBoostModel = () => {
       const testY = y.slice(trainSize);
       const testLeagues = leagueIds.slice(trainSize);
 
-      // 🔧 Случайный seed + увеличены параметры
       const xgb = new SimpleXGBoost({ 
         nEstimators: 50, 
         maxDepth: 4, 
@@ -303,7 +299,6 @@ const XGBoostModel = () => {
     setIsTraining(false);
   };
 
-  // 🔧 ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ФУНКЦИЯ predict
   const predict = () => {
     if (!predictHomeTeam || !predictAwayTeam || !model) return;
 
@@ -321,7 +316,6 @@ const XGBoostModel = () => {
       getLeagueAvgTotal(predictLeague, data.seasons),
     );
 
-    // Делаем несколько предсказаний с разными seed для усреднения
     const predictions = [];
     for (let s = 0; s < 5; s++) {
       const xgbVariant = new SimpleXGBoost({
@@ -338,7 +332,6 @@ const XGBoostModel = () => {
     const pred = predictions.reduce((a, b) => a + b, 0) / predictions.length;
     const expectedTotal = Math.max(2, Math.min(18, pred));
     
-    // Используем исторические ошибки TensorFlow для вероятностей
     const historicalErrors = JSON.parse(localStorage.getItem('neuro_historical_errors') || 'null');
     let overProb;
     if (historicalErrors && historicalErrors.length > 20) {
@@ -349,7 +342,6 @@ const XGBoostModel = () => {
       probOver = Math.min(0.95, Math.max(0.05, probOver));
       overProb = Math.round(probOver * 100);
     } else {
-      // Fallback: сигмоида
       const diff = expectedTotal - selectedTotal;
       overProb = Math.round(100 / (1 + Math.exp(-diff * 2)));
     }
@@ -394,6 +386,54 @@ const XGBoostModel = () => {
           <div className="text-center py-4">
             <RefreshCw size={32} className="mx-auto mb-2 animate-spin text-emerald-400" />
             <p>Обучение… обычно до минуты</p>
+          </div>
+        )}
+        {modelReady && (
+          <div className="flex gap-2 justify-center flex-wrap mt-3">
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const model = localStorage.getItem('neuro_xgb_model_json');
+                  if (model) {
+                    localStorage.setItem('neuro_xgb_model_json_backup', model);
+                    const meta = localStorage.getItem('neuro_xgb_meta');
+                    if (meta) localStorage.setItem('neuro_xgb_meta_backup', meta);
+                    addLog('📥 Бэкап сохранён!');
+                  }
+                } catch (e) {
+                  addLog(`❌ ${e.message}`);
+                }
+              }}
+              className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
+            >
+              <Save size={16} /> 💾 Бэкап
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const model = localStorage.getItem('neuro_xgb_model_json');
+                  const meta = localStorage.getItem('neuro_xgb_meta');
+                  const exportData = {};
+                  if (model) exportData.neuro_xgb_model_json = model;
+                  if (meta) exportData.neuro_xgb_meta = meta;
+                  
+                  const blob = new Blob([JSON.stringify(exportData)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `xgb-model-${new Date().toISOString().split('T')[0]}.json`;
+                  a.click();
+                  addLog('📥 Модель скачана!');
+                } catch (e) {
+                  addLog(`❌ Ошибка: ${e.message}`);
+                }
+              }}
+              className="bg-blue-700 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
+            >
+              <Save size={16} /> 📥 Скачать
+            </button>
           </div>
         )}
       </div>
