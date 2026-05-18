@@ -104,10 +104,12 @@ export const initStore = (callback) => {
       
       console.log('☁️ Синхронизировано:', currentData.matches?.length || 0, 'матчей,', currentData.bets?.length || 0, 'ставок');
       
-      // 🔧 Создаём auto_backup только из Firebase (надёжный источник)
+      // 🔧 ФИКС: auto_backup создаётся только если его ещё нет (экономия места)
       if (currentData.matches?.length > 10) {
         localStorage.setItem('football_cache', JSON.stringify(currentData));
-        localStorage.setItem('football_auto_backup', JSON.stringify(currentData));
+        if (!localStorage.getItem('football_auto_backup')) {
+          localStorage.setItem('football_auto_backup', JSON.stringify(currentData));
+        }
       }
       
       subscribers.forEach(cb => cb(currentData));
@@ -121,7 +123,6 @@ export const initStore = (callback) => {
       else currentData = { ...DEFAULT_DATA, lastUpdated: new Date().toISOString() };
       
       console.log('📦 Из кэша (без записи в Firebase):', currentData.matches?.length || 0, 'матчей,', currentData.bets?.length || 0, 'ставок');
-      // 🔒 НЕ пушим в Firebase — там может быть более свежая версия с другого устройства
       
       subscribers.forEach(cb => cb(currentData));
       if (callback) callback(currentData);
@@ -147,7 +148,7 @@ export const subscribe = (callback) => {
   return () => { subscribers = subscribers.filter(cb => cb !== callback); };
 };
 
-// 🔧 ИСПРАВЛЕНО: saveData — auto_backup создаётся только из initStore
+// 🔧 saveData — только football_cache, без auto_backup
 export const saveData = async (data, changedMatchId = null, skipMatches = false) => {
   isSavingFromLocal = true;
   
@@ -158,7 +159,6 @@ export const saveData = async (data, changedMatchId = null, skipMatches = false)
   };
   
   try {
-    // 🔧 Только football_cache, без auto_backup (экономия места)
     localStorage.setItem('football_cache', JSON.stringify(dataWithTimestamp));
     
     const { writeBatch } = await import('firebase/firestore');
@@ -303,7 +303,7 @@ export const getTeamStats = (teamId, seasonId, matchesCount = 10) => {
   return { ...st, avgCornersFor: st.totalCornersFor / n, avgCornersAgainst: st.totalCornersAgainst / n, avgCornersForHome: hm > 0 ? st.cornersForHome / hm : 0, avgCornersForAway: am > 0 ? st.cornersForAway / am : 0, avgXG: st.xG / n, avgXGA: st.xGA / n, avgShotsInsideBox: st.shotsInsideBox / n, avgShotsInsideBoxAgainst: st.shotsInsideBoxAgainst / n, avgPossession: st.possession / n, avgSaves: st.saves / n, matchesPlayed: n };
 };
 
-/** P(T <= maxK) для T ~ Poisson(lambda), суммирование PMF от 0 */
+/** P(T <= maxK) для T ~ Poisson(lambda) */
 export const poissonCdf = (lambda, maxK) => {
   if (!isFinite(lambda) || lambda <= 0) return maxK < 0 ? 0 : 1;
   if (maxK < 0) return 0;
@@ -318,10 +318,6 @@ export const poissonCdf = (lambda, maxK) => {
   return sum;
 };
 
-/**
- * Вероятность ТБ для линии с «половиной» (9.5, 10.5): тотал целый, ТБ если угловых >= floor(line)+1
- * @returns {number} процент 0–100
- */
 export const poissonOverProbabilityPct = (lambdaTotal, lineTotal) => {
   const maxUnder = Math.floor(lineTotal);
   const pUnder = poissonCdf(lambdaTotal, maxUnder);
@@ -387,7 +383,6 @@ export const getLeagueTable = (leagueId, seasonId) => {
   return table.sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff);
 };
 
-// 🔧 ФИКС: updateSeasonAverages передаёт skipMatches = true
 export const updateSeasonAverages = async (seasonId) => {
   const data = getData();
   const season = data.seasons?.find(s => s.id === seasonId);
