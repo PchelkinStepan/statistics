@@ -205,12 +205,13 @@ export const saveData = async (data, changedMatchId = null, skipMatches = false)
 export const getSeasons = (leagueId) => { const data = getData(); return data.seasons?.filter(s => s.leagueId === leagueId) || []; };
 export const getActiveSeason = (leagueId) => { const data = getData(); return data.seasons?.find(s => s.leagueId === leagueId && s.isActive) || null; };
 
+// 🔧 ФИКС: addSeason с skipMatches = true
 export const addSeason = async (season) => {
   const data = getData();
   const uniqueId = `${season.leagueId}_${(season.id || season.name).replace(/\//g, '_')}`;
   const exists = data.seasons?.find(s => s.id === uniqueId);
   if (exists) { console.warn('⚠️ Сезон уже существует'); return updateSeason(uniqueId, season); }
-  await saveData({ ...data, seasons: [...(data.seasons || []), { ...season, id: uniqueId, leagueId: season.leagueId }] });
+  await saveData({ ...data, seasons: [...(data.seasons || []), { ...season, id: uniqueId, leagueId: season.leagueId }] }, null, true);
   return { ...season, id: uniqueId };
 };
 
@@ -224,10 +225,15 @@ export const deleteLeague = async (leagueId) => { const data = getData(); await 
 
 // ===== ФУНКЦИИ КОМАНД =====
 export const getTeamsForSeason = (leagueId, seasonId) => { const data = getData(); return data.teams.filter(t => t.leagueId === leagueId && (!seasonId || t.seasonIds?.includes(seasonId))); };
-// 🔧 ФИКС: addTeam с skipMatches = true (не перезаписывает матчи)
+// 🔧 ФИКС: addTeam с skipMatches = true
 export const addTeam = async (team) => { const data = getData(); await saveData({ ...data, teams: [...data.teams, { ...team, id: Date.now().toString() }] }, null, true); return team; };
 export const updateTeam = async (teamId, updates) => { const data = getData(); await saveData({ ...data, teams: data.teams.map(t => t.id === teamId ? { ...t, ...updates } : t) }, null, true); };
-export const deleteTeam = async (teamId) => { const data = getData(); await saveData({ ...data, teams: data.teams.filter(t => t.id !== teamId), matches: data.matches.filter(m => m.homeTeamId !== teamId && m.awayTeamId !== teamId) }); };
+// 🔧 ФИКС: deleteTeam — skipMatches если нет матчей
+export const deleteTeam = async (teamId) => { 
+  const data = getData(); 
+  const hasMatches = data.matches?.some(m => m.homeTeamId === teamId || m.awayTeamId === teamId);
+  await saveData({ ...data, teams: data.teams.filter(t => t.id !== teamId), matches: data.matches.filter(m => m.homeTeamId !== teamId && m.awayTeamId !== teamId) }, null, !hasMatches); 
+};
 
 // ===== ФУНКЦИИ МАТЧЕЙ =====
 export const addMatch = async (match) => {
