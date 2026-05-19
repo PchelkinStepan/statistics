@@ -1,1 +1,0 @@
-import{F as e,N as t,c as n,d as r,o as i,u as a}from"./index.esm-BjUlt8Mt.js";export{t as collection,i as deleteDoc,e as doc,n as getDocs,a as setDoc,r as writeBatch};
