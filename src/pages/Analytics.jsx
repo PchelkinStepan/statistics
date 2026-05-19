@@ -59,12 +59,16 @@ const Analytics = () => {
   const totalMatches = data.matches?.length || 0;
   const leagues = data.leagues || [];
 
+  // 🔥 ПОЛНАЯ СВЕРКА ПРОГНОЗОВ (ФИКС: по названиям команд)
   const enrichedPredictions = predictionLog.map(pred => {
-    const match = data.matches?.find(m => 
-      m.homeTeamId === pred.homeTeamId && 
-      m.awayTeamId === pred.awayTeamId &&
-      Math.abs(new Date(m.date) - new Date(pred.date)) < 86400000
-    );
+    const homeTeamName = data.teams?.find(t => t.id === pred.homeTeamId)?.name;
+    const awayTeamName = data.teams?.find(t => t.id === pred.awayTeamId)?.name;
+    
+    const match = data.matches?.find(m => {
+      const mHome = data.teams?.find(t => t.id === m.homeTeamId)?.name;
+      const mAway = data.teams?.find(t => t.id === m.awayTeamId)?.name;
+      return mHome === homeTeamName && mAway === awayTeamName && Math.abs(new Date(m.date) - new Date(pred.date)) < 86400000;
+    });
     
     if (!match) return { ...pred, actualTotal: null };
     
@@ -317,7 +321,6 @@ const Analytics = () => {
                   </div>
 
                   <div className="grid grid-cols-3 divide-x divide-gray-700">
-                    {/* TensorFlow */}
                     <div className="p-4">
                       <p className="text-xs text-purple-400 font-medium mb-2 flex items-center gap-1.5">
                         <Brain size={14} /> TensorFlow
@@ -362,7 +365,6 @@ const Analytics = () => {
                       )}
                     </div>
 
-                    {/* Random Forest */}
                     <div className="p-4">
                       <p className="text-xs text-lime-400 font-medium mb-2 flex items-center gap-1.5">
                         <TreePine size={14} /> Random Forest
@@ -407,7 +409,6 @@ const Analytics = () => {
                       )}
                     </div>
 
-                    {/* XGBoost */}
                     <div className="p-4">
                       <p className="text-xs text-emerald-400 font-medium mb-2 flex items-center gap-1.5">
                         <Zap size={14} /> XGBoost
