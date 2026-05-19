@@ -104,7 +104,6 @@ export const initStore = (callback) => {
       
       console.log('☁️ Синхронизировано:', currentData.matches?.length || 0, 'матчей,', currentData.bets?.length || 0, 'ставок');
       
-      // 🔧 ФИКС: auto_backup создаётся только если его ещё нет (экономия места)
       if (currentData.matches?.length > 10) {
         localStorage.setItem('football_cache', JSON.stringify(currentData));
         if (!localStorage.getItem('football_auto_backup')) {
@@ -115,7 +114,6 @@ export const initStore = (callback) => {
       subscribers.forEach(cb => cb(currentData));
       if (callback) callback(currentData);
     } else {
-      // 🔒 ФИКС: НЕ перезаписываем пустую Firebase локальным кэшем
       const autoBackup = localStorage.getItem('football_auto_backup');
       const cached = localStorage.getItem('football_cache');
       if (autoBackup) currentData = JSON.parse(autoBackup);
@@ -226,7 +224,8 @@ export const deleteLeague = async (leagueId) => { const data = getData(); await 
 
 // ===== ФУНКЦИИ КОМАНД =====
 export const getTeamsForSeason = (leagueId, seasonId) => { const data = getData(); return data.teams.filter(t => t.leagueId === leagueId && (!seasonId || t.seasonIds?.includes(seasonId))); };
-export const addTeam = async (team) => { const data = getData(); await saveData({ ...data, teams: [...data.teams, { ...team, id: Date.now().toString() }] }); return team; };
+// 🔧 ФИКС: addTeam с skipMatches = true (не перезаписывает матчи)
+export const addTeam = async (team) => { const data = getData(); await saveData({ ...data, teams: [...data.teams, { ...team, id: Date.now().toString() }] }, null, true); return team; };
 export const updateTeam = async (teamId, updates) => { const data = getData(); await saveData({ ...data, teams: data.teams.map(t => t.id === teamId ? { ...t, ...updates } : t) }, null, true); };
 export const deleteTeam = async (teamId) => { const data = getData(); await saveData({ ...data, teams: data.teams.filter(t => t.id !== teamId), matches: data.matches.filter(m => m.homeTeamId !== teamId && m.awayTeamId !== teamId) }); };
 
