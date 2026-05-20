@@ -320,6 +320,49 @@ const Analytics = () => {
                     </div>
                   </div>
 
+                  {/* 🧠 АНСАМБЛЬ */}
+                  <div className="px-5 py-2 bg-blue-900/20 border-b border-blue-700/30">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-blue-400 font-medium flex items-center gap-1.5">
+                        🧠 Ансамбль
+                      </span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs text-gray-400">
+                          {(() => {
+                            const models = [];
+                            if (pred.predictions?.tf) models.push({ name: 'TF', over: pred.predictions.tf.overProbability });
+                            if (pred.predictions?.rf) models.push({ name: 'RF', over: pred.predictions.rf.overProbability });
+                            if (pred.predictions?.xgb) models.push({ name: 'XGB', over: pred.predictions.xgb.overProbability });
+                            return models.map(m => `${m.name}: ${m.over}%`).join(' | ');
+                          })()}
+                        </span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                          (() => {
+                            let votes = 0;
+                            if (pred.predictions?.tf) votes += pred.predictions.tf.overProbability > 50 ? 1 : -1;
+                            if (pred.predictions?.rf) votes += pred.predictions.rf.overProbability > 50 ? 1 : -1;
+                            if (pred.predictions?.xgb) votes += pred.predictions.xgb.overProbability > 50 ? 1 : -1;
+                            if (votes >= 2) return 'bg-green-600/30 text-green-400';
+                            if (votes <= -2) return 'bg-red-600/30 text-red-400';
+                            return 'bg-gray-600/30 text-gray-400';
+                          })()
+                        }`}>
+                          {(() => {
+                            let votes = 0;
+                            if (pred.predictions?.tf) votes += pred.predictions.tf.overProbability > 50 ? 1 : -1;
+                            if (pred.predictions?.rf) votes += pred.predictions.rf.overProbability > 50 ? 1 : -1;
+                            if (pred.predictions?.xgb) votes += pred.predictions.xgb.overProbability > 50 ? 1 : -1;
+                            if (votes >= 2) return `🔥 ТБ ${pred.selectedTotal}`;
+                            if (votes <= -2) return `🔥 ТМ ${pred.selectedTotal}`;
+                            if (votes === 1) return `✅ ТБ (слабо)`;
+                            if (votes === -1) return `✅ ТМ (слабо)`;
+                            return '⚖️ Мимо';
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-3 divide-x divide-gray-700">
                     <div className="p-4">
                       <p className="text-xs text-purple-400 font-medium mb-2 flex items-center gap-1.5">
@@ -332,7 +375,9 @@ const Analytics = () => {
                             {isMatched && getBestBadge('tf', pred.bestModel)}
                           </p>
                           <p className="text-[11px] text-gray-400">
-                            Прогноз: <span className="text-green-400 font-medium">ТБ {pred.selectedTotal} {pred.predictions.tf.overProbability}%</span>
+                            Прогноз: <span className="text-green-400 font-medium">
+                              {parseFloat(pred.predictions.tf.expectedTotal) > pred.selectedTotal ? 'ТБ' : 'ТМ'} {pred.selectedTotal} ({pred.predictions.tf.expectedTotal})
+                            </span>
                           </p>
                           {isMatched ? (
                             <div className="space-y-1 pt-1">
@@ -376,7 +421,9 @@ const Analytics = () => {
                             {isMatched && getBestBadge('rf', pred.bestModel)}
                           </p>
                           <p className="text-[11px] text-gray-400">
-                            Прогноз: <span className="text-green-400 font-medium">ТБ {pred.selectedTotal} {pred.predictions.rf.overProbability}%</span>
+                            Прогноз: <span className="text-green-400 font-medium">
+                              {parseFloat(pred.predictions.rf.expectedTotal) > pred.selectedTotal ? 'ТБ' : 'ТМ'} {pred.selectedTotal} ({pred.predictions.rf.expectedTotal})
+                            </span>
                           </p>
                           {isMatched ? (
                             <div className="space-y-1 pt-1">
@@ -420,7 +467,9 @@ const Analytics = () => {
                             {isMatched && getBestBadge('xgb', pred.bestModel)}
                           </p>
                           <p className="text-[11px] text-gray-400">
-                            Прогноз: <span className="text-green-400 font-medium">ТБ {pred.selectedTotal} {pred.predictions.xgb.overProbability}%</span>
+                            Прогноз: <span className="text-green-400 font-medium">
+                              {parseFloat(pred.predictions.xgb.expectedTotal) > pred.selectedTotal ? 'ТБ' : 'ТМ'} {pred.selectedTotal} ({pred.predictions.xgb.expectedTotal})
+                            </span>
                           </p>
                           {isMatched ? (
                             <div className="space-y-1 pt-1">
@@ -474,4 +523,4 @@ const StatCard = ({ icon: Icon, label, value, color }) => {
   );
 };
 
-export default Analytics; 
+export default Analytics;
