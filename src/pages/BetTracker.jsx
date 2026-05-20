@@ -50,16 +50,13 @@ const BetTracker = () => {
 
   const leagues = data.leagues || [];
 
-  // 🔧 ИСПРАВЛЕНО: сохраняем только bets и bankroll, НЕ трогаем matches!
   const saveBets = (newBets, newBankroll) => {
     const updatedData = { 
       ...data, 
       bets: newBets, 
       bankroll: newBankroll,
-      // matches остаются нетронутыми!
     };
     setData(updatedData);
-    // Передаём текущие matches без изменений
     saveData(updatedData);
   };
 
@@ -256,6 +253,81 @@ const BetTracker = () => {
         <StatCard icon={Trophy} label="Прибыль" value={`${stats.totalProfit >= 0 ? '+' : ''}${stats.totalProfit.toLocaleString()} ₽`} color={stats.totalProfit >= 0 ? 'green' : 'red'} />
         <StatCard icon={Target} label="Ср. кэф" value={stats.avgOdds} color="blue" />
       </div>
+
+      {/* 🔥 СЕРИЯ ПОБЕД */}
+      {(() => {
+        const finished = filteredBets.filter(b => b.status !== 'pending').sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (finished.length === 0) return null;
+        
+        let currentStreak = 0;
+        let currentType = null;
+        for (const bet of finished) {
+          if (currentType === null) {
+            currentType = bet.status;
+            currentStreak = 1;
+          } else if (bet.status === currentType) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+        
+        let bestWinStreak = 0;
+        let bestLoseStreak = 0;
+        let tempWin = 0;
+        let tempLose = 0;
+        for (const bet of [...finished].reverse()) {
+          if (bet.status === 'won') {
+            tempWin++;
+            tempLose = 0;
+            bestWinStreak = Math.max(bestWinStreak, tempWin);
+          } else {
+            tempLose++;
+            tempWin = 0;
+            bestLoseStreak = Math.max(bestLoseStreak, tempLose);
+          }
+        }
+        
+        const last10 = finished.slice(0, 10).reverse();
+        
+        return (
+          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-gray-400">Текущая серия:</p>
+                <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
+                  currentType === 'won' ? 'bg-green-600/30 text-green-400' : 'bg-red-600/30 text-red-400'
+                }`}>
+                  {currentType === 'won' ? '🔥' : '❄️'} {currentStreak} {currentType === 'won' ? 'побед' : 'поражений'}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-xs text-gray-400">
+                <span>🏆 Лучшая серия побед: <span className="text-green-400 font-bold">{bestWinStreak}</span></span>
+                <span>💀 Худшая серия: <span className="text-red-400 font-bold">{bestLoseStreak}</span></span>
+              </div>
+            </div>
+            
+            {last10.length > 0 && (
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-xs text-gray-500">Последние {last10.length}:</span>
+                <div className="flex gap-1">
+                  {last10.map((bet, i) => (
+                    <div
+                      key={i}
+                      className={`w-7 h-7 rounded flex items-center justify-center text-xs font-bold ${
+                        bet.status === 'won' ? 'bg-green-600/40 text-green-400' : 'bg-red-600/40 text-red-400'
+                      }`}
+                      title={`${bet.match}: ${bet.status === 'won' ? 'Выигрыш' : 'Проигрыш'} ${bet.profit > 0 ? '+' : ''}${bet.profit}₽`}
+                    >
+                      {bet.status === 'won' ? 'W' : 'L'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex flex-wrap gap-2">

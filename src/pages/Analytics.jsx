@@ -67,7 +67,7 @@ const Analytics = () => {
     const match = data.matches?.find(m => {
       const mHome = data.teams?.find(t => t.id === m.homeTeamId)?.name;
       const mAway = data.teams?.find(t => t.id === m.awayTeamId)?.name;
-      return mHome === homeTeamName && mAway === awayTeamName && Math.abs(new Date(m.date) - new Date(pred.date)) < 86400000;
+      return mHome === homeTeamName && mAway === awayTeamName && Math.abs(new Date(m.date) - new Date(pred.date)) < 7 * 86400000;
     });
     
     if (!match) return { ...pred, actualTotal: null };
@@ -95,9 +95,9 @@ const Analytics = () => {
       ...pred,
       actualTotal,
       actualOver,
-      tfCorrect: tfExpected !== null ? (pred.predictions.tf.overProbability > 50) === actualOver : null,
-      rfCorrect: rfExpected !== null ? (pred.predictions.rf.overProbability > 50) === actualOver : null,
-      xgbCorrect: xgbExpected !== null ? (pred.predictions.xgb.overProbability > 50) === actualOver : null,
+      tfCorrect: tfExpected !== null ? (tfExpected > pred.selectedTotal) === actualOver : null,
+      rfCorrect: rfExpected !== null ? (rfExpected > pred.selectedTotal) === actualOver : null,
+      xgbCorrect: xgbExpected !== null ? (xgbExpected > pred.selectedTotal) === actualOver : null,
       tfExpected: tfExpected?.toFixed(2) || null,
       rfExpected: rfExpected?.toFixed(2) || null,
       xgbExpected: xgbExpected?.toFixed(2) || null,
