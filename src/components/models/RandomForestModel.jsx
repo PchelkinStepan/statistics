@@ -8,6 +8,7 @@ import {
   buildFeatures,
   getLeagueAvgTotal,
   getLineTotalForLeague,
+  calculateProbabilitySimple,
 } from './neuroFeatures';
 
 /** Детерминированный PRNG для бутстрапа и выбора признаков */
@@ -332,19 +333,8 @@ const RandomForestModel = () => {
     const pred = predictions.reduce((a, b) => a + b, 0) / predictions.length;
     const expectedTotal = Math.max(2, Math.min(18, pred));
     
-    const historicalErrors = JSON.parse(localStorage.getItem('neuro_historical_errors') || 'null');
-    let overProb;
-    if (historicalErrors && historicalErrors.length > 20) {
-      const simulatedTotals = historicalErrors.map((err) => expectedTotal + err);
-      const above = simulatedTotals.filter((t) => t > selectedTotal).length;
-      const near = simulatedTotals.filter((t) => Math.abs(t - selectedTotal) < 0.3).length;
-      let probOver = (above + near * 0.3) / simulatedTotals.length;
-      probOver = Math.min(0.95, Math.max(0.05, probOver));
-      overProb = Math.round(probOver * 100);
-    } else {
-      const diff = expectedTotal - selectedTotal;
-      overProb = Math.round(100 / (1 + Math.exp(-diff * 2)));
-    }
+    // 🔧 ФИКС: честная сигмоида вместо ошибок TF
+    const overProb = calculateProbabilitySimple(expectedTotal, selectedTotal);
 
     setPrediction({
       expectedTotal: expectedTotal.toFixed(2),

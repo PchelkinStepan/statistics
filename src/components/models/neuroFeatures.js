@@ -203,3 +203,12 @@ export function buildChronologicalTrainingExamples(matches, seasons) {
   }
   return examples;
 }
+
+/**
+ * Честная сигмоида для RF и XGBoost — без чужих ошибок
+ */
+export function calculateProbabilitySimple(expectedTotal, selectedTotal) {
+  const diff = expectedTotal - selectedTotal;
+  const probOver = Math.round(100 / (1 + Math.exp(-diff * 2)));
+  return Math.min(95, Math.max(5, probOver));
+}
