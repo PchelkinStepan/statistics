@@ -326,7 +326,7 @@ const Analytics = () => {
                     </div>
                   </div>
 
-                  {/* 🧠 АНСАМБЛЬ (честные проценты) */}
+                  {/* 🧠 АНСАМБЛЬ (проценты в сторону прогноза) */}
                   <div className="px-5 py-2 bg-blue-900/20 border-b border-blue-700/30">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-blue-400 font-medium flex items-center gap-1.5">
@@ -338,17 +338,21 @@ const Analytics = () => {
                             const models = [];
                             if (pred.predictions?.tf) {
                               const prob = calcProb(parseFloat(pred.predictions.tf.expectedTotal), pred.selectedTotal);
-                              models.push({ name: 'TF', over: prob });
+                              models.push({ name: 'TF', over: prob, expected: parseFloat(pred.predictions.tf.expectedTotal) });
                             }
                             if (pred.predictions?.rf) {
                               const prob = calcProb(parseFloat(pred.predictions.rf.expectedTotal), pred.selectedTotal);
-                              models.push({ name: 'RF', over: prob });
+                              models.push({ name: 'RF', over: prob, expected: parseFloat(pred.predictions.rf.expectedTotal) });
                             }
                             if (pred.predictions?.xgb) {
                               const prob = calcProb(parseFloat(pred.predictions.xgb.expectedTotal), pred.selectedTotal);
-                              models.push({ name: 'XGB', over: prob });
+                              models.push({ name: 'XGB', over: prob, expected: parseFloat(pred.predictions.xgb.expectedTotal) });
                             }
-                            return models.map(m => `${m.name}: ${m.over}%`).join(' | ');
+                            return models.map(m => {
+                              const isOver = m.expected > pred.selectedTotal;
+                              const displayProb = isOver ? m.over : (100 - m.over);
+                              return `${m.name}: ${displayProb}% ${isOver ? 'ТБ' : 'ТМ'}`;
+                            }).join(' | ');
                           })()}
                         </span>
                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${
