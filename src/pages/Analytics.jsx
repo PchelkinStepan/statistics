@@ -147,6 +147,13 @@ const Analytics = () => {
     return null;
   };
 
+  // Честная сигмоида для процентов в ансамбле
+  const calcProb = (expected, total) => {
+    const diff = expected - total;
+    const prob = Math.round(100 / (1 + Math.exp(-diff * 2)));
+    return Math.min(95, Math.max(5, prob));
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
@@ -319,7 +326,7 @@ const Analytics = () => {
                     </div>
                   </div>
 
-                  {/* 🧠 АНСАМБЛЬ (фикс: голосование по expectedTotal) */}
+                  {/* 🧠 АНСАМБЛЬ (честные проценты) */}
                   <div className="px-5 py-2 bg-blue-900/20 border-b border-blue-700/30">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-blue-400 font-medium flex items-center gap-1.5">
@@ -329,9 +336,18 @@ const Analytics = () => {
                         <span className="text-xs text-gray-400">
                           {(() => {
                             const models = [];
-                            if (pred.predictions?.tf) models.push({ name: 'TF', over: pred.predictions.tf.overProbability });
-                            if (pred.predictions?.rf) models.push({ name: 'RF', over: pred.predictions.rf.overProbability });
-                            if (pred.predictions?.xgb) models.push({ name: 'XGB', over: pred.predictions.xgb.overProbability });
+                            if (pred.predictions?.tf) {
+                              const prob = calcProb(parseFloat(pred.predictions.tf.expectedTotal), pred.selectedTotal);
+                              models.push({ name: 'TF', over: prob });
+                            }
+                            if (pred.predictions?.rf) {
+                              const prob = calcProb(parseFloat(pred.predictions.rf.expectedTotal), pred.selectedTotal);
+                              models.push({ name: 'RF', over: prob });
+                            }
+                            if (pred.predictions?.xgb) {
+                              const prob = calcProb(parseFloat(pred.predictions.xgb.expectedTotal), pred.selectedTotal);
+                              models.push({ name: 'XGB', over: prob });
+                            }
                             return models.map(m => `${m.name}: ${m.over}%`).join(' | ');
                           })()}
                         </span>
