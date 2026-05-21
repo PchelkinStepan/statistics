@@ -59,7 +59,6 @@ const Analytics = () => {
   const totalMatches = data.matches?.length || 0;
   const leagues = data.leagues || [];
 
-  // 🔥 ПОЛНАЯ СВЕРКА ПРОГНОЗОВ (ФИКС: по названиям команд)
   const enrichedPredictions = predictionLog.map(pred => {
     const homeTeamName = data.teams?.find(t => t.id === pred.homeTeamId)?.name;
     const awayTeamName = data.teams?.find(t => t.id === pred.awayTeamId)?.name;
@@ -320,7 +319,7 @@ const Analytics = () => {
                     </div>
                   </div>
 
-                  {/* 🧠 АНСАМБЛЬ */}
+                  {/* 🧠 АНСАМБЛЬ (фикс: голосование по expectedTotal) */}
                   <div className="px-5 py-2 bg-blue-900/20 border-b border-blue-700/30">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-blue-400 font-medium flex items-center gap-1.5">
@@ -339,9 +338,9 @@ const Analytics = () => {
                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                           (() => {
                             let votes = 0;
-                            if (pred.predictions?.tf) votes += pred.predictions.tf.overProbability > 50 ? 1 : -1;
-                            if (pred.predictions?.rf) votes += pred.predictions.rf.overProbability > 50 ? 1 : -1;
-                            if (pred.predictions?.xgb) votes += pred.predictions.xgb.overProbability > 50 ? 1 : -1;
+                            if (pred.predictions?.tf) votes += parseFloat(pred.predictions.tf.expectedTotal) > pred.selectedTotal ? 1 : -1;
+                            if (pred.predictions?.rf) votes += parseFloat(pred.predictions.rf.expectedTotal) > pred.selectedTotal ? 1 : -1;
+                            if (pred.predictions?.xgb) votes += parseFloat(pred.predictions.xgb.expectedTotal) > pred.selectedTotal ? 1 : -1;
                             if (votes >= 2) return 'bg-green-600/30 text-green-400';
                             if (votes <= -2) return 'bg-red-600/30 text-red-400';
                             return 'bg-gray-600/30 text-gray-400';
@@ -349,9 +348,9 @@ const Analytics = () => {
                         }`}>
                           {(() => {
                             let votes = 0;
-                            if (pred.predictions?.tf) votes += pred.predictions.tf.overProbability > 50 ? 1 : -1;
-                            if (pred.predictions?.rf) votes += pred.predictions.rf.overProbability > 50 ? 1 : -1;
-                            if (pred.predictions?.xgb) votes += pred.predictions.xgb.overProbability > 50 ? 1 : -1;
+                            if (pred.predictions?.tf) votes += parseFloat(pred.predictions.tf.expectedTotal) > pred.selectedTotal ? 1 : -1;
+                            if (pred.predictions?.rf) votes += parseFloat(pred.predictions.rf.expectedTotal) > pred.selectedTotal ? 1 : -1;
+                            if (pred.predictions?.xgb) votes += parseFloat(pred.predictions.xgb.expectedTotal) > pred.selectedTotal ? 1 : -1;
                             if (votes >= 2) return `🔥 ТБ ${pred.selectedTotal}`;
                             if (votes <= -2) return `🔥 ТМ ${pred.selectedTotal}`;
                             if (votes === 1) return `✅ ТБ (слабо)`;
