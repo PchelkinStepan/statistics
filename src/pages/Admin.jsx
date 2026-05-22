@@ -45,7 +45,6 @@ const Admin = () => {
   const [message, setMessage] = useState('');
   const [formTab, setFormTab] = useState('match');
   
-  // 🔒 ЗАЩИТА от двойных нажатий
   const [isSaving, setIsSaving] = useState(false);
   
   const isMobile = useIsMobile();
@@ -161,6 +160,47 @@ const Admin = () => {
     });
   };
 
+  // 🔥 АВТОЗАПОЛНЕНИЕ 2-го ТАЙМА
+  const autoFillSecondHalf = () => {
+    const fields = [
+      'Score', 'Corners', 'XG', 'TotalShots', 'ShotsOnTarget', 
+      'ShotsInsideBox', 'Saves', 'Fouls'
+    ];
+    
+    setMatchForm(prev => {
+      const next = { ...prev };
+      // Проверяем, заполнен ли матч вообще (хотя бы одно поле не пустое)
+      const hasMatchData = fields.some(f => 
+        prev[`home${f}`] !== '' || prev[`away${f}`] !== ''
+      );
+      
+      if (!hasMatchData) return next;
+      
+      fields.forEach(f => {
+        if (f === 'XG') {
+          const totalHf = parseFloat(prev[`home${f}`]) || 0;
+          const totalAf = parseFloat(prev[`away${f}`]) || 0;
+          const h1Hf = parseFloat(prev[`home${f}1H`]) || 0;
+          const a1Hf = parseFloat(prev[`away${f}1H`]) || 0;
+          const h2 = Math.max(0, totalHf - h1Hf);
+          const a2 = Math.max(0, totalAf - a1Hf);
+          next[`home${f}2H`] = h2.toFixed(2);
+          next[`away${f}2H`] = a2.toFixed(2);
+        } else {
+          const totalH = parseInt(prev[`home${f}`]) || 0;
+          const totalA = parseInt(prev[`away${f}`]) || 0;
+          const h1H = parseInt(prev[`home${f}1H`]) || 0;
+          const a1H = parseInt(prev[`away${f}1H`]) || 0;
+          const h2 = Math.max(0, totalH - h1H);
+          const a2 = Math.max(0, totalA - a1H);
+          next[`home${f}2H`] = h2.toString();
+          next[`away${f}2H`] = a2.toString();
+        }
+      });
+      return next;
+    });
+  };
+
   const handleMatchSubmit = async (e) => {
     e.preventDefault();
     if (isSaving) return;
@@ -219,7 +259,6 @@ const Admin = () => {
     }
   };
 
-  // 🔧 ФИКС: убран авто-бэкап перед сохранением сезона
   const handleSeasonSubmit = async (e) => {
     e.preventDefault(); 
     if (isSaving) return;
@@ -306,7 +345,7 @@ const Admin = () => {
   return (
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8 flex items-center justify-between">
-        <div><h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 9.0 🔥</h2><p className="text-sm md:text-base text-gray-400">Вкладки Матч / 1Т / 2Т</p></div>
+        <div><h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 10.0 🔥</h2><p className="text-sm md:text-base text-gray-400">Авто 2-й тайм • Матч / 1Т / 2Т</p></div>
         <button onClick={exportData} className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition shadow-lg"><Download size={18} /><span className="hidden md:inline">Экспорт базы</span></button>
       </div>
       {message && (<div className={`px-4 py-3 rounded-lg mb-4 md:mb-6 text-sm md:text-base ${message.includes('❌') ? 'bg-red-600/20 border border-red-600 text-red-400' : 'bg-green-600/20 border border-green-600 text-green-400'}`}>{message}</div>)}
@@ -338,7 +377,7 @@ const Admin = () => {
               <div className="flex gap-1 bg-gray-700/30 rounded-lg p-1">
                 <FormTabButton active={formTab === 'match'} onClick={() => setFormTab('match')}>📋 Матч</FormTabButton>
                 <FormTabButton active={formTab === 'half1'} onClick={() => setFormTab('half1')}>⏱️ 1-й тайм</FormTabButton>
-                <FormTabButton active={formTab === 'half2'} onClick={() => setFormTab('half2')}>⏱️ 2-й тайм</FormTabButton>
+                <FormTabButton active={formTab === 'half2'} onClick={() => { autoFillSecondHalf(); setFormTab('half2'); }}>⏱️ 2-й тайм</FormTabButton>
               </div>
               <div className="bg-gray-700/20 rounded-lg p-3">
                 {formTab === 'match' && renderFields('')}
