@@ -58,7 +58,6 @@ const ModelsComparison = () => {
     }
   }, [manualKef, valueType, results]);
 
-  // Загружаем RF модель из localStorage и делаем predict
   const predictRF = (features) => {
     try {
       const raw = localStorage.getItem('neuro_rf_model_json');
@@ -84,7 +83,6 @@ const ModelsComparison = () => {
     }
   };
 
-  // Загружаем XGBoost модель из localStorage и делаем predict
   const predictXGB = (features) => {
     try {
       const raw = localStorage.getItem('neuro_xgb_model_json');
@@ -110,7 +108,6 @@ const ModelsComparison = () => {
     }
   };
 
-  // Функция для расчёта вероятности через сигмоиду или исторические ошибки
   const calculateProbability = (expectedTotal, total) => {
     const historicalErrors = JSON.parse(localStorage.getItem('neuro_historical_errors') || 'null');
     if (historicalErrors && historicalErrors.length > 20) {
@@ -219,13 +216,13 @@ const ModelsComparison = () => {
         };
       }
 
-      // === Ансамбль ===
+      // === Ансамбль (фикс: голосование по expectedTotal) ===
       let ensembleVote = '⚖️ Нет данных';
       if (tfResult || rfResult || xgbResult) {
         let votes = 0;
-        if (tfResult) votes += tfResult.overProbability > 60 ? 1 : tfResult.overProbability < 40 ? -1 : 0;
-        if (rfResult) votes += rfResult.overProbability > 60 ? 1 : rfResult.overProbability < 40 ? -1 : 0;
-        if (xgbResult) votes += xgbResult.overProbability > 60 ? 1 : xgbResult.overProbability < 40 ? -1 : 0;
+        if (tfResult) votes += parseFloat(tfResult.expectedTotal) > selectedTotal ? 1 : -1;
+        if (rfResult) votes += parseFloat(rfResult.expectedTotal) > selectedTotal ? 1 : -1;
+        if (xgbResult) votes += parseFloat(xgbResult.expectedTotal) > selectedTotal ? 1 : -1;
         
         if (votes >= 2) ensembleVote = '🔥 СТАВЛЮ ТБ!';
         else if (votes <= -2) ensembleVote = '🔥 СТАВЛЮ ТМ!';
@@ -241,7 +238,6 @@ const ModelsComparison = () => {
     setIsPredicting(false);
   };
 
-  // 🔥 Запись прогнозов в подколлекцию predictions
   const savePredictions = async () => {
     if (!results) return;
     
