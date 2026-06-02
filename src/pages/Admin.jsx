@@ -37,6 +37,7 @@ const Admin = () => {
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterRound, setFilterRound] = useState('');
   const [selectedLeagueFilter, setSelectedLeagueFilter] = useState(defaultLeagueId);
   const [selectedSeasonFilter, setSelectedSeasonFilter] = useState('');
   const [selectedLeagueForSeasons, setSelectedLeagueForSeasons] = useState(defaultLeagueId);
@@ -53,24 +54,75 @@ const Admin = () => {
   const getInitialMatchForm = () => ({
     leagueId: selectedLeagueFilter || defaultLeagueId, seasonId: activeSeason?.id || '',
     homeTeamId: '', awayTeamId: '', date: new Date().toISOString().split('T')[0], round: '',
-    homeScore: '', awayScore: '', homeCorners: '', awayCorners: '',
-    homeXG: '', awayXG: '', homePossession: '', awayPossession: '',
-    homeTotalShots: '', awayTotalShots: '', homeShotsOnTarget: '', awayShotsOnTarget: '',
-    homeYellowCards: '', awayYellowCards: '', homeRedCards: '', awayRedCards: '',
-    homeShotsInsideBox: '', awayShotsInsideBox: '', homeSaves: '', awaySaves: '',
+    homeScore: '', awayScore: '',
+    homeXG: '', awayXG: '',
+    homePossession: '', awayPossession: '',
+    homeTotalShots: '', awayTotalShots: '',
+    homeShotsOnTarget: '', awayShotsOnTarget: '',
+    homeCorners: '', awayCorners: '',
+    homeYellowCards: '', awayYellowCards: '',
+    homeRedCards: '', awayRedCards: '',
+    homeXGOT: '', awayXGOT: '',
+    homeBlockedShots: '', awayBlockedShots: '',
+    homeShotsInsideBox: '', awayShotsInsideBox: '',
+    homeShotsOutsideBox: '', awayShotsOutsideBox: '',
+    homeTouchesBox: '', awayTouchesBox: '',
+    homeLongPassesAcc: '', awayLongPassesAcc: '',
+    homeLongPasses: '', awayLongPasses: '',
+    homeFinalThirdAcc: '', awayFinalThirdAcc: '',
+    homeFinalThirdPasses: '', awayFinalThirdPasses: '',
+    homeCrossesAcc: '', awayCrossesAcc: '',
+    homeCrosses: '', awayCrosses: '',
+    homeXA: '', awayXA: '',
     homeFouls: '', awayFouls: '',
-    homeScore1H: '', awayScore1H: '', homeCorners1H: '', awayCorners1H: '',
-    homeXG1H: '', awayXG1H: '', homePossession1H: '', awayPossession1H: '',
-    homeTotalShots1H: '', awayTotalShots1H: '', homeShotsOnTarget1H: '', awayShotsOnTarget1H: '',
-    homeYellowCards1H: '', awayYellowCards1H: '', homeRedCards1H: '', awayRedCards1H: '',
-    homeShotsInsideBox1H: '', awayShotsInsideBox1H: '', homeSaves1H: '', awaySaves1H: '',
+    homeDuelsWon: '', awayDuelsWon: '',
+    homeSaves: '', awaySaves: '',
+    homeScore1H: '', awayScore1H: '',
+    homeXG1H: '', awayXG1H: '',
+    homePossession1H: '', awayPossession1H: '',
+    homeTotalShots1H: '', awayTotalShots1H: '',
+    homeShotsOnTarget1H: '', awayShotsOnTarget1H: '',
+    homeCorners1H: '', awayCorners1H: '',
+    homeYellowCards1H: '', awayYellowCards1H: '',
+    homeRedCards1H: '', awayRedCards1H: '',
+    homeXGOT1H: '', awayXGOT1H: '',
+    homeBlockedShots1H: '', awayBlockedShots1H: '',
+    homeShotsInsideBox1H: '', awayShotsInsideBox1H: '',
+    homeShotsOutsideBox1H: '', awayShotsOutsideBox1H: '',
+    homeTouchesBox1H: '', awayTouchesBox1H: '',
+    homeLongPassesAcc1H: '', awayLongPassesAcc1H: '',
+    homeLongPasses1H: '', awayLongPasses1H: '',
+    homeFinalThirdAcc1H: '', awayFinalThirdAcc1H: '',
+    homeFinalThirdPasses1H: '', awayFinalThirdPasses1H: '',
+    homeCrossesAcc1H: '', awayCrossesAcc1H: '',
+    homeCrosses1H: '', awayCrosses1H: '',
+    homeXA1H: '', awayXA1H: '',
     homeFouls1H: '', awayFouls1H: '',
-    homeScore2H: '', awayScore2H: '', homeCorners2H: '', awayCorners2H: '',
-    homeXG2H: '', awayXG2H: '', homePossession2H: '', awayPossession2H: '',
-    homeTotalShots2H: '', awayTotalShots2H: '', homeShotsOnTarget2H: '', awayShotsOnTarget2H: '',
-    homeYellowCards2H: '', awayYellowCards2H: '', homeRedCards2H: '', awayRedCards2H: '',
-    homeShotsInsideBox2H: '', awayShotsInsideBox2H: '', homeSaves2H: '', awaySaves2H: '',
+    homeDuelsWon1H: '', awayDuelsWon1H: '',
+    homeSaves1H: '', awaySaves1H: '',
+    homeScore2H: '', awayScore2H: '',
+    homeXG2H: '', awayXG2H: '',
+    homePossession2H: '', awayPossession2H: '',
+    homeTotalShots2H: '', awayTotalShots2H: '',
+    homeShotsOnTarget2H: '', awayShotsOnTarget2H: '',
+    homeCorners2H: '', awayCorners2H: '',
+    homeYellowCards2H: '', awayYellowCards2H: '',
+    homeRedCards2H: '', awayRedCards2H: '',
+    homeXGOT2H: '', awayXGOT2H: '',
+    homeBlockedShots2H: '', awayBlockedShots2H: '',
+    homeShotsInsideBox2H: '', awayShotsInsideBox2H: '',
+    homeShotsOutsideBox2H: '', awayShotsOutsideBox2H: '',
+    homeTouchesBox2H: '', awayTouchesBox2H: '',
+    homeLongPassesAcc2H: '', awayLongPassesAcc2H: '',
+    homeLongPasses2H: '', awayLongPasses2H: '',
+    homeFinalThirdAcc2H: '', awayFinalThirdAcc2H: '',
+    homeFinalThirdPasses2H: '', awayFinalThirdPasses2H: '',
+    homeCrossesAcc2H: '', awayCrossesAcc2H: '',
+    homeCrosses2H: '', awayCrosses2H: '',
+    homeXA2H: '', awayXA2H: '',
     homeFouls2H: '', awayFouls2H: '',
+    homeDuelsWon2H: '', awayDuelsWon2H: '',
+    homeSaves2H: '', awaySaves2H: '',
   });
   
   const [matchForm, setMatchForm] = useState(getInitialMatchForm());
@@ -108,38 +160,74 @@ const Admin = () => {
       homeTeamId: match.homeTeamId || '', awayTeamId: match.awayTeamId || '',
       date: match.date || new Date().toISOString().split('T')[0], round: f(match.round),
       homeScore: f(match.homeScore), awayScore: f(match.awayScore),
-      homeCorners: f(match.homeCorners), awayCorners: f(match.awayCorners),
       homeXG: f(match.homeXG), awayXG: f(match.awayXG),
       homePossession: f(match.homePossession), awayPossession: f(match.awayPossession),
       homeTotalShots: f(match.homeTotalShots), awayTotalShots: f(match.awayTotalShots),
       homeShotsOnTarget: f(match.homeShotsOnTarget), awayShotsOnTarget: f(match.awayShotsOnTarget),
+      homeCorners: f(match.homeCorners), awayCorners: f(match.awayCorners),
       homeYellowCards: f(match.homeYellowCards), awayYellowCards: f(match.awayYellowCards),
       homeRedCards: f(match.homeRedCards), awayRedCards: f(match.awayRedCards),
+      homeXGOT: f(match.homeXGOT), awayXGOT: f(match.awayXGOT),
+      homeBlockedShots: f(match.homeBlockedShots), awayBlockedShots: f(match.awayBlockedShots),
       homeShotsInsideBox: f(match.homeShotsInsideBox), awayShotsInsideBox: f(match.awayShotsInsideBox),
-      homeSaves: f(match.homeSaves), awaySaves: f(match.awaySaves),
+      homeShotsOutsideBox: f(match.homeShotsOutsideBox), awayShotsOutsideBox: f(match.awayShotsOutsideBox),
+      homeTouchesBox: f(match.homeTouchesBox), awayTouchesBox: f(match.awayTouchesBox),
+      homeLongPassesAcc: f(match.homeLongPassesAcc), awayLongPassesAcc: f(match.awayLongPassesAcc),
+      homeLongPasses: f(match.homeLongPasses), awayLongPasses: f(match.awayLongPasses),
+      homeFinalThirdAcc: f(match.homeFinalThirdAcc), awayFinalThirdAcc: f(match.awayFinalThirdAcc),
+      homeFinalThirdPasses: f(match.homeFinalThirdPasses), awayFinalThirdPasses: f(match.awayFinalThirdPasses),
+      homeCrossesAcc: f(match.homeCrossesAcc), awayCrossesAcc: f(match.awayCrossesAcc),
+      homeCrosses: f(match.homeCrosses), awayCrosses: f(match.awayCrosses),
+      homeXA: f(match.homeXA), awayXA: f(match.awayXA),
       homeFouls: f(match.homeFouls), awayFouls: f(match.awayFouls),
+      homeDuelsWon: f(match.homeDuelsWon), awayDuelsWon: f(match.awayDuelsWon),
+      homeSaves: f(match.homeSaves), awaySaves: f(match.awaySaves),
       homeScore1H: f(match.homeScore1H), awayScore1H: f(match.awayScore1H),
-      homeCorners1H: f(match.homeCorners1H), awayCorners1H: f(match.awayCorners1H),
       homeXG1H: f(match.homeXG1H), awayXG1H: f(match.awayXG1H),
       homePossession1H: f(match.homePossession1H), awayPossession1H: f(match.awayPossession1H),
       homeTotalShots1H: f(match.homeTotalShots1H), awayTotalShots1H: f(match.awayTotalShots1H),
       homeShotsOnTarget1H: f(match.homeShotsOnTarget1H), awayShotsOnTarget1H: f(match.awayShotsOnTarget1H),
+      homeCorners1H: f(match.homeCorners1H), awayCorners1H: f(match.awayCorners1H),
       homeYellowCards1H: f(match.homeYellowCards1H), awayYellowCards1H: f(match.awayYellowCards1H),
       homeRedCards1H: f(match.homeRedCards1H), awayRedCards1H: f(match.awayRedCards1H),
+      homeXGOT1H: f(match.homeXGOT1H), awayXGOT1H: f(match.awayXGOT1H),
+      homeBlockedShots1H: f(match.homeBlockedShots1H), awayBlockedShots1H: f(match.awayBlockedShots1H),
       homeShotsInsideBox1H: f(match.homeShotsInsideBox1H), awayShotsInsideBox1H: f(match.awayShotsInsideBox1H),
-      homeSaves1H: f(match.homeSaves1H), awaySaves1H: f(match.awaySaves1H),
+      homeShotsOutsideBox1H: f(match.homeShotsOutsideBox1H), awayShotsOutsideBox1H: f(match.awayShotsOutsideBox1H),
+      homeTouchesBox1H: f(match.homeTouchesBox1H), awayTouchesBox1H: f(match.awayTouchesBox1H),
+      homeLongPassesAcc1H: f(match.homeLongPassesAcc1H), awayLongPassesAcc1H: f(match.awayLongPassesAcc1H),
+      homeLongPasses1H: f(match.homeLongPasses1H), awayLongPasses1H: f(match.awayLongPasses1H),
+      homeFinalThirdAcc1H: f(match.homeFinalThirdAcc1H), awayFinalThirdAcc1H: f(match.awayFinalThirdAcc1H),
+      homeFinalThirdPasses1H: f(match.homeFinalThirdPasses1H), awayFinalThirdPasses1H: f(match.awayFinalThirdPasses1H),
+      homeCrossesAcc1H: f(match.homeCrossesAcc1H), awayCrossesAcc1H: f(match.awayCrossesAcc1H),
+      homeCrosses1H: f(match.homeCrosses1H), awayCrosses1H: f(match.awayCrosses1H),
+      homeXA1H: f(match.homeXA1H), awayXA1H: f(match.awayXA1H),
       homeFouls1H: f(match.homeFouls1H), awayFouls1H: f(match.awayFouls1H),
+      homeDuelsWon1H: f(match.homeDuelsWon1H), awayDuelsWon1H: f(match.awayDuelsWon1H),
+      homeSaves1H: f(match.homeSaves1H), awaySaves1H: f(match.awaySaves1H),
       homeScore2H: f(match.homeScore2H), awayScore2H: f(match.awayScore2H),
-      homeCorners2H: f(match.homeCorners2H), awayCorners2H: f(match.awayCorners2H),
       homeXG2H: f(match.homeXG2H), awayXG2H: f(match.awayXG2H),
       homePossession2H: f(match.homePossession2H), awayPossession2H: f(match.awayPossession2H),
       homeTotalShots2H: f(match.homeTotalShots2H), awayTotalShots2H: f(match.awayTotalShots2H),
       homeShotsOnTarget2H: f(match.homeShotsOnTarget2H), awayShotsOnTarget2H: f(match.awayShotsOnTarget2H),
+      homeCorners2H: f(match.homeCorners2H), awayCorners2H: f(match.awayCorners2H),
       homeYellowCards2H: f(match.homeYellowCards2H), awayYellowCards2H: f(match.awayYellowCards2H),
       homeRedCards2H: f(match.homeRedCards2H), awayRedCards2H: f(match.awayRedCards2H),
+      homeXGOT2H: f(match.homeXGOT2H), awayXGOT2H: f(match.awayXGOT2H),
+      homeBlockedShots2H: f(match.homeBlockedShots2H), awayBlockedShots2H: f(match.awayBlockedShots2H),
       homeShotsInsideBox2H: f(match.homeShotsInsideBox2H), awayShotsInsideBox2H: f(match.awayShotsInsideBox2H),
-      homeSaves2H: f(match.homeSaves2H), awaySaves2H: f(match.awaySaves2H),
+      homeShotsOutsideBox2H: f(match.homeShotsOutsideBox2H), awayShotsOutsideBox2H: f(match.awayShotsOutsideBox2H),
+      homeTouchesBox2H: f(match.homeTouchesBox2H), awayTouchesBox2H: f(match.awayTouchesBox2H),
+      homeLongPassesAcc2H: f(match.homeLongPassesAcc2H), awayLongPassesAcc2H: f(match.awayLongPassesAcc2H),
+      homeLongPasses2H: f(match.homeLongPasses2H), awayLongPasses2H: f(match.awayLongPasses2H),
+      homeFinalThirdAcc2H: f(match.homeFinalThirdAcc2H), awayFinalThirdAcc2H: f(match.awayFinalThirdAcc2H),
+      homeFinalThirdPasses2H: f(match.homeFinalThirdPasses2H), awayFinalThirdPasses2H: f(match.awayFinalThirdPasses2H),
+      homeCrossesAcc2H: f(match.homeCrossesAcc2H), awayCrossesAcc2H: f(match.awayCrossesAcc2H),
+      homeCrosses2H: f(match.homeCrosses2H), awayCrosses2H: f(match.awayCrosses2H),
+      homeXA2H: f(match.homeXA2H), awayXA2H: f(match.awayXA2H),
       homeFouls2H: f(match.homeFouls2H), awayFouls2H: f(match.awayFouls2H),
+      homeDuelsWon2H: f(match.homeDuelsWon2H), awayDuelsWon2H: f(match.awayDuelsWon2H),
+      homeSaves2H: f(match.homeSaves2H), awaySaves2H: f(match.awaySaves2H),
     });
     setActiveTab('match'); setShowMobileForm(true);
   };
@@ -160,16 +248,16 @@ const Admin = () => {
     });
   };
 
-  // 🔥 АВТОЗАПОЛНЕНИЕ 2-го ТАЙМА
   const autoFillSecondHalf = () => {
     const fields = [
-      'Score', 'Corners', 'XG', 'TotalShots', 'ShotsOnTarget', 
-      'ShotsInsideBox', 'Saves', 'Fouls'
+      'Score', 'XG', 'TotalShots', 'ShotsOnTarget', 'Corners',
+      'XGOT', 'BlockedShots', 'ShotsInsideBox', 'ShotsOutsideBox',
+      'TouchesBox', 'LongPassesAcc', 'LongPasses', 'FinalThirdAcc', 'FinalThirdPasses',
+      'CrossesAcc', 'Crosses', 'XA', 'Fouls', 'DuelsWon', 'Saves'
     ];
     
     setMatchForm(prev => {
       const next = { ...prev };
-      // Проверяем, заполнен ли матч вообще (хотя бы одно поле не пустое)
       const hasMatchData = fields.some(f => 
         prev[`home${f}`] !== '' || prev[`away${f}`] !== ''
       );
@@ -177,7 +265,7 @@ const Admin = () => {
       if (!hasMatchData) return next;
       
       fields.forEach(f => {
-        if (f === 'XG') {
+        if (f === 'XG' || f === 'XGOT' || f === 'XA') {
           const totalHf = parseFloat(prev[`home${f}`]) || 0;
           const totalAf = parseFloat(prev[`away${f}`]) || 0;
           const h1Hf = parseFloat(prev[`home${f}1H`]) || 0;
@@ -212,7 +300,7 @@ const Admin = () => {
       if (!formData.leagueId) formData.leagueId = defaultLeagueId;
       Object.keys(formData).forEach(key => {
         if (typeof formData[key] === 'string' && key !== 'date' && key !== 'leagueId' && key !== 'seasonId' && key !== 'homeTeamId' && key !== 'awayTeamId') {
-          if (key.includes('XG')) formData[key] = formData[key] === '' ? 0 : parseFloat(formData[key]) || 0;
+          if (key.includes('XG') || key.includes('XA')) formData[key] = formData[key] === '' ? 0 : parseFloat(formData[key]) || 0;
           else if (key.toLowerCase().includes('possession')) { let v = parseInt(formData[key]) || 50; if (v > 100) v = 100; if (v < 0) v = 0; formData[key] = v; }
           else formData[key] = formData[key] === '' ? 0 : parseInt(formData[key]) || 0;
         }
@@ -317,27 +405,47 @@ const Admin = () => {
     return teams;
   })();
   const allTeams = data.teams || [];
-  const filteredMatches = (data.matches || []).filter(m => m.leagueId === selectedLeagueFilter).filter(m => !selectedSeasonFilter || m.seasonId === selectedSeasonFilter).filter(m => {
-    if (!searchTerm) return true;
-    const h = allTeams.find(t => t.id === m.homeTeamId)?.name || '', a = allTeams.find(t => t.id === m.awayTeamId)?.name || '';
-    return `${h} ${a}`.toLowerCase().includes(searchTerm.toLowerCase());
-  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  // Собираем все туры для фильтра
+  const allRounds = [...new Set((data.matches || []).map(m => m.round).filter(r => r))].sort((a, b) => parseInt(a) - parseInt(b));
+  
+  const filteredMatches = (data.matches || [])
+    .filter(m => m.leagueId === selectedLeagueFilter)
+    .filter(m => !selectedSeasonFilter || m.seasonId === selectedSeasonFilter)
+    .filter(m => !filterRound || String(m.round) === filterRound)
+    .filter(m => {
+      if (!searchTerm) return true;
+      const h = allTeams.find(t => t.id === m.homeTeamId)?.name || '', a = allTeams.find(t => t.id === m.awayTeamId)?.name || '';
+      return `${h} ${a}`.toLowerCase().includes(searchTerm.toLowerCase());
+    }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const renderFields = (suffix) => {
     const s = suffix || '';
     return (
       <div className="space-y-2">
         <FieldRow label="1. Голы" valueH={matchForm[`homeScore${s}`]} valueA={matchForm[`awayScore${s}`]} fieldH={`homeScore${s}`} fieldA={`awayScore${s}`} onChange={handleIntChange} />
-        <FieldRow label="2. Угловые" valueH={matchForm[`homeCorners${s}`]} valueA={matchForm[`awayCorners${s}`]} fieldH={`homeCorners${s}`} fieldA={`awayCorners${s}`} onChange={handleIntChange} />
-        <FieldRow label="3. xG" valueH={matchForm[`homeXG${s}`]} valueA={matchForm[`awayXG${s}`]} fieldH={`homeXG${s}`} fieldA={`awayXG${s}`} isFloat onChange={handleFloatChange} />
-        <FieldRow label="4. Владение (%)" valueH={matchForm[`homePossession${s}`]} valueA={matchForm[`awayPossession${s}`]} fieldH={`homePossession${s}`} fieldA={`awayPossession${s}`} onChange={handleIntChange} />
-        <FieldRow label="5. Всего ударов" valueH={matchForm[`homeTotalShots${s}`]} valueA={matchForm[`awayTotalShots${s}`]} fieldH={`homeTotalShots${s}`} fieldA={`awayTotalShots${s}`} onChange={handleIntChange} />
-        <FieldRow label="6. Удары в створ" valueH={matchForm[`homeShotsOnTarget${s}`]} valueA={matchForm[`awayShotsOnTarget${s}`]} fieldH={`homeShotsOnTarget${s}`} fieldA={`awayShotsOnTarget${s}`} onChange={handleIntChange} />
+        <FieldRow label="2. xG" valueH={matchForm[`homeXG${s}`]} valueA={matchForm[`awayXG${s}`]} fieldH={`homeXG${s}`} fieldA={`awayXG${s}`} isFloat onChange={handleFloatChange} />
+        <FieldRow label="3. Владение (%)" valueH={matchForm[`homePossession${s}`]} valueA={matchForm[`awayPossession${s}`]} fieldH={`homePossession${s}`} fieldA={`awayPossession${s}`} onChange={handleIntChange} />
+        <FieldRow label="4. Всего ударов" valueH={matchForm[`homeTotalShots${s}`]} valueA={matchForm[`awayTotalShots${s}`]} fieldH={`homeTotalShots${s}`} fieldA={`awayTotalShots${s}`} onChange={handleIntChange} />
+        <FieldRow label="5. Удары в створ" valueH={matchForm[`homeShotsOnTarget${s}`]} valueA={matchForm[`awayShotsOnTarget${s}`]} fieldH={`homeShotsOnTarget${s}`} fieldA={`awayShotsOnTarget${s}`} onChange={handleIntChange} />
+        <FieldRow label="6. Угловые" valueH={matchForm[`homeCorners${s}`]} valueA={matchForm[`awayCorners${s}`]} fieldH={`homeCorners${s}`} fieldA={`awayCorners${s}`} onChange={handleIntChange} />
         <FieldRow label="7. Жёлтые" valueH={matchForm[`homeYellowCards${s}`]} valueA={matchForm[`awayYellowCards${s}`]} fieldH={`homeYellowCards${s}`} fieldA={`awayYellowCards${s}`} onChange={handleIntChange} />
         <FieldRow label="8. Красные" valueH={matchForm[`homeRedCards${s}`]} valueA={matchForm[`awayRedCards${s}`]} fieldH={`homeRedCards${s}`} fieldA={`awayRedCards${s}`} onChange={handleIntChange} />
-        <FieldRow label="9. Удары из штрафной" valueH={matchForm[`homeShotsInsideBox${s}`]} valueA={matchForm[`awayShotsInsideBox${s}`]} fieldH={`homeShotsInsideBox${s}`} fieldA={`awayShotsInsideBox${s}`} onChange={handleIntChange} />
-        <FieldRow label="10. Сейвы" valueH={matchForm[`homeSaves${s}`]} valueA={matchForm[`awaySaves${s}`]} fieldH={`homeSaves${s}`} fieldA={`awaySaves${s}`} onChange={handleIntChange} />
-        <FieldRow label="11. Фолы" valueH={matchForm[`homeFouls${s}`]} valueA={matchForm[`awayFouls${s}`]} fieldH={`homeFouls${s}`} fieldA={`awayFouls${s}`} onChange={handleIntChange} />
+        <FieldRow label="9. xG в створ" valueH={matchForm[`homeXGOT${s}`]} valueA={matchForm[`awayXGOT${s}`]} fieldH={`homeXGOT${s}`} fieldA={`awayXGOT${s}`} isFloat onChange={handleFloatChange} />
+        <FieldRow label="10. Ударов заблокировано" valueH={matchForm[`homeBlockedShots${s}`]} valueA={matchForm[`awayBlockedShots${s}`]} fieldH={`homeBlockedShots${s}`} fieldA={`awayBlockedShots${s}`} onChange={handleIntChange} />
+        <FieldRow label="11. Удары из штрафной" valueH={matchForm[`homeShotsInsideBox${s}`]} valueA={matchForm[`awayShotsInsideBox${s}`]} fieldH={`homeShotsInsideBox${s}`} fieldA={`awayShotsInsideBox${s}`} onChange={handleIntChange} />
+        <FieldRow label="12. Удары из-за штрафной" valueH={matchForm[`homeShotsOutsideBox${s}`]} valueA={matchForm[`awayShotsOutsideBox${s}`]} fieldH={`homeShotsOutsideBox${s}`} fieldA={`awayShotsOutsideBox${s}`} onChange={handleIntChange} />
+        <FieldRow label="13. Касания в штрафной" valueH={matchForm[`homeTouchesBox${s}`]} valueA={matchForm[`awayTouchesBox${s}`]} fieldH={`homeTouchesBox${s}`} fieldA={`awayTouchesBox${s}`} onChange={handleIntChange} />
+        <FieldRow label="14. Длинные передачи (точные)" valueH={matchForm[`homeLongPassesAcc${s}`]} valueA={matchForm[`awayLongPassesAcc${s}`]} fieldH={`homeLongPassesAcc${s}`} fieldA={`awayLongPassesAcc${s}`} onChange={handleIntChange} />
+        <FieldRow label="15. Длинные передачи (всего)" valueH={matchForm[`homeLongPasses${s}`]} valueA={matchForm[`awayLongPasses${s}`]} fieldH={`homeLongPasses${s}`} fieldA={`awayLongPasses${s}`} onChange={handleIntChange} />
+        <FieldRow label="16. Передачи в посл. трети (точные)" valueH={matchForm[`homeFinalThirdAcc${s}`]} valueA={matchForm[`awayFinalThirdAcc${s}`]} fieldH={`homeFinalThirdAcc${s}`} fieldA={`awayFinalThirdAcc${s}`} onChange={handleIntChange} />
+        <FieldRow label="17. Передачи в посл. трети (всего)" valueH={matchForm[`homeFinalThirdPasses${s}`]} valueA={matchForm[`awayFinalThirdPasses${s}`]} fieldH={`homeFinalThirdPasses${s}`} fieldA={`awayFinalThirdPasses${s}`} onChange={handleIntChange} />
+        <FieldRow label="18. Навесы (точные)" valueH={matchForm[`homeCrossesAcc${s}`]} valueA={matchForm[`awayCrossesAcc${s}`]} fieldH={`homeCrossesAcc${s}`} fieldA={`awayCrossesAcc${s}`} onChange={handleIntChange} />
+        <FieldRow label="19. Навесы (всего)" valueH={matchForm[`homeCrosses${s}`]} valueA={matchForm[`awayCrosses${s}`]} fieldH={`homeCrosses${s}`} fieldA={`awayCrosses${s}`} onChange={handleIntChange} />
+        <FieldRow label="20. xA (ожидаемые ассисты)" valueH={matchForm[`homeXA${s}`]} valueA={matchForm[`awayXA${s}`]} fieldH={`homeXA${s}`} fieldA={`awayXA${s}`} isFloat onChange={handleFloatChange} />
+        <FieldRow label="21. Фолы" valueH={matchForm[`homeFouls${s}`]} valueA={matchForm[`awayFouls${s}`]} fieldH={`homeFouls${s}`} fieldA={`awayFouls${s}`} onChange={handleIntChange} />
+        <FieldRow label="22. Выиграно дуэлей" valueH={matchForm[`homeDuelsWon${s}`]} valueA={matchForm[`awayDuelsWon${s}`]} fieldH={`homeDuelsWon${s}`} fieldA={`awayDuelsWon${s}`} onChange={handleIntChange} />
+        <FieldRow label="23. Сейвы вратаря" valueH={matchForm[`homeSaves${s}`]} valueA={matchForm[`awaySaves${s}`]} fieldH={`homeSaves${s}`} fieldA={`awaySaves${s}`} onChange={handleIntChange} />
       </div>
     );
   };
@@ -345,7 +453,7 @@ const Admin = () => {
   return (
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8 flex items-center justify-between">
-        <div><h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 10.0 🔥</h2><p className="text-sm md:text-base text-gray-400">Авто 2-й тайм • Матч / 1Т / 2Т</p></div>
+        <div><h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 11.0 🔥</h2><p className="text-sm md:text-base text-gray-400">23 показателя • Авто 2-й тайм • Фильтр по турам</p></div>
         <button onClick={exportData} className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition shadow-lg"><Download size={18} /><span className="hidden md:inline">Экспорт базы</span></button>
       </div>
       {message && (<div className={`px-4 py-3 rounded-lg mb-4 md:mb-6 text-sm md:text-base ${message.includes('❌') ? 'bg-red-600/20 border border-red-600 text-red-400' : 'bg-green-600/20 border border-green-600 text-green-400'}`}>{message}</div>)}
@@ -491,7 +599,14 @@ const Admin = () => {
         <div className={`bg-gray-800 rounded-xl p-4 border border-gray-700 ${activeTab === 'match' && !isMobile ? '' : 'lg:col-span-1'}`}>
           {activeTab === 'match' && (<>
             <h3 className="text-lg font-bold mb-3">Матчи ({filteredMatches.length})</h3>
-            <div className="space-y-2 mb-3"><div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Поиск..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm" /></div><select value={selectedSeasonFilter} onChange={(e) => setSelectedSeasonFilter(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm"><option value="">Все сезоны</option>{seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+            <div className="space-y-2 mb-3">
+              <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Поиск..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm" /></div>
+              <select value={selectedSeasonFilter} onChange={(e) => setSelectedSeasonFilter(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm"><option value="">Все сезоны</option>{seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+              <select value={filterRound} onChange={(e) => setFilterRound(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                <option value="">Все туры</option>
+                {allRounds.map(r => <option key={r} value={r}>{r} тур</option>)}
+              </select>
+            </div>
             <div className="space-y-1.5 max-h-[500px] overflow-auto">{filteredMatches.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">Нет матчей</p> : filteredMatches.map(match => { const h = allTeams.find(t => t.id === match.homeTeamId), a = allTeams.find(t => t.id === match.awayTeamId), s = seasons.find(se => se.id === match.seasonId); return (<div key={match.id} className="flex items-center justify-between p-2.5 bg-gray-700/50 rounded-lg group"><div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-0.5"><span className="text-xs text-gray-400">{match.date}</span><span className="text-[10px] px-1.5 py-0.5 bg-gray-600 rounded text-gray-300">{s?.name}</span>{match.round && <span className="text-[10px] px-1.5 py-0.5 bg-blue-600/30 rounded text-blue-300">{match.round} тур</span>}</div><div className="text-sm truncate">{h?.name || '—'} {match.homeScore}:{match.awayScore} {a?.name || '—'}</div><div className="text-[10px] text-gray-400">Угл: {match.homeCorners}-{match.awayCorners}</div></div><div className="flex items-center gap-1 ml-2"><button onClick={() => handleEditMatch(match)} className="p-1.5 text-blue-400 hover:bg-blue-600/20 rounded-lg"><Edit size={14} /></button><button onClick={() => handleDeleteMatch(match.id)} className="p-1.5 text-red-400 hover:bg-red-600/20 rounded-lg"><Trash2 size={14} /></button></div></div>); })}</div>
             {!isMobile && <button onClick={() => { setEditingMatch(null); setMatchForm(getInitialMatchForm()); setShowMobileForm(true); }} className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg text-sm flex items-center justify-center gap-2"><Plus size={16} /> Добавить матч</button>}
           </>)}
