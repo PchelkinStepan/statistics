@@ -5,7 +5,6 @@ import { Calendar, X, ChevronRight, Trophy, Target } from 'lucide-react';
 const Matches = () => {
   const [data, setData] = useState(getData());
   
-  // 🔧 ФИКС: подписка на обновления данных
   useEffect(() => {
     const unsubscribe = subscribe((newData) => {
       setData(newData);
@@ -18,9 +17,8 @@ const Matches = () => {
   const [selectedLeague, setSelectedLeague] = useState(defaultLeagueId);
   const [selectedSeason, setSelectedSeason] = useState('');
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [modalTab, setModalTab] = useState('match'); // match | half1 | half2
+  const [modalTab, setModalTab] = useState('match');
 
-  // 🔧 ФИКС: теперь зависит от data, а не только от selectedLeague
   useEffect(() => {
     const activeSeason = getActiveSeason(selectedLeague);
     if (activeSeason) setSelectedSeason(activeSeason.id);
@@ -54,18 +52,19 @@ const Matches = () => {
     return first === last ? formatDate(first) : `${formatDate(first)} — ${formatDate(last)}`;
   };
 
-  // Компонент строки статистики
-  const StatLine = ({ label, home, away, suffix = '' }) => (
-    <div className="flex items-center justify-between py-1.5 border-b border-gray-700/50 text-sm">
-      <span className="text-gray-400 w-40">{label}</span>
-      <span className="font-medium text-blue-400 text-center w-12">{home || '—'}{suffix}</span>
-      <span className="text-gray-500 text-xs">vs</span>
-      <span className="font-medium text-red-400 text-center w-12">{away || '—'}{suffix}</span>
-    </div>
-  );
+  // Компонент строки статистики (фикс: 0 отображается как 0, а не как —)
+  const StatLine = ({ label, home, away, suffix = '' }) => {
+    const formatVal = (val) => val != null && val !== '' ? val : '—';
+    return (
+      <div className="flex items-center justify-between py-1.5 border-b border-gray-700/50 text-sm">
+        <span className="text-gray-400 w-40">{label}</span>
+        <span className="font-medium text-blue-400 text-center w-12">{formatVal(home)}{suffix}</span>
+        <span className="text-gray-500 text-xs">vs</span>
+        <span className="font-medium text-red-400 text-center w-12">{formatVal(away)}{suffix}</span>
+      </div>
+    );
+  };
 
-  // Рендер статистики для выбранной вкладки
-  // Рендер статистики для выбранной вкладки
   const renderStats = (suffix) => {
     const s = suffix || '';
     
@@ -156,7 +155,6 @@ const Matches = () => {
       {selectedMatch && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setSelectedMatch(null)}>
           <div className="bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-            {/* Заголовок */}
             <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between z-10">
               <div>
                 <div className="flex items-center gap-2">
@@ -167,14 +165,12 @@ const Matches = () => {
               <button onClick={() => setSelectedMatch(null)} className="p-1.5 hover:bg-gray-700 rounded-lg"><X size={18} /></button>
             </div>
 
-            {/* Вкладки */}
             <div className="flex gap-1 bg-gray-700/30 rounded-lg m-3 p-1">
               <button onClick={() => setModalTab('match')} className={`flex-1 py-1.5 rounded text-xs font-medium transition ${modalTab === 'match' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>📋 Матч</button>
               <button onClick={() => setModalTab('half1')} className={`flex-1 py-1.5 rounded text-xs font-medium transition ${modalTab === 'half1' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>⏱️ 1-й тайм</button>
               <button onClick={() => setModalTab('half2')} className={`flex-1 py-1.5 rounded text-xs font-medium transition ${modalTab === 'half2' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>⏱️ 2-й тайм</button>
             </div>
 
-            {/* Содержимое вкладок */}
             <div className="px-4 pb-4">
               <div className="bg-gray-700/30 rounded-lg p-3">
                 {modalTab === 'match' && renderStats('')}
