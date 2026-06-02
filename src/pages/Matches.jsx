@@ -65,22 +65,35 @@ const Matches = () => {
   );
 
   // Рендер статистики для выбранной вкладки
+  // Рендер статистики для выбранной вкладки
   const renderStats = (suffix) => {
     const s = suffix || '';
     
     return (
       <div className="space-y-0">
         <StatLine label="Голы" home={selectedMatch?.[`homeScore${s}`]} away={selectedMatch?.[`awayScore${s}`]} />
-        <StatLine label="Угловые" home={selectedMatch?.[`homeCorners${s}`]} away={selectedMatch?.[`awayCorners${s}`]} />
         <StatLine label="xG (ожидаемые голы)" home={selectedMatch?.[`homeXG${s}`]?.toFixed(2)} away={selectedMatch?.[`awayXG${s}`]?.toFixed(2)} />
         <StatLine label="Владение (%)" home={selectedMatch?.[`homePossession${s}`]} away={selectedMatch?.[`awayPossession${s}`]} suffix="%" />
         <StatLine label="Всего ударов" home={selectedMatch?.[`homeTotalShots${s}`]} away={selectedMatch?.[`awayTotalShots${s}`]} />
         <StatLine label="Удары в створ" home={selectedMatch?.[`homeShotsOnTarget${s}`]} away={selectedMatch?.[`awayShotsOnTarget${s}`]} />
+        <StatLine label="Угловые" home={selectedMatch?.[`homeCorners${s}`]} away={selectedMatch?.[`awayCorners${s}`]} />
         <StatLine label="Жёлтые карточки" home={selectedMatch?.[`homeYellowCards${s}`]} away={selectedMatch?.[`awayYellowCards${s}`]} />
         <StatLine label="Красные карточки" home={selectedMatch?.[`homeRedCards${s}`]} away={selectedMatch?.[`awayRedCards${s}`]} />
+        <StatLine label="xG в створ" home={selectedMatch?.[`homeXGOT${s}`]?.toFixed(2)} away={selectedMatch?.[`awayXGOT${s}`]?.toFixed(2)} />
+        <StatLine label="Ударов заблокировано" home={selectedMatch?.[`homeBlockedShots${s}`]} away={selectedMatch?.[`awayBlockedShots${s}`]} />
         <StatLine label="Удары из штрафной" home={selectedMatch?.[`homeShotsInsideBox${s}`]} away={selectedMatch?.[`awayShotsInsideBox${s}`]} />
-        <StatLine label="Сейвы" home={selectedMatch?.[`homeSaves${s}`]} away={selectedMatch?.[`awaySaves${s}`]} />
+        <StatLine label="Удары из-за штрафной" home={selectedMatch?.[`homeShotsOutsideBox${s}`]} away={selectedMatch?.[`awayShotsOutsideBox${s}`]} />
+        <StatLine label="Касания в штрафной" home={selectedMatch?.[`homeTouchesBox${s}`]} away={selectedMatch?.[`awayTouchesBox${s}`]} />
+        <StatLine label="Длинные передачи (точные)" home={selectedMatch?.[`homeLongPassesAcc${s}`]} away={selectedMatch?.[`awayLongPassesAcc${s}`]} />
+        <StatLine label="Длинные передачи (всего)" home={selectedMatch?.[`homeLongPasses${s}`]} away={selectedMatch?.[`awayLongPasses${s}`]} />
+        <StatLine label="Передачи в посл. трети (точные)" home={selectedMatch?.[`homeFinalThirdAcc${s}`]} away={selectedMatch?.[`awayFinalThirdAcc${s}`]} />
+        <StatLine label="Передачи в посл. трети (всего)" home={selectedMatch?.[`homeFinalThirdPasses${s}`]} away={selectedMatch?.[`awayFinalThirdPasses${s}`]} />
+        <StatLine label="Навесы (точные)" home={selectedMatch?.[`homeCrossesAcc${s}`]} away={selectedMatch?.[`awayCrossesAcc${s}`]} />
+        <StatLine label="Навесы (всего)" home={selectedMatch?.[`homeCrosses${s}`]} away={selectedMatch?.[`awayCrosses${s}`]} />
+        <StatLine label="xA (ожидаемые ассисты)" home={selectedMatch?.[`homeXA${s}`]?.toFixed(2)} away={selectedMatch?.[`awayXA${s}`]?.toFixed(2)} />
         <StatLine label="Фолы" home={selectedMatch?.[`homeFouls${s}`]} away={selectedMatch?.[`awayFouls${s}`]} />
+        <StatLine label="Выиграно дуэлей" home={selectedMatch?.[`homeDuelsWon${s}`]} away={selectedMatch?.[`awayDuelsWon${s}`]} />
+        <StatLine label="Сейвы" home={selectedMatch?.[`homeSaves${s}`]} away={selectedMatch?.[`awaySaves${s}`]} />
       </div>
     );
   };
