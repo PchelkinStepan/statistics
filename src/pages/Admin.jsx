@@ -248,24 +248,24 @@ const Admin = () => {
     });
   };
 
+  // 🔥 ФИКС: автозаполнение только для НОВЫХ полей, старые не трогаем
   const autoFillSecondHalf = () => {
     const fields = [
-      'Score', 'XG', 'TotalShots', 'ShotsOnTarget', 'Corners',
-      'XGOT', 'BlockedShots', 'ShotsInsideBox', 'ShotsOutsideBox',
+      'XGOT', 'BlockedShots', 'ShotsOutsideBox',
       'TouchesBox', 'LongPassesAcc', 'LongPasses', 'FinalThirdAcc', 'FinalThirdPasses',
-      'CrossesAcc', 'Crosses', 'XA', 'Fouls', 'DuelsWon', 'Saves'
+      'CrossesAcc', 'Crosses', 'XA', 'DuelsWon'
     ];
     
     setMatchForm(prev => {
       const next = { ...prev };
       const hasMatchData = fields.some(f => 
         prev[`home${f}`] !== '' || prev[`away${f}`] !== ''
-      );
+      ) || prev.homeScore !== '' || prev.awayScore !== '';
       
       if (!hasMatchData) return next;
       
       fields.forEach(f => {
-        if (f === 'XG' || f === 'XGOT' || f === 'XA') {
+        if (f === 'XGOT' || f === 'XA') {
           const totalHf = parseFloat(prev[`home${f}`]) || 0;
           const totalAf = parseFloat(prev[`away${f}`]) || 0;
           const h1Hf = parseFloat(prev[`home${f}1H`]) || 0;
@@ -406,7 +406,6 @@ const Admin = () => {
   })();
   const allTeams = data.teams || [];
   
-  // Собираем все туры для фильтра
   const allRounds = [...new Set((data.matches || []).map(m => m.round).filter(r => r))].sort((a, b) => parseInt(a) - parseInt(b));
   
   const filteredMatches = (data.matches || [])
@@ -453,7 +452,7 @@ const Admin = () => {
   return (
     <div className="max-w-7xl">
       <div className="mb-4 md:mb-8 flex items-center justify-between">
-        <div><h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 11.0 🔥</h2><p className="text-sm md:text-base text-gray-400">23 показателя • Авто 2-й тайм • Фильтр по турам</p></div>
+        <div><h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Админ панель 11.1 🔥</h2><p className="text-sm md:text-base text-gray-400">23 показателя • Авто только новые поля • Фильтр по турам</p></div>
         <button onClick={exportData} className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition shadow-lg"><Download size={18} /><span className="hidden md:inline">Экспорт базы</span></button>
       </div>
       {message && (<div className={`px-4 py-3 rounded-lg mb-4 md:mb-6 text-sm md:text-base ${message.includes('❌') ? 'bg-red-600/20 border border-red-600 text-red-400' : 'bg-green-600/20 border border-green-600 text-green-400'}`}>{message}</div>)}
@@ -465,7 +464,6 @@ const Admin = () => {
       </div>
       {isMobile && activeTab === 'match' && !showMobileForm && (<button onClick={() => setShowMobileForm(true)} className="fixed bottom-6 right-6 z-20 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg"><Plus size={28} /></button>)}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        {/* ФОРМА МАТЧА */}
         {(!isMobile || showMobileForm) && activeTab === 'match' && (
           <div className={`${isMobile ? 'fixed inset-0 z-50 bg-gray-900 overflow-auto p-4' : 'lg:col-span-2'}`}>
             {isMobile && (<div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold">{editingMatch ? 'Редактировать' : 'Добавить матч'}</h3><button onClick={() => { setShowMobileForm(false); setEditingMatch(null); setMatchForm(getInitialMatchForm()); }} className="p-2 text-gray-400 hover:text-white"><X size={24} /></button></div>)}
