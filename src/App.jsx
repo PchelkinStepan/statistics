@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import LeagueTable from './pages/LeagueTable';
 import Matches from './pages/Matches';
@@ -14,13 +13,11 @@ import Analytics from './pages/Analytics';
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(null);
-  console.log('work')
 
   useEffect(() => {
     let timeout;
     let loaded = false;
     
-    // Подписываемся на облако
     const unsubscribe = initStore((initialData) => {
       if (!loaded) {
         setData(initialData);
@@ -30,7 +27,6 @@ function App() {
       if (timeout) clearTimeout(timeout);
     });
     
-    // 🔧 Если через 3 секунды данные не загрузились — берём из кэша (для мобилок)
     timeout = setTimeout(() => {
       if (!loaded) {
         const cached = localStorage.getItem('football_cache');
@@ -89,14 +85,7 @@ function App() {
           <Route path="/matches" element={<Matches />} />
           <Route path="/bets" element={<BetTracker />} />
           <Route path="/analytics" element={<Analytics />} />
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedRoute>
-                <Admin />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </Layout>
     </HashRouter>
