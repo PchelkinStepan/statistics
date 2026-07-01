@@ -104,10 +104,12 @@ export const initStore = (callback) => {
       
       console.log('☁️ Синхронизировано:', currentData.matches?.length || 0, 'матчей,', currentData.bets?.length || 0, 'ставок');
       
+      // 🔧 ФИКС: лёгкий кэш без матчей
       if (currentData.matches?.length > 10) {
-        localStorage.setItem('football_cache', JSON.stringify(currentData));
+        const { matches, ...lightData } = currentData;
+        localStorage.setItem('football_cache', JSON.stringify(lightData));
         if (!localStorage.getItem('football_auto_backup')) {
-          localStorage.setItem('football_auto_backup', JSON.stringify(currentData));
+          localStorage.setItem('football_auto_backup', JSON.stringify(lightData));
         }
       }
       
@@ -146,7 +148,7 @@ export const subscribe = (callback) => {
   return () => { subscribers = subscribers.filter(cb => cb !== callback); };
 };
 
-// 🔧 saveData — только football_cache, без auto_backup
+// 🔧 saveData — лёгкий кэш без матчей
 export const saveData = async (data, changedMatchId = null, skipMatches = false) => {
   isSavingFromLocal = true;
   
@@ -157,12 +159,14 @@ export const saveData = async (data, changedMatchId = null, skipMatches = false)
   };
   
   try {
-    localStorage.setItem('football_cache', JSON.stringify(dataWithTimestamp));
+    // 🔧 ФИКС: лёгкий кэш без матчей
+    const { matches, ...lightData } = dataWithTimestamp;
+    localStorage.setItem('football_cache', JSON.stringify(lightData));
     
     const { writeBatch } = await import('firebase/firestore');
     const batch = writeBatch(db);
     
-    const { matches, ...metaData } = dataWithTimestamp;
+    const { matches: m, ...metaData } = dataWithTimestamp;
     batch.set(doc(db, 'football', 'stats'), { ...metaData, matches: [] });
     
     if (skipMatches) {
@@ -193,7 +197,8 @@ export const saveData = async (data, changedMatchId = null, skipMatches = false)
     return true;
   } catch (error) {
     console.error('❌ Ошибка сохранения:', error);
-    localStorage.setItem('football_offline_save', JSON.stringify(dataWithTimestamp));
+    const { matches: m2, ...lightData2 } = dataWithTimestamp;
+    localStorage.setItem('football_offline_save', JSON.stringify(lightData2));
     console.log('💾 Сохранено локально (оффлайн)');
     return false;
   } finally {
