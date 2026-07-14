@@ -7,6 +7,7 @@ import {
   calculateFeatures,
   buildFeatures,
   getLeagueAvgTotal,
+  getLineTotalForLeague,
 } from './neuroFeatures';
 
 const ModelsComparison = () => {
@@ -26,20 +27,6 @@ const ModelsComparison = () => {
 
   const teamsInLeague = data.teams?.filter((t) => t.leagueId === predictLeague) || [];
 
-  useEffect(() => {
-    if (!results?.tf || !manualKef) {
-      setValueResult(null);
-      return;
-    }
-    const kef = parseFloat(manualKef);
-    const accuracy = parseFloat(results.tf.mae || 58);
-    if (kef > 0) {
-      const value = ((accuracy / 100) * kef * 100 - 100).toFixed(1);
-      const isValue = value > 5;
-      const isSuper = value > 10;
-      setValueResult({ value, isValue, isSuper, accuracy });
-    }
-  }, [manualKef, results]);
   const availableTotals = [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
 
   useEffect(() => {
