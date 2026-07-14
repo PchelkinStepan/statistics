@@ -175,136 +175,38 @@ export function buildFeatures(homeStats, awayStats, round, leagueAvgTotal) {
     'CrossesAcc', 'Crosses', 'XA', 'Fouls', 'DuelsWon', 'Saves'
   ];
 
-  // 1. Основные поля для хозяев (23)
-  fields.forEach(f => features.push(safe(homeStats[`avg${f}`], 0)));
-
-  // 2. Основные поля для гостей (23)
-  fields.forEach(f => features.push(safe(awayStats[`avg${f}`], 0)));
-
-  // 3. Поля 1-го тайма для хозяев (23)
-  fields.forEach(f => features.push(safe(homeStats[`avg${f}1H`], 0)));
-
-  // 4. Поля 1-го тайма для гостей (23)
-  fields.forEach(f => features.push(safe(awayStats[`avg${f}1H`], 0)));
-
-  // 5. Поля 2-го тайма для хозяев (23)
-  fields.forEach(f => features.push(safe(homeStats[`avg${f}2H`], 0)));
-
-  // 6. Поля 2-го тайма для гостей (23)
-  fields.forEach(f => features.push(safe(awayStats[`avg${f}2H`], 0)));
-
-  // 7. Служебные признаки (6)
-  features.push(safe(homeStats.cornersTrend, 0));
-  features.push(safe(awayStats.cornersTrend, 0));
-  features.push(safe(homeStats.ratio1H, 0.5));
-  features.push(safe(awayStats.ratio1H, 0.5));
-  features.push(safe(round, 0));
-  features.push(safe(leagueAvgTotal, 9.5));
-
-  // Итого: 23*6 + 6 = 138 + 6 = 144? Нет, нужно 84.
-  // Пересчёт: 23*2 (основные) + 23*2 (1H) + 23*2 (2H) = 138 + 6 служебных = 144.
-  // Но мы хотим 84. Значит нужно уменьшить.
-  // Решение: оставляем только основные поля (23*2=46) + 1H (23*2=46) = 92 + служебные (6) = 98.
-  // Всё равно много. Давай сделаем 84 так:
-  // - Основные поля хозяев (23)
-  // - Основные поля гостей (23)
-  // - 1H поля хозяев (23)
-  // - 1H поля гостей (23)
-  // - 2H поля хозяев (23)
-  // - 2H поля гостей (23)
-  // - служебные (6)
-  // Итого: 23*6 + 6 = 144. Слишком много.
-  // Ок, сделаем 84 так:
-  // - Основные поля хозяев (23)
-  // - Основные поля гостей (23)
-  // - 1H поля хозяев (23)
-  // - 1H поля гостей (23)
-  // - служебные (6)
-  // Итого: 23*4 + 6 = 98. Всё ещё много.
-  // Ладно, сделаем 84 так:
-  // - Основные поля хозяев (23)
-  // - Основные поля гостей (23)
-  // - 1H поля хозяев (23)
-  // - 1H поля гостей (23)
-  // - служебные (6)
-  // Итого: 23*4 + 6 = 98. Не 84.
-  // Ок, убираем 2H полностью (14 признаков). Получаем 84.
-  // Но мы уже добавили 2H выше. Нужно переписать без 2H.
-
-  // Переписываем без 2H:
-  // 1. Основные поля хозяев (23)
-  // 2. Основные поля гостей (23)
-  // 3. 1H поля хозяев (23)
-  // 4. 1H поля гостей (23)
-  // 5. Служебные (6)
-  // Итого: 23*4 + 6 = 98. Всё равно не 84.
-  // Ок, убираем ещё 14 признаков: исключаем некоторые поля.
-  // Оставляем только 20 полей из 23 (убираем LongPassesAcc, LongPasses, FinalThirdAcc, FinalThirdPasses, CrossesAcc, Crosses, XA, Fouls, DuelsWon, Saves — 10 полей).
-  // Тогда 13 полей * 4 = 52 + 6 = 58. Мало.
-  // Ладно, оставляем все 23 поля, но без 2H и без служебных (кроме round и leagueAvgTotal).
-  // 23*4 + 2 = 94. Всё равно не 84.
-  // Ок, убираем ещё 10 признаков: исключаем некоторые поля из 1H.
-  // Оставляем 1H только для ключевых полей: Score, XG, Possession, TotalShots, ShotsOnTarget, Corners, YellowCards, RedCards, XGOT, BlockedShots, ShotsInsideBox, ShotsOutsideBox, TouchesBox (13 полей).
-  // Тогда:
-  // - Основные хозяева: 23
-  // - Основные гости: 23
-  // - 1H хозяева: 13
-  // - 1H гости: 13
-  // - Служебные: 6
-  // Итого: 23+23+13+13+6 = 78. Близко к 84.
-  // Добавляем ещё 6 признаков: cornersTrend хозяев и гостей (2), ratio1H хозяев и гостей (2), round (1), leagueAvgTotal (1) = 6. Уже учтены.
-  // Итого 78. Добавляем 2H для угловых (2 признака: avgCorners2H home и away). Получаем 80.
-  // Добавляем matchesPlayed для хозяев и гостей (2). Получаем 82.
-  // Добавляем formPoints для хозяев и гостей (2). Получаем 84.
-  // Отлично!
-
-  // Реализуем:
+  // Ключевые поля для 1-го тайма (13 из 23)
   const keyFields1H = ['Score', 'XG', 'Possession', 'TotalShots', 'ShotsOnTarget', 'Corners', 'YellowCards', 'RedCards', 'XGOT', 'BlockedShots', 'ShotsInsideBox', 'ShotsOutsideBox', 'TouchesBox'];
 
-  // Основные поля хозяев (23)
+  // 1. Основные поля хозяев (23)
   fields.forEach(f => features.push(safe(homeStats[`avg${f}`], 0)));
-  // Основные поля гостей (23)
+  // 2. Основные поля гостей (23)
   fields.forEach(f => features.push(safe(awayStats[`avg${f}`], 0)));
-  // 1H ключевые поля хозяев (13)
+  // 3. 1H ключевые поля хозяев (13)
   keyFields1H.forEach(f => features.push(safe(homeStats[`avg${f}1H`], 0)));
-  // 1H ключевые поля гостей (13)
+  // 4. 1H ключевые поля гостей (13)
   keyFields1H.forEach(f => features.push(safe(awayStats[`avg${f}1H`], 0)));
-  // 2H угловые хозяев и гостей (2)
+  // 5. 2H угловые хозяев и гостей (2)
   features.push(safe(homeStats['avgCorners2H'], 0));
   features.push(safe(awayStats['avgCorners2H'], 0));
-  // matchesPlayed (2)
+  // 6. matchesPlayed (2)
   features.push(safe(homeStats.matchesPlayed, 10));
   features.push(safe(awayStats.matchesPlayed, 10));
-  // formPoints (2)
+  // 7. formPoints (2)
   features.push(safe(homeStats.formPoints / 3, 0));
   features.push(safe(awayStats.formPoints / 3, 0));
-  // cornersTrend (2)
+  // 8. cornersTrend (2)
   features.push(safe(homeStats.cornersTrend, 0));
   features.push(safe(awayStats.cornersTrend, 0));
-  // ratio1H (2)
+  // 9. ratio1H (2)
   features.push(safe(homeStats.ratio1H, 0.5));
   features.push(safe(awayStats.ratio1H, 0.5));
-  // round (1)
+  // 10. round (1)
   features.push(safe(round, 0));
-  // leagueAvgTotal (1)
+  // 11. leagueAvgTotal (1)
   features.push(safe(leagueAvgTotal, 9.5));
 
-  // Проверка размерности
-  // 23+23+13+13+2+2+2+2+2+2+1+1 = 84
-  // 23+23=46, +13=59, +13=72, +2=74, +2=76, +2=78, +2=80, +2=82, +2=84, +1=85, +1=86 — перебор.
-  // Пересчитаем:
-  // 23 (home) + 23 (away) = 46
-  // +13 (home1H) = 59
-  // +13 (away1H) = 72
-  // +2 (corners2H) = 74
-  // +2 (matchesPlayed) = 76
-  // +2 (formPoints) = 78
-  // +2 (cornersTrend) = 80
-  // +2 (ratio1H) = 82
-  // +1 (round) = 83
-  // +1 (leagueAvgTotal) = 84
-  // Идеально!
-
+  // Итого: 23+23+13+13+2+2+2+2+2+2+1+1 = 84
   return features;
 }
 
