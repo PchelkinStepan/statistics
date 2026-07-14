@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Trophy, Calendar, Settings, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain, Scale, BarChart3 } from 'lucide-react';
-import { BarChart3 } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const location = useLocation();
