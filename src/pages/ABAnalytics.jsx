@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getData, subscribe } from '../data/store';
-import { Scale, Brain, TreePine, Zap, Check, X, Clock, TrendingUp, Trophy } from 'lucide-react';
+import { Scale, Brain, TreePine, Zap, Check, X, Clock, TrendingUp, Trophy, Upload } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const ABAnalytics = () => {
