@@ -50,14 +50,26 @@ const BetTracker = () => {
 
   const leagues = data.leagues || [];
 
-  const saveBets = (newBets, newBankroll) => {
+  const saveBets = async (newBets, newBankroll) => {
     const updatedData = { 
       ...data, 
       bets: newBets, 
       bankroll: newBankroll,
     };
     setData(updatedData);
-    saveData(updatedData);
+    
+    try {
+      const { doc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('../firebase');
+      
+      const { matches, ...metaData } = updatedData;
+      await setDoc(doc(db, 'football', 'stats'), { ...metaData, matches: [], matchesCount: matches?.length || 0 });
+      
+      localStorage.setItem('football_cache', JSON.stringify(metaData));
+      console.log('✅ Ставки сохранены');
+    } catch (error) {
+      console.error('❌ Ошибка сохранения ставок:', error);
+    }
   };
 
   const updateBankroll = (newValue) => {
@@ -156,11 +168,37 @@ const BetTracker = () => {
     saveBets(updatedBets, newBankroll);
   };
 
-  const deleteBet = (betId) => {
+  const deleteBet = async (betId) => {
     const updatedBets = bets.filter(bet => bet.id !== betId);
     setBets(updatedBets);
     const newBankroll = recalcBankroll(updatedBets);
-    saveBets(updatedBets, newBankroll);
+    
+    // Сохраняем напрямую в Firebase, минуя saveBets (которая может не сработать)
+    const updatedData = { 
+      ...data, 
+      bets: updatedBets, 
+      bankroll: newBankroll,
+    };
+    
+    try {
+      const { doc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('../firebase');
+      
+      // Сохраняем метаданные без матчей
+      const { matches, ...metaData } = updatedData;
+      await setDoc(doc(db, 'football', 'stats'), { ...metaData, matches: [], matchesCount: matches?.length || 0 });
+      
+      // Обновляем локальное состояние
+      setData(updatedData);
+      localStorage.setItem('football_cache', JSON.stringify(metaData));
+      
+      console.log('✅ Ставка удалена:', betId);
+    } catch (error) {
+      console.error('❌ Ошибка удаления ставки:', error);
+      // Откатываем локальное состояние
+      setBets(bets);
+      setBankroll(bankroll);
+    }
   };
 
   const filteredBets = bets
