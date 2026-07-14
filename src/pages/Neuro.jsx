@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Brain } from 'lucide-react';
+import { Brain, Upload } from 'lucide-react';
 import { getData } from '../data/store';
 import TensorFlowNeuroTab from '../components/models/TensorFlowNeuroTab';
 import RandomForestModel from '../components/models/RandomForestModel';
 import XGBoostModel from '../components/models/XGBoostModel';
 import ModelsComparison from '../components/models/ModelsComparison';
+import ModelSandbox from '../components/models/ModelSandbox';
 
 const Neuro = () => {
   const data = getData();
@@ -48,12 +49,20 @@ const Neuro = () => {
         >
           ⚖️ Сравнение
         </TabBtn>
+        <TabBtn
+          a={activeTab === 'sandbox'}
+          onClick={() => setActiveTab('sandbox')}
+          activeClass="bg-yellow-600 text-white"
+        >
+          🧪 Песочница
+        </TabBtn>
       </div>
 
       {activeTab === 'tensorflow' && <TensorFlowNeuroTab />}
       {activeTab === 'randomforest' && <RandomForestModel />}
       {activeTab === 'xgboost' && <XGBoostModel />}
       {activeTab === 'comparison' && <ModelsComparison />}
+      {activeTab === 'sandbox' && <ModelSandbox />}
     </div>
   );
 };
