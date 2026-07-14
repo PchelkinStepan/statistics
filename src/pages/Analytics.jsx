@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getData, subscribe } from '../data/store';
 import { 
   Brain, BarChart3, Target, Trophy, Database,
-  Zap, TreePine, Check, X, Clock, Medal
+  Zap, TreePine, Check, X, Clock, Medal, Trash2
 } from 'lucide-react';
 
 const Analytics = () => {
@@ -272,6 +272,23 @@ const Analytics = () => {
               <option value="all">Все прогнозы</option>
               <option value="onlyMatched">Только сверенные</option>
             </select>
+            <button onClick={async () => {
+              if (!window.confirm('Удалить все прогнозы? Это действие нельзя отменить!')) return;
+              try {
+                const { getDocs, collection, deleteDoc, doc } = await import('firebase/firestore');
+                const { db } = await import('../firebase');
+                const snap = await getDocs(collection(db, 'football', 'stats', 'predictions'));
+                const deletePromises = [];
+                snap.forEach(d => deletePromises.push(deleteDoc(doc(db, 'football', 'stats', 'predictions', d.id))));
+                await Promise.all(deletePromises);
+                setPredictionLog([]);
+                console.log('✅ Все прогнозы удалены');
+              } catch (error) {
+                console.error('❌ Ошибка удаления прогнозов:', error);
+              }
+            }} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
+              <Trash2 size={12} /> Очистить все
+            </button>
           </div>
         </div>
 

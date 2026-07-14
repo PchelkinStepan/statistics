@@ -367,9 +367,26 @@ const BetTracker = () => {
             { value: 'date', label: 'По дате' }, { value: 'profit', label: 'По прибыли' }, { value: 'odds', label: 'По кэфу' }
           ]} />
         </div>
-        <button onClick={() => { setEditingBet(null); setShowAddForm(true); }} className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2">
-          <Plus size={20} /> Добавить ставку
-        </button>
+        <div className="flex gap-2">
+          <button onClick={async () => {
+            if (!window.confirm('Удалить все ставки? Это действие нельзя отменить!')) return;
+            const updatedData = { ...data, bets: [], bankroll: { initial: 10000, current: 10000 } };
+            setBets([]);
+            setBankroll({ initial: 10000, current: 10000 });
+            try {
+              await saveData(updatedData);
+              setData(updatedData);
+              console.log('✅ Все ставки удалены');
+            } catch (error) {
+              console.error('❌ Ошибка удаления ставок:', error);
+            }
+          }} className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center gap-2">
+            <Trash2 size={18} /> Очистить все
+          </button>
+          <button onClick={() => { setEditingBet(null); setShowAddForm(true); }} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2">
+            <Plus size={20} /> Добавить ставку
+          </button>
+        </div>
       </div>
 
       <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
