@@ -570,6 +570,11 @@ const RandomForestModel = () => {
               >
                 {prediction.recommendation}
               </div>
+              {testResults && (
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  MAE модели: ±{testResults.mae} угловых
+                </p>
+              )}
             </div>
           )}
         </div>

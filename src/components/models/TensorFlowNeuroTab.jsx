@@ -619,11 +619,6 @@ const TensorFlowNeuroTab = () => {
                   >
                     {neuroPrediction.recommendation}
                   </div>
-                  {testResults && (
-                    <p className="text-xs text-gray-400 mt-2 text-center">
-                      MAE модели: ±{testResults.avgError} угловых
-                    </p>
-                  )}
                 </div>
               </div>
             )}
