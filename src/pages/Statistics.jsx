@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getData, subscribe, getSeasons, getActiveSeason, getTeamsForSeason } from '../data/store';
+import { getData, subscribe } from '../data/store';
 import { Activity, TrendingUp, Target, Trophy, Zap, Shield, Swords, Eye, BarChart3, ArrowUp, ArrowDown } from 'lucide-react';
 
 const Statistics = () => {
@@ -13,12 +13,12 @@ const Statistics = () => {
   }, []);
 
   useEffect(() => {
-    const activeSeason = getActiveSeason(selectedLeague);
+    const activeSeason = data.seasons?.find(s => s.leagueId === selectedLeague && s.isActive);
     if (activeSeason) setSelectedSeason(activeSeason.id);
   }, [selectedLeague, data]);
 
-  const seasons = getSeasons(selectedLeague);
-  const teams = getTeamsForSeason(selectedLeague, selectedSeason);
+  const seasons = data.seasons?.filter(s => s.leagueId === selectedLeague) || [];
+  const teams = data.teams?.filter(t => t.leagueId === selectedLeague && (!selectedSeason || t.seasonIds?.includes(selectedSeason))) || [];
   const matches = data.matches?.filter(m => m.leagueId === selectedLeague && (!selectedSeason || m.seasonId === selectedSeason)) || [];
 
   // Вычисляем статистику по командам
