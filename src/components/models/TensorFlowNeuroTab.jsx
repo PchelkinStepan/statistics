@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   Brain,
   Activity,
@@ -643,10 +642,6 @@ const SCard = ({ icon: I, label, v, c }) => {
       <I className={`${cc[c]} mb-2`} size={20} />
       <p className="text-xs text-gray-400">{label}</p>
       <p className="text-xl font-bold">{v}</p>
-    </div>
-  );
-};
-
     </div>
   );
 };

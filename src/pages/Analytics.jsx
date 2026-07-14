@@ -5,7 +5,6 @@ import {
   Brain, BarChart3, Target, Trophy, Database,
   Zap, TreePine, Check, X, Clock, Medal, Trash2
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Analytics = () => {
   const [data, setData] = useState(getData());
@@ -485,10 +484,6 @@ const StatCard = ({ icon: Icon, label, value, color }) => {
       <Icon className={`${c[color]} mb-2`} size={20} />
       <p className="text-xs text-gray-400">{label}</p>
       <p className="text-xl font-bold">{value}</p>
-    </div>
-  );
-};
-
     </div>
   );
 };
