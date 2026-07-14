@@ -57,17 +57,11 @@ const BetTracker = () => {
       bankroll: newBankroll,
     };
     setData(updatedData);
+    setBets(newBets);
+    setBankroll(newBankroll);
     
     try {
       await saveData(updatedData);
-      // Обновляем локальное состояние через подписку
-      const { getData } = await import('../data/store');
-      const freshData = getData();
-      if (freshData) {
-        setData(freshData);
-        setBets(freshData.bets || []);
-        setBankroll(freshData.bankroll || { initial: 10000, current: 10000 });
-      }
       console.log('✅ Ставки сохранены');
     } catch (error) {
       console.error('❌ Ошибка сохранения ставок:', error);
@@ -182,14 +176,9 @@ const BetTracker = () => {
     
     try {
       await saveData(updatedData);
-      // Обновляем локальное состояние через подписку
-      const { getData } = await import('../data/store');
-      const freshData = getData();
-      if (freshData) {
-        setData(freshData);
-        setBets(freshData.bets || []);
-        setBankroll(freshData.bankroll || { initial: 10000, current: 10000 });
-      }
+      setData(updatedData);
+      setBets(updatedBets);
+      setBankroll(newBankroll);
       console.log('✅ Ставка удалена:', betId);
     } catch (error) {
       console.error('❌ Ошибка удаления ставки:', error);
