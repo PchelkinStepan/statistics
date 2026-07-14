@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Calendar, Settings, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain, Scale } from 'lucide-react';
+import { LayoutDashboard, Trophy, Calendar, Settings, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain, Scale, BarChart3 } from 'lucide-react';
 import { BarChart3 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -51,6 +51,7 @@ const Layout = ({ children }) => {
     { path: '/neuro', icon: Brain, label: 'Neuro AI' },
     { path: '/bets', icon: Wallet, label: 'Ставки' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
+    { path: '/statistics', icon: BarChart3, label: 'Статистика' },
     { path: '/admin', icon: Settings, label: 'Админка' },
   ];
 
