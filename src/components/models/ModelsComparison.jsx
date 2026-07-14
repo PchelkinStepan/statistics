@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Scale, TrendingUp, Brain, TreePine, Zap, Save } from 'lucide-react';
+import { Scale, TrendingUp, Brain, TreePine, Zap, Save, Wallet } from 'lucide-react';
 import { getData } from '../../data/store';
+import BetModal from '../BetModal';
 import {
   getLastMatches,
   calculateFeatures,
   buildFeatures,
   getLeagueAvgTotal,
-  getLineTotalForLeague,
 } from './neuroFeatures';
 
 const ModelsComparison = () => {
@@ -18,6 +18,7 @@ const ModelsComparison = () => {
   const [results, setResults] = useState(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [showBetModal, setShowBetModal] = useState(false);
 
   const [valueType, setValueType] = useState('over');
   const [manualKef, setManualKef] = useState('1.85');
