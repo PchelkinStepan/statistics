@@ -136,7 +136,7 @@ const Statistics = () => {
   const topCorners1H = getTop5('avgCorners1H');
   const topCornersAgainst1H = getTop5('avgCornersAgainst1H');
 
-  const StatCard = ({ icon: Icon, title, data, color, suffix = '' }) => (
+  const StatCard = ({ icon: Icon, title, data, color, suffix = '', dataKey }) => (
     <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
       <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
         <Icon size={16} className={color} /> {title}
@@ -148,7 +148,7 @@ const Statistics = () => {
               <span className="text-xs text-gray-500 w-5">{i + 1}.</span>
               <span className="font-medium truncate max-w-[150px]">{team.teamName}</span>
             </div>
-            <span className="font-bold text-white">{team[key]}{suffix}</span>
+            <span className="font-bold text-white">{team[dataKey]}{suffix}</span>
           </div>
         ))}
       </div>
@@ -179,16 +179,16 @@ const Statistics = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard icon={Target} title="Самая подающая (угловые)" data={topCornersFor} color="text-blue-400" key="avgCornersFor" />
-        <StatCard icon={Shield} title="Больше всего даёт угловых" data={topCornersAgainst} color="text-red-400" key="avgCornersAgainst" />
-        <StatCard icon={Trophy} title="Самая результативная (голы)" data={topGoalsFor} color="text-green-400" key="avgGoalsFor" />
-        <StatCard icon={Activity} title="Наибольший xG" data={topXG} color="text-purple-400" key="avgXG" />
-        <StatCard icon={Zap} title="Больше всего ударов" data={topShots} color="text-yellow-400" key="avgShots" />
-        <StatCard icon={Eye} title="Наибольшее владение (%)" data={topPossession} color="text-cyan-400" key="avgPossession" />
-        <StatCard icon={Swords} title="Самая фолящая" data={topFouls} color="text-orange-400" key="avgFouls" />
-        <StatCard icon={Shield} title="Больше всего сейвов" data={topSaves} color="text-indigo-400" key="avgSaves" />
-        <StatCard icon={Target} title="Угловые в 1-м тайме" data={topCorners1H} color="text-blue-400" key="avgCorners1H" />
-        <StatCard icon={Shield} title="Угловые соперника в 1-м тайме" data={topCornersAgainst1H} color="text-red-400" key="avgCornersAgainst1H" />
+        <StatCard icon={Target} title="Самая подающая (угловые)" data={topCornersFor} color="text-blue-400" dataKey="avgCornersFor" />
+        <StatCard icon={Shield} title="Больше всего даёт угловых" data={topCornersAgainst} color="text-red-400" dataKey="avgCornersAgainst" />
+        <StatCard icon={Trophy} title="Самая результативная (голы)" data={topGoalsFor} color="text-green-400" dataKey="avgGoalsFor" />
+        <StatCard icon={Activity} title="Наибольший xG" data={topXG} color="text-purple-400" dataKey="avgXG" />
+        <StatCard icon={Zap} title="Больше всего ударов" data={topShots} color="text-yellow-400" dataKey="avgShots" />
+        <StatCard icon={Eye} title="Наибольшее владение (%)" data={topPossession} color="text-cyan-400" dataKey="avgPossession" />
+        <StatCard icon={Swords} title="Самая фолящая" data={topFouls} color="text-orange-400" dataKey="avgFouls" />
+        <StatCard icon={Shield} title="Больше всего сейвов" data={topSaves} color="text-indigo-400" dataKey="avgSaves" />
+        <StatCard icon={Target} title="Угловые в 1-м тайме" data={topCorners1H} color="text-blue-400" dataKey="avgCorners1H" />
+        <StatCard icon={Shield} title="Угловые соперника в 1-м тайме" data={topCornersAgainst1H} color="text-red-400" dataKey="avgCornersAgainst1H" />
       </div>
 
       {/* Тренды последних 5 матчей */}
