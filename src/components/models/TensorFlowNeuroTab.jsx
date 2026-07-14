@@ -215,14 +215,11 @@ const TensorFlowNeuroTab = () => {
       }
     }
 
-    const accuracy = totalTested > 0 ? ((totalCorrect / totalTested) * 100).toFixed(1) : '0.0';
     const avgError = totalTested > 0 ? (totalAbsError / totalTested).toFixed(2) : '0';
-    setLeagueStats(leagueResults);
-    localStorage.setItem('neuro_league_stats', JSON.stringify(leagueResults));
     localStorage.setItem('neuro_historical_errors', JSON.stringify(errors));
     setHistoricalErrors(errors);
 
-    return { accuracy, avgError, totalCorrect, totalTested, errors, leagueResults };
+    return { avgError, totalTested, errors };
   };
 
   const trainModel = async () => {
