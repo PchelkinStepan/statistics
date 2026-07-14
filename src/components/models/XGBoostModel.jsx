@@ -270,23 +270,16 @@ const XGBoostModel = () => {
       addLog(`✅ Обучено за ${((Date.now() - startTime) / 1000).toFixed(1)} с`);
 
       const predictions = xgb.predict(testX);
-      let correct = 0;
       let totalError = 0;
       predictions.forEach((pred, i) => {
         const actual = testY[i];
         totalError += Math.abs(pred - actual);
-        const lineTotal = getLineTotalForLeague(testLeagues[i], data.seasons, data.leagues);
-        const actualOver = actual > lineTotal;
-        const modelOver = pred > lineTotal;
-        if (actualOver === modelOver) correct++;
       });
 
-      const accuracy = ((correct / predictions.length) * 100).toFixed(1);
       const mae = (totalError / predictions.length).toFixed(2);
-      addLog(`📊 Точность ТБ/ТМ (линия по лиге): ${accuracy}%`);
-      addLog(`📊 MAE: ±${mae} угловых`);
+      addLog(`📊 MAE: ±${mae} угловых (${predictions.length} тестов)`);
 
-      const meta = { accuracy, mae, total: predictions.length, correct };
+      const meta = { mae, total: predictions.length };
       setTestResults(meta);
       setModel(xgb);
       setModelReady(true);
@@ -446,9 +439,9 @@ const XGBoostModel = () => {
       {testResults && (
         <div className="bg-gray-800/50 rounded-xl p-4 border border-emerald-700/50 text-center">
           <h4 className="font-semibold text-emerald-400 mb-2">Результаты на отложенной выборке</h4>
-          <p className="text-2xl font-bold text-emerald-400">{testResults.accuracy}%</p>
+          <p className="text-2xl font-bold text-emerald-400">MAE ±{testResults.mae}</p>
           <p className="text-xs text-gray-400">
-            {testResults.correct}/{testResults.total} верно по направлению ТБ/ТМ • MAE ±{testResults.mae}
+            {testResults.total} тестовых матчей
           </p>
         </div>
       )}
