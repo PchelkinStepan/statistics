@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getData, subscribe, getSeasons, getActiveSeason, getTeamsForSeason } from '../data/store';
-import { BarChart3, TrendingUp, Target, Trophy, Zap, Shield, Swords, Eye, Activity, ArrowUp, ArrowDown } from 'lucide-react';
+import { Activity, TrendingUp, Target, Trophy, Zap, Shield, Swords, Eye, BarChart3, ArrowUp, ArrowDown } from 'lucide-react';
 
 const Statistics = () => {
   const [data, setData] = useState(getData());
@@ -159,7 +159,7 @@ const Statistics = () => {
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl md:text-3xl font-bold mb-1 flex items-center gap-3">
-          <BarChart3 className="text-blue-400" /> Статистика
+          <Activity className="text-blue-400" /> Статистика
         </h2>
         <p className="text-sm md:text-base text-gray-400">
           Детальная статистика по лигам и сезонам
