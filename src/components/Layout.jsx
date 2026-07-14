@@ -51,7 +51,6 @@ const Layout = ({ children }) => {
     { path: '/neuro', icon: Brain, label: 'Neuro AI' },
     { path: '/bets', icon: Wallet, label: 'Ставки' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
-    { path: '/ab-analytics', icon: Scale, label: 'A/B аналитика' },
     { path: '/admin', icon: Settings, label: 'Админка' },
   ];
 
