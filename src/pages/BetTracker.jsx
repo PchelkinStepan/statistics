@@ -59,23 +59,17 @@ const BetTracker = () => {
     setData(updatedData);
     
     try {
-      const { doc, setDoc } = await import('firebase/firestore');
-      const { db } = await import('../firebase');
-      
-      const { matches, ...metaData } = updatedData;
-      await setDoc(doc(db, 'football', 'stats'), { ...metaData, matches: [], matchesCount: matches?.length || 0 });
-      
-      localStorage.setItem('football_cache', JSON.stringify(metaData));
+      await saveData(updatedData);
       console.log('✅ Ставки сохранены');
     } catch (error) {
       console.error('❌ Ошибка сохранения ставок:', error);
     }
   };
 
-  const updateBankroll = (newValue) => {
+  const updateBankroll = async (newValue) => {
     const updated = { ...bankroll, current: parseFloat(newValue) };
     setBankroll(updated);
-    saveBets(bets, updated);
+    await saveBets(bets, updated);
     setEditingBankroll(false);
   };
 
@@ -89,7 +83,7 @@ const BetTracker = () => {
     return updated;
   };
 
-  const handleAddBet = (e) => {
+  const handleAddBet = async (e) => {
     e.preventDefault();
     
     const profit = betForm.status === 'won' 
@@ -98,23 +92,22 @@ const BetTracker = () => {
       ? -betForm.stake 
       : 0;
     
+    let updatedBets;
     if (editingBet) {
-      const updatedBets = bets.map(b => 
+      updatedBets = bets.map(b => 
         b.id === editingBet.id 
           ? { ...betForm, id: editingBet.id, profit } 
           : b
       );
-      setBets(updatedBets);
-      const newBankroll = recalcBankroll(updatedBets);
-      saveBets(updatedBets, newBankroll);
       setEditingBet(null);
     } else {
       const newBet = { ...betForm, id: Date.now().toString(), profit };
-      const updatedBets = [...bets, newBet];
-      setBets(updatedBets);
-      const newBankroll = recalcBankroll(updatedBets);
-      saveBets(updatedBets, newBankroll);
+      updatedBets = [...bets, newBet];
     }
+    
+    setBets(updatedBets);
+    const newBankroll = recalcBankroll(updatedBets);
+    await saveBets(updatedBets, newBankroll);
     
     setBetForm({
       date: new Date().toISOString().split('T')[0],
@@ -150,7 +143,7 @@ const BetTracker = () => {
     setShowAddForm(true);
   };
 
-  const updateBetStatus = (betId, newStatus) => {
+  const updateBetStatus = async (betId, newStatus) => {
     const updatedBets = bets.map(bet => {
       if (bet.id === betId) {
         const profit = newStatus === 'won' 
@@ -165,7 +158,7 @@ const BetTracker = () => {
     
     setBets(updatedBets);
     const newBankroll = recalcBankroll(updatedBets);
-    saveBets(updatedBets, newBankroll);
+    await saveBets(updatedBets, newBankroll);
   };
 
   const deleteBet = async (betId) => {
@@ -173,7 +166,6 @@ const BetTracker = () => {
     setBets(updatedBets);
     const newBankroll = recalcBankroll(updatedBets);
     
-    // Сохраняем напрямую в Firebase, минуя saveBets (которая может не сработать)
     const updatedData = { 
       ...data, 
       bets: updatedBets, 
@@ -181,17 +173,8 @@ const BetTracker = () => {
     };
     
     try {
-      const { doc, setDoc } = await import('firebase/firestore');
-      const { db } = await import('../firebase');
-      
-      // Сохраняем метаданные без матчей
-      const { matches, ...metaData } = updatedData;
-      await setDoc(doc(db, 'football', 'stats'), { ...metaData, matches: [], matchesCount: matches?.length || 0 });
-      
-      // Обновляем локальное состояние
+      await saveData(updatedData);
       setData(updatedData);
-      localStorage.setItem('football_cache', JSON.stringify(metaData));
-      
       console.log('✅ Ставка удалена:', betId);
     } catch (error) {
       console.error('❌ Ошибка удаления ставки:', error);
