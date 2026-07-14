@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Scale, TrendingUp, Brain, TreePine, Zap, Save, Wallet } from 'lucide-react';
+import { Scale, Brain, TreePine, Zap, Save, Wallet } from 'lucide-react';
 import { getData } from '../../data/store';
 import BetModal from '../BetModal';
 import {
@@ -21,10 +21,6 @@ const ModelsComparison = () => {
   const [saveMessage, setSaveMessage] = useState('');
   const [showBetModal, setShowBetModal] = useState(false);
 
-  const [valueType, setValueType] = useState('over');
-  const [manualKef, setManualKef] = useState('1.85');
-  const [valueResult, setValueResult] = useState(null);
-
   const teamsInLeague = data.teams?.filter((t) => t.leagueId === predictLeague) || [];
 
   const availableTotals = [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
@@ -32,34 +28,6 @@ const ModelsComparison = () => {
   useEffect(() => {
     setSelectedTotal(getLineTotalForLeague(predictLeague, data.seasons, data.leagues));
   }, [predictLeague, data.seasons, data.leagues]);
-
-  useEffect(() => {
-    if (!results?.tf || !manualKef) {
-      setValueResult(null);
-      return;
-    }
-    const kef = parseFloat(manualKef);
-    const prob = valueType === 'over' ? results.tf.overProbability : results.tf.underProbability;
-    if (kef > 0 && prob > 0) {
-      const value = ((prob / 100) * kef * 100 - 100).toFixed(1);
-      const isValue = value > 5;
-      const isSuper = value > 10;
-      
-      const kelly = (prob / 100 * kef - 1) / (kef - 1);
-      const fractionalKelly = kelly * 0.25;
-      const percent = (fractionalKelly * 100).toFixed(1);
-      const amount = (fractionalKelly * 10000).toFixed(0);
-      
-      setValueResult({
-        value,
-        isValue,
-        isSuper,
-        prob,
-        kelly: percent > 0 ? `${percent}% от банка` : 'Не ставить',
-        amount: amount > 0 ? `${amount}₽ при банке 10,000₽` : '',
-      });
-    }
-  }, [manualKef, valueType, results]);
 
   const predictRF = (features) => {
     try {
@@ -331,77 +299,6 @@ const ModelsComparison = () => {
               <ModelCard icon={Zap} title="XGBoost" result={results.xgb} color="text-emerald-400" gradient="border-emerald-700/50" />
             </div>
 
-            <div className="bg-gray-800/80 rounded-xl p-5 border border-gray-600">
-              <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
-                <TrendingUp size={18} className="text-green-400" />
-                Value Betting
-                <span className="text-xs text-gray-400 font-normal ml-2">
-                  (MAE модели {results.tf?.mae || '—'})
-                </span>
-              </h4>
-              <div className="flex items-center gap-4 mb-3 flex-wrap">
-                <label className="text-sm text-gray-400 whitespace-nowrap">Введите кэф:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={manualKef}
-                  onChange={(e) => setManualKef(e.target.value)}
-                  className="w-24 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white text-center font-bold text-lg"
-                />
-                {valueResult && (
-                  <div
-                    className={`flex-1 min-w-[200px] p-3 rounded-lg text-center font-bold text-lg ${
-                      valueResult.isSuper
-                        ? 'bg-green-600/30 text-green-400'
-                        : valueResult.isValue
-                          ? 'bg-yellow-600/30 text-yellow-400'
-                          : 'bg-red-600/30 text-red-400'
-                    }`}
-                  >
-                    Value: {valueResult.value > 0 ? '+' : ''}
-                    {valueResult.value}%
-                    {valueResult.isSuper
-                      ? ' 🔥 СУПЕР-ВАЛУЙ!'
-                      : valueResult.isValue
-                        ? ' ✅ ВАЛУЙ!'
-                        : ' ❌ МИМО'}
-                  </div>
-                )}
-              </div>
-              {valueResult && (
-                <p className="text-xs text-gray-500">
-                  Безубыточный кэф:{' '}
-                  <span className="text-white font-bold">{(100 / valueResult.accuracy).toFixed(2)}</span>
-                </p>
-              )}
-              {valueResult && (
-                <div className="mt-2 pt-2 border-t border-gray-700">
-                  <p className="text-xs text-gray-400 mb-1">
-                    💰 Келли (1/4):
-                    <span className="text-white font-bold ml-1">
-                      {(() => {
-                        const accuracy = parseFloat(valueResult.accuracy) / 100;
-                        const kef = parseFloat(manualKef);
-                        const kelly = (accuracy * kef - 1) / (kef - 1);
-                        const fractionalKelly = kelly * 0.25;
-                        const percent = (fractionalKelly * 100).toFixed(1);
-                        return percent > 0 ? `${percent}% от банка` : 'Не ставить';
-                      })()}
-                    </span>
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {(() => {
-                      const accuracy = parseFloat(valueResult.accuracy) / 100;
-                      const kef = parseFloat(manualKef);
-                      const kelly = (accuracy * kef - 1) / (kef - 1);
-                      const fractionalKelly = kelly * 0.25;
-                      const amount = (fractionalKelly * 10000).toFixed(0);
-                      return amount > 0 ? `При банке 10,000₽ → ставка ${amount}₽` : '';
-                    })()}
-                  </p>
-                </div>
-              )}
-            </div>
 
             <button
               type="button"
