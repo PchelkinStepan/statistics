@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getData, subscribe } from '../data/store';
+import { getLineTotalForLeague } from '../components/models/neuroFeatures';
 import { 
   Brain, BarChart3, Target, Trophy, Database,
   Zap, TreePine, Check, X, Clock, Medal, Trash2
@@ -147,12 +148,6 @@ const Analytics = () => {
     return null;
   };
 
-  // Честная сигмоида для процентов в ансамбле
-  const calcProb = (expected, total) => {
-    const diff = expected - total;
-    const prob = Math.round(100 / (1 + Math.exp(-diff * 2)));
-    return Math.min(95, Math.max(5, prob));
-  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -210,7 +205,6 @@ const Analytics = () => {
                     <p className="text-[11px] text-gray-400">{second.model}</p>
                     <p className="text-xl font-bold text-white">{second.stats.accuracy}%</p>
                     <p className="text-[10px] text-gray-500">{second.stats.correct}/{second.stats.total}</p>
-                    <p className="text-[10px] text-gray-500 mt-1">MAE ±{second.stats.mae}</p>
                     <p className="text-[10px] text-yellow-400">🎯 Точнее всех: {second.stats.bestCount} раз</p>
                   </div>
                   <div className="w-full h-16 bg-gray-500 rounded-b-lg flex items-center justify-center">
@@ -227,7 +221,6 @@ const Analytics = () => {
                     <p className="text-xs text-gray-400">{first.model}</p>
                     <p className="text-2xl font-bold text-white">{first.stats.accuracy}%</p>
                     <p className="text-[10px] text-gray-500">{first.stats.correct}/{first.stats.total}</p>
-                    <p className="text-[10px] text-gray-500 mt-1">MAE ±{first.stats.mae}</p>
                     <p className="text-[10px] text-yellow-400">🎯 Точнее всех: {first.stats.bestCount} раз</p>
                   </div>
                   <div className="w-full h-20 bg-yellow-500 rounded-b-lg flex items-center justify-center">
@@ -244,7 +237,6 @@ const Analytics = () => {
                     <p className="text-[11px] text-gray-400">{third.model}</p>
                     <p className="text-xl font-bold text-white">{third.stats.accuracy}%</p>
                     <p className="text-[10px] text-gray-500">{third.stats.correct}/{third.stats.total}</p>
-                    <p className="text-[10px] text-gray-500 mt-1">MAE ±{third.stats.mae}</p>
                     <p className="text-[10px] text-yellow-400">🎯 Точнее всех: {third.stats.bestCount} раз</p>
                   </div>
                   <div className="w-full h-12 bg-orange-700 rounded-b-lg flex items-center justify-center">
@@ -343,61 +335,6 @@ const Analytics = () => {
                     </div>
                   </div>
 
-                  {/* 🧠 АНСАМБЛЬ (проценты в сторону прогноза) */}
-                  <div className="px-5 py-2 bg-blue-900/20 border-b border-blue-700/30">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-blue-400 font-medium flex items-center gap-1.5">
-                        🧠 Ансамбль
-                      </span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-xs text-gray-400">
-                          {(() => {
-                            const models = [];
-                            if (pred.predictions?.tf) {
-                              const prob = calcProb(parseFloat(pred.predictions.tf.expectedTotal), pred.selectedTotal);
-                              models.push({ name: 'TF', over: prob, expected: parseFloat(pred.predictions.tf.expectedTotal) });
-                            }
-                            if (pred.predictions?.rf) {
-                              const prob = calcProb(parseFloat(pred.predictions.rf.expectedTotal), pred.selectedTotal);
-                              models.push({ name: 'RF', over: prob, expected: parseFloat(pred.predictions.rf.expectedTotal) });
-                            }
-                            if (pred.predictions?.xgb) {
-                              const prob = calcProb(parseFloat(pred.predictions.xgb.expectedTotal), pred.selectedTotal);
-                              models.push({ name: 'XGB', over: prob, expected: parseFloat(pred.predictions.xgb.expectedTotal) });
-                            }
-                            return models.map(m => {
-                              const isOver = m.expected > pred.selectedTotal;
-                              const displayProb = isOver ? m.over : (100 - m.over);
-                              return `${m.name}: ${displayProb}% ${isOver ? 'ТБ' : 'ТМ'}`;
-                            }).join(' | ');
-                          })()}
-                        </span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                          (() => {
-                            let votes = 0;
-                            if (pred.predictions?.tf) votes += parseFloat(pred.predictions.tf.expectedTotal) > pred.selectedTotal ? 1 : -1;
-                            if (pred.predictions?.rf) votes += parseFloat(pred.predictions.rf.expectedTotal) > pred.selectedTotal ? 1 : -1;
-                            if (pred.predictions?.xgb) votes += parseFloat(pred.predictions.xgb.expectedTotal) > pred.selectedTotal ? 1 : -1;
-                            if (votes >= 2) return 'bg-green-600/30 text-green-400';
-                            if (votes <= -2) return 'bg-red-600/30 text-red-400';
-                            return 'bg-gray-600/30 text-gray-400';
-                          })()
-                        }`}>
-                          {(() => {
-                            let votes = 0;
-                            if (pred.predictions?.tf) votes += parseFloat(pred.predictions.tf.expectedTotal) > pred.selectedTotal ? 1 : -1;
-                            if (pred.predictions?.rf) votes += parseFloat(pred.predictions.rf.expectedTotal) > pred.selectedTotal ? 1 : -1;
-                            if (pred.predictions?.xgb) votes += parseFloat(pred.predictions.xgb.expectedTotal) > pred.selectedTotal ? 1 : -1;
-                            if (votes >= 2) return `🔥 ТБ ${pred.selectedTotal}`;
-                            if (votes <= -2) return `🔥 ТМ ${pred.selectedTotal}`;
-                            if (votes === 1) return `✅ ТБ (слабо)`;
-                            if (votes === -1) return `✅ ТМ (слабо)`;
-                            return '⚖️ Мимо';
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
 
                   <div className="grid grid-cols-3 divide-x divide-gray-700">
                     <div className="p-4">
@@ -422,15 +359,6 @@ const Analytics = () => {
                                 {getCorrectIcon(pred.tfCorrect)}
                                 <span className={`text-[10px] font-medium ${pred.tfCorrect ? 'text-green-400' : 'text-red-400'}`}>
                                   {pred.tfCorrect ? 'угадала' : 'ошибка'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-gray-500">Точность:</span>
-                                <span className={`text-[10px] font-medium ${
-                                  parseFloat(pred.tfError) <= 1 ? 'text-green-400' : 
-                                  parseFloat(pred.tfError) <= 2 ? 'text-yellow-400' : 'text-red-400'
-                                }`}>
-                                  ±{pred.tfError} угл.
                                 </span>
                               </div>
                             </div>
@@ -470,15 +398,6 @@ const Analytics = () => {
                                   {pred.rfCorrect ? 'угадала' : 'ошибка'}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-gray-500">Точность:</span>
-                                <span className={`text-[10px] font-medium ${
-                                  parseFloat(pred.rfError) <= 1 ? 'text-green-400' : 
-                                  parseFloat(pred.rfError) <= 2 ? 'text-yellow-400' : 'text-red-400'
-                                }`}>
-                                  ±{pred.rfError} угл.
-                                </span>
-                              </div>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-1">
@@ -514,15 +433,6 @@ const Analytics = () => {
                                 {getCorrectIcon(pred.xgbCorrect)}
                                 <span className={`text-[10px] font-medium ${pred.xgbCorrect ? 'text-green-400' : 'text-red-400'}`}>
                                   {pred.xgbCorrect ? 'угадала' : 'ошибка'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-gray-500">Точность:</span>
-                                <span className={`text-[10px] font-medium ${
-                                  parseFloat(pred.xgbError) <= 1 ? 'text-green-400' : 
-                                  parseFloat(pred.xgbError) <= 2 ? 'text-yellow-400' : 'text-red-400'
-                                }`}>
-                                  ±{pred.xgbError} угл.
                                 </span>
                               </div>
                             </div>
