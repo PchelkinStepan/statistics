@@ -37,7 +37,6 @@ const TensorFlowNeuroTab = () => {
   const [testResults, setTestResults] = useState(null);
   const [trainingHistory, setTrainingHistory] = useState([]);
   const [historicalErrors, setHistoricalErrors] = useState([]);
-  const [leagueStats, setLeagueStats] = useState({});
   const [showBetModal, setShowBetModal] = useState(false);
 
   const [selectedTotal, setSelectedTotal] = useState(9.5);
@@ -89,8 +88,6 @@ const TensorFlowNeuroTab = () => {
           if (sh) try { setTrainingHistory(JSON.parse(sh)); } catch (e) { /* ignore */ }
           const se = localStorage.getItem('neuro_historical_errors');
           if (se) try { setHistoricalErrors(JSON.parse(se)); } catch (e) { /* ignore */ }
-          const sl = localStorage.getItem('neuro_league_stats');
-          if (sl) try { setLeagueStats(JSON.parse(sl)); } catch (e) { /* ignore */ }
           addLog('✅ Модель загружена из кэша');
         } else {
           addLog('⚡ Модель не найдена. Нажмите "Обучить".');
@@ -300,14 +297,13 @@ const TensorFlowNeuroTab = () => {
 
       addLog('🧪 ЧЕСТНОЕ тестирование...');
       const results = runHonestTest(model, data.matches, data.seasons, normParams);
-      addLog(`📊 Точность: ${results.accuracy}% (${results.totalCorrect}/${results.totalTested})`);
-      addLog(`📊 MAE: ±${results.avgError} угловых`);
+      addLog(`📊 MAE: ±${results.avgError} угловых (${results.totalTested} матчей)`);
 
       setTestResults(results);
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
       setModelReady(true);
       setLoadedModel(model);
-      addHist('full', totalMatches, parseFloat(results.accuracy), parseFloat(results.avgError));
+      addHist('full', totalMatches, parseFloat(results.avgError));
 
       await model.save('localstorage://football-neuro-model');
       addLog('💾 Модель сохранена');
@@ -363,11 +359,11 @@ const TensorFlowNeuroTab = () => {
       ysT.dispose();
 
       const results = runHonestTest(loadedModel, data.matches, data.seasons, normParams);
-      addLog(`📊 Точность: ${results.accuracy}% | MAE: ±${results.avgError}`);
+      addLog(`📊 MAE: ±${results.avgError} угловых`);
 
       setTestResults(results);
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
-      addHist('retrain', totalMatches, parseFloat(results.accuracy), parseFloat(results.avgError));
+      addHist('retrain', totalMatches, parseFloat(results.avgError));
 
       await loadedModel.save('localstorage://football-neuro-model');
       localStorage.setItem('neuro_last_trained', new Date().toISOString());
@@ -463,28 +459,6 @@ const TensorFlowNeuroTab = () => {
         <SCard icon={Activity} label="MAE" v={testResults ? `±${testResults.avgError}` : '—'} c="yellow" />
       </div>
 
-      {Object.keys(leagueStats).length > 0 && (
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-          <h4 className="font-semibold mb-3 flex items-center gap-2">
-            <Target size={16} className="text-blue-400" /> Точность по лигам
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {Object.entries(leagueStats).map(([lid, st]) => {
-              const ln = data.leagues?.find((l) => l.id === lid)?.name || lid;
-              return (
-                <div key={lid} className="bg-gray-700/30 rounded-lg p-3 text-center">
-                  <p className="text-sm font-medium">{ln}</p>
-                  <p className="text-xs text-gray-400">тотал {st.lineTotal}</p>
-                  <p className="text-2xl font-bold text-green-400">{st.accuracy}%</p>
-                  <p className="text-xs text-gray-500">
-                    {st.correct}/{st.tested}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {needsRetraining && (
         <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
