@@ -20,6 +20,7 @@ import {
   buildFeatures,
   getLeagueAvgTotal,
   getLineTotalForLeague,
+  calculateProbabilitySimple,
 } from './neuroFeatures';
 
 const TensorFlowNeuroTab = () => {
@@ -39,6 +40,8 @@ const TensorFlowNeuroTab = () => {
   const [predictAwayTeam, setPredictAwayTeam] = useState('');
   const [neuroPrediction, setNeuroPrediction] = useState(null);
   const [isPredicting, setIsPredicting] = useState(false);
+  const [selectedTotal, setSelectedTotal] = useState(9.5);
+  const availableTotals = [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
 
   const modelLoadedRef = useRef(false);
   const teamsInLeague = data.teams?.filter((t) => t.leagueId === predictLeague) || [];
@@ -383,8 +386,23 @@ const TensorFlowNeuroTab = () => {
       predictionTensor.dispose();
       expectedTotal = Math.max(2, Math.min(18, expectedTotal));
 
+      const overProb = calculateProbabilitySimple(expectedTotal, selectedTotal);
+      const underProb = 100 - overProb;
+
       setNeuroPrediction({
         expectedTotal: expectedTotal.toFixed(2),
+        overProbability: Math.min(95, Math.max(5, overProb)),
+        underProbability: Math.min(95, Math.max(5, underProb)),
+        recommendation:
+          overProb > 70
+            ? `🔥 СТАВЛЮ! ТБ ${selectedTotal}`
+            : overProb > 60
+              ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТБ ${selectedTotal}`
+              : overProb < 30
+                ? `🔥 СТАВЛЮ! ТМ ${selectedTotal}`
+                : overProb < 40
+                  ? `⚠️ СТАВЛЮ ОСТОРОЖНО! ТМ ${selectedTotal}`
+                  : `❌ НЕ ЛЕЗУ!`,
       });
     } catch (error) {
       console.error(error);
@@ -608,6 +626,23 @@ const TensorFlowNeuroTab = () => {
                 </select>
               </div>
             </div>
+            <div className="mb-4">
+              <label className="block text-xs text-gray-400 mb-2">Тотал: {selectedTotal}</label>
+              <div className="flex flex-wrap gap-2">
+                {availableTotals.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setSelectedTotal(t)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                      selectedTotal === t ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
               type="button"
               onClick={predictWithNeuro}
@@ -623,15 +658,36 @@ const TensorFlowNeuroTab = () => {
                   <h4 className="font-semibold text-purple-400 mb-4 text-lg flex items-center gap-2">
                     <Brain size={20} /> Neuro AI
                   </h4>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400 mb-1">Ожидаемый тотал угловых</p>
-                    <p className="text-4xl font-bold text-white">{neuroPrediction.expectedTotal}</p>
-                    {testResults && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        MAE модели: ±{testResults.avgError} угловых
-                      </p>
-                    )}
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400 mb-1">Ожидаемый тотал</p>
+                      <p className="text-2xl font-bold text-white">{neuroPrediction.expectedTotal}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400 mb-1">ТБ {selectedTotal}</p>
+                      <p className="text-2xl font-bold text-green-400">{neuroPrediction.overProbability}%</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400 mb-1">ТМ {selectedTotal}</p>
+                      <p className="text-2xl font-bold text-red-400">{neuroPrediction.underProbability}%</p>
+                    </div>
                   </div>
+                  <div
+                    className={`p-4 rounded-lg text-center font-semibold text-lg ${
+                      neuroPrediction.recommendation.includes('СТАВЛЮ')
+                        ? 'bg-green-600/30 text-green-400'
+                        : neuroPrediction.recommendation.includes('ДУМАЮ')
+                          ? 'bg-yellow-600/30 text-yellow-400'
+                          : 'bg-gray-600/30 text-gray-400'
+                    }`}
+                  >
+                    {neuroPrediction.recommendation}
+                  </div>
+                  {testResults && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">
+                      MAE модели: ±{testResults.avgError} угловых
+                    </p>
+                  )}
                 </div>
               </div>
             )}
