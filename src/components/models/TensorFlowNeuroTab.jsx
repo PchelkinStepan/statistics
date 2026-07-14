@@ -19,7 +19,6 @@ import {
   calculateFeatures,
   buildFeatures,
   getLeagueAvgTotal,
-  getLineTotalForLeague,
   calculateProbabilitySimple,
 } from './neuroFeatures';
 
@@ -33,7 +32,6 @@ const TensorFlowNeuroTab = () => {
   const [modelReady, setModelReady] = useState(false);
   const [loadedModel, setLoadedModel] = useState(null);
   const [testResults, setTestResults] = useState(null);
-  const [trainingHistory, setTrainingHistory] = useState([]);
   const [historicalErrors, setHistoricalErrors] = useState([]);
   const [predictLeague, setPredictLeague] = useState(data.leagues?.[0]?.id || 'rpl');
   const [predictHomeTeam, setPredictHomeTeam] = useState('');
@@ -60,8 +58,6 @@ const TensorFlowNeuroTab = () => {
           setLoadedModel(model);
           const sr = localStorage.getItem('neuro_test_results');
           if (sr) try { setTestResults(JSON.parse(sr)); } catch (e) { /* ignore */ }
-          const sh = localStorage.getItem('neuro_training_history');
-          if (sh) try { setTrainingHistory(JSON.parse(sh)); } catch (e) { /* ignore */ }
           const se = localStorage.getItem('neuro_historical_errors');
           if (se) try { setHistoricalErrors(JSON.parse(se)); } catch (e) { /* ignore */ }
           addLog('✅ Модель загружена из кэша');
@@ -80,14 +76,6 @@ const TensorFlowNeuroTab = () => {
     setTrainingLog((p) => [...p, { time: new Date().toLocaleTimeString(), text: msg }]);
   };
 
-  const addHist = (t, m, a, mae) => {
-    const e = { type: t, date: new Date().toISOString(), matches: m, accuracy: a, mae };
-    setTrainingHistory((prev) => {
-      const u = [e, ...prev].slice(0, 20);
-      localStorage.setItem('neuro_training_history', JSON.stringify(u));
-      return u;
-    });
-  };
 
   const prepareTrainingData = (allMatches, seasons) =>
     buildChronologicalTrainingExamples(allMatches, seasons);
@@ -118,77 +106,45 @@ const TensorFlowNeuroTab = () => {
   };
 
   const runHonestTest = (model, allMatches, allSeasons, normParams) => {
-    const matchesByLeague = {};
-    allMatches.forEach((m) => {
-      if (!matchesByLeague[m.leagueId]) matchesByLeague[m.leagueId] = [];
-      matchesByLeague[m.leagueId].push(m);
-    });
-
-    let totalCorrect = 0;
-    let totalTested = 0;
     let totalAbsError = 0;
+    let totalTested = 0;
     const errors = [];
-    const leagueResults = {};
 
-    for (const leagueId of Object.keys(matchesByLeague)) {
-      const leagueMatches = [...matchesByLeague[leagueId]].sort((a, b) => new Date(a.date) - new Date(b.date));
-      if (leagueMatches.length < 30) continue;
+    const allMatchesSorted = [...(allMatches || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const testStart = Math.floor(allMatchesSorted.length * 0.8);
 
-      const testStart = Math.floor(leagueMatches.length * 0.8);
-      const lineTotalForLeague = getLineTotalForLeague(leagueId, allSeasons, data.leagues);
-      let leagueCorrect = 0;
-      let leagueTested = 0;
+    for (let i = testStart; i < allMatchesSorted.length; i++) {
+      const match = allMatchesSorted[i];
+      const actualTotal = (match.homeCorners || 0) + (match.awayCorners || 0);
+      const homePast = getLastMatches(allMatchesSorted, match.homeTeamId, match.date, 12);
+      const awayPast = getLastMatches(allMatchesSorted, match.awayTeamId, match.date, 12);
+      if (homePast.length < 5 || awayPast.length < 5) continue;
 
-      for (let i = testStart; i < leagueMatches.length; i++) {
-        const match = leagueMatches[i];
-        const actualTotal = (match.homeCorners || 0) + (match.awayCorners || 0);
-        const homePast = getLastMatches(leagueMatches, match.homeTeamId, match.date, 12);
-        const awayPast = getLastMatches(leagueMatches, match.awayTeamId, match.date, 12);
-        if (homePast.length < 5 || awayPast.length < 5) continue;
+      const homeStats = calculateFeatures(homePast, match.homeTeamId);
+      const awayStats = calculateFeatures(awayPast, match.awayTeamId);
+      const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, allSeasons);
+      const round = match.round ? parseInt(match.round, 10) || 0 : 0;
+      let features = buildFeatures(homeStats, awayStats, round, leagueAvgTotal);
+      if (features.some((f) => isNaN(f) || !isFinite(f))) continue;
 
-        const homeStats = calculateFeatures(homePast, match.homeTeamId);
-        const awayStats = calculateFeatures(awayPast, match.awayTeamId);
-        const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, allSeasons);
-        const round = match.round ? parseInt(match.round, 10) || 0 : 0;
-        let features = buildFeatures(homeStats, awayStats, round, leagueAvgTotal);
-        if (features.some((f) => isNaN(f) || !isFinite(f))) continue;
-
-        if (normParams) {
-          features = features.map((val, idx) => {
-            const mean = normParams.mean[idx] || 0;
-            const std = normParams.std[idx] || 1;
-            return (val - mean) / std;
-          });
-        }
-
-        const inputTensor = tf.tensor2d([features]);
-        const predictionTensor = model.predict(inputTensor);
-        let prediction = predictionTensor.dataSync()[0];
-        inputTensor.dispose();
-        predictionTensor.dispose();
-        prediction = Math.max(0, prediction);
-
-        totalAbsError += Math.abs(prediction - actualTotal);
-        errors.push(actualTotal - prediction);
-
-        const actualOver = actualTotal > lineTotalForLeague;
-        const modelOver = prediction > lineTotalForLeague;
-        if (modelOver === actualOver) {
-          totalCorrect++;
-          leagueCorrect++;
-        }
-        totalTested++;
-        leagueTested++;
+      if (normParams) {
+        features = features.map((val, idx) => {
+          const mean = normParams.mean[idx] || 0;
+          const std = normParams.std[idx] || 1;
+          return (val - mean) / std;
+        });
       }
 
-      if (leagueTested > 0) {
-        leagueResults[leagueId] = {
-          lineTotal: lineTotalForLeague,
-          correct: leagueCorrect,
-          tested: leagueTested,
-          accuracy: ((leagueCorrect / leagueTested) * 100).toFixed(1),
-        };
-      }
+      const inputTensor = tf.tensor2d([features]);
+      const predictionTensor = model.predict(inputTensor);
+      let prediction = predictionTensor.dataSync()[0];
+      inputTensor.dispose();
+      predictionTensor.dispose();
+      prediction = Math.max(0, prediction);
+
+      totalAbsError += Math.abs(prediction - actualTotal);
+      errors.push(actualTotal - prediction);
+      totalTested++;
     }
 
     const avgError = totalTested > 0 ? (totalAbsError / totalTested).toFixed(2) : '0';
@@ -276,7 +232,6 @@ const TensorFlowNeuroTab = () => {
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
       setModelReady(true);
       setLoadedModel(model);
-      addHist('full', totalMatches, parseFloat(results.avgError));
 
       await model.save('localstorage://football-neuro-model');
       addLog('💾 Модель сохранена');
@@ -336,7 +291,6 @@ const TensorFlowNeuroTab = () => {
 
       setTestResults(results);
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
-      addHist('retrain', totalMatches, parseFloat(results.avgError));
 
       await loadedModel.save('localstorage://football-neuro-model');
       localStorage.setItem('neuro_last_trained', new Date().toISOString());
@@ -418,7 +372,7 @@ const TensorFlowNeuroTab = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SCard icon={Database} label="Матчей" v={totalMatches} c="blue" />
         <SCard icon={Brain} label="Статус" v={modelReady ? 'Готова' : '—'} c="purple" />
-        <SCard icon={Target} label="Точность" v={testResults ? `${testResults.accuracy}%` : '—'} c="green" />
+        <SCard icon={Target} label="Тестов" v={testResults ? testResults.totalTested : '—'} c="green" />
         <SCard icon={Activity} label="MAE" v={testResults ? `±${testResults.avgError}` : '—'} c="yellow" />
       </div>
 
@@ -445,24 +399,6 @@ const TensorFlowNeuroTab = () => {
         </div>
       )}
 
-      {trainingHistory.length > 0 && (
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-          <h4 className="font-semibold mb-2 flex items-center gap-2">
-            <Clock size={16} className="text-blue-400" /> История
-          </h4>
-          <div className="space-y-1 max-h-40 overflow-y-auto">
-            {trainingHistory.slice(0, 5).map((e, i) => (
-              <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-700/50">
-                <span className="text-gray-400">
-                  {new Date(e.date).toLocaleDateString('ru-RU')} —{' '}
-                  {e.type === 'full' ? '🧠 С нуля' : '📚 Дообучена'} на {e.matches} матчах
-                </span>
-                <span className="text-green-400 font-bold">{e.accuracy}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="space-y-4">
         <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50 text-center">
