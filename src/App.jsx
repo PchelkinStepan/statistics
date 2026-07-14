@@ -9,6 +9,7 @@ import BetTracker from './pages/BetTracker';
 import { initStore } from './data/store';
 import Neuro from './pages/Neuro';
 import Analytics from './pages/Analytics';
+import ABAnalytics from './pages/ABAnalytics';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +86,7 @@ function App() {
           <Route path="/matches" element={<Matches />} />
           <Route path="/bets" element={<BetTracker />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/ab-analytics" element={<ABAnalytics />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </Layout>
