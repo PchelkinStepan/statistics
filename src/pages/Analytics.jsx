@@ -332,6 +332,25 @@ const Analytics = () => {
                           <p className="text-gray-500">—</p>
                         </div>
                       )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!window.confirm('Удалить этот прогноз?')) return;
+                          try {
+                            const { deleteDoc, doc } = await import('firebase/firestore');
+                            const { db } = await import('../firebase');
+                            await deleteDoc(doc(db, 'football', 'stats', 'predictions', pred.id));
+                            setPredictionLog(prev => prev.filter(p => p.id !== pred.id));
+                            console.log('✅ Прогноз удалён:', pred.id);
+                          } catch (error) {
+                            console.error('❌ Ошибка удаления прогноза:', error);
+                          }
+                        }}
+                        className="p-1.5 text-red-400 hover:bg-red-600/20 rounded-lg ml-2"
+                        title="Удалить прогноз"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
 
