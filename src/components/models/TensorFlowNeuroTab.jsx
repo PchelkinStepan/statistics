@@ -647,33 +647,6 @@ const SCard = ({ icon: I, label, v, c }) => {
   );
 };
 
-      {trainingLog.length > 0 && (
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-          <h4 className="font-semibold mb-2 flex items-center gap-2">
-            <Activity size={16} className="text-green-400" /> График MAE по эпохам
-          </h4>
-          <div className="bg-gray-900 rounded-lg p-3" style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trainingLog.filter(e => e.text.includes('Эпоха')).map((e, i) => {
-                const match = e.text.match(/mae=([\d.]+)/);
-                const valMatch = e.text.match(/val_mae=([\d.]+)/);
-                return {
-                  epoch: i + 1,
-                  train: match ? parseFloat(match[1]) : null,
-                  val: valMatch ? parseFloat(valMatch[1]) : null,
-                };
-              })}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="epoch" stroke="#9CA3AF" fontSize={10} label={{ value: 'Эпоха', position: 'insideBottom', offset: -5, fill: '#9CA3AF', fontSize: 10 }} />
-                <YAxis stroke="#9CA3AF" fontSize={10} label={{ value: 'MAE', angle: -90, position: 'insideLeft', fill: '#9CA3AF', fontSize: 10 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="train" stroke="#3B82F6" name="Train MAE" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="val" stroke="#10B981" name="Val MAE" dot={false} strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

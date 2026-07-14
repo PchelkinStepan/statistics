@@ -489,35 +489,6 @@ const StatCard = ({ icon: Icon, label, value, color }) => {
   );
 };
 
-      {/* 📊 ГРАФИК MAE ПО ДАТАМ */}
-      {enrichedPredictions.filter(p => p.actualTotal !== null).length > 5 && (
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-          <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <BarChart3 size={16} className="text-blue-400" /> MAE моделей по датам
-          </h4>
-          <div style={{ height: 250 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={(() => {
-                const matched = enrichedPredictions.filter(p => p.actualTotal !== null).sort((a, b) => new Date(a.date) - new Date(b.date));
-                return matched.map((p, i) => ({
-                  date: new Date(p.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
-                  tf: p.tfError ? parseFloat(p.tfError) : null,
-                  rf: p.rfError ? parseFloat(p.rfError) : null,
-                  xgb: p.xgbError ? parseFloat(p.xgbError) : null,
-                }));
-              })()}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9CA3AF" fontSize={10} />
-                <YAxis stroke="#9CA3AF" fontSize={10} label={{ value: 'MAE (угл.)', angle: -90, position: 'insideLeft', fill: '#9CA3AF', fontSize: 10 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="tf" stroke="#A855F7" name="TensorFlow" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="rf" stroke="#84CC16" name="Random Forest" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="xgb" stroke="#10B981" name="XGBoost" dot={false} strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
