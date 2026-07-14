@@ -24,6 +24,21 @@ const ModelsComparison = () => {
   const [valueResult, setValueResult] = useState(null);
 
   const teamsInLeague = data.teams?.filter((t) => t.leagueId === predictLeague) || [];
+
+  useEffect(() => {
+    if (!results?.tf || !manualKef) {
+      setValueResult(null);
+      return;
+    }
+    const kef = parseFloat(manualKef);
+    const accuracy = parseFloat(results.tf.mae || 58);
+    if (kef > 0) {
+      const value = ((accuracy / 100) * kef * 100 - 100).toFixed(1);
+      const isValue = value > 5;
+      const isSuper = value > 10;
+      setValueResult({ value, isValue, isSuper, accuracy });
+    }
+  }, [manualKef, results]);
   const availableTotals = [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
 
   useEffect(() => {
@@ -327,9 +342,101 @@ const ModelsComparison = () => {
               <ModelCard icon={TreePine} title="Random Forest" result={results.rf} color="text-lime-400" gradient="border-lime-700/50" />
               <ModelCard icon={Zap} title="XGBoost" result={results.xgb} color="text-emerald-400" gradient="border-emerald-700/50" />
             </div>
+
+            <div className="bg-gray-800/80 rounded-xl p-5 border border-gray-600">
+              <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
+                <TrendingUp size={18} className="text-green-400" />
+                Value Betting
+                <span className="text-xs text-gray-400 font-normal ml-2">
+                  (MAE модели {results.tf?.mae || '—'})
+                </span>
+              </h4>
+              <div className="flex items-center gap-4 mb-3 flex-wrap">
+                <label className="text-sm text-gray-400 whitespace-nowrap">Введите кэф:</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={manualKef}
+                  onChange={(e) => setManualKef(e.target.value)}
+                  className="w-24 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white text-center font-bold text-lg"
+                />
+                {valueResult && (
+                  <div
+                    className={`flex-1 min-w-[200px] p-3 rounded-lg text-center font-bold text-lg ${
+                      valueResult.isSuper
+                        ? 'bg-green-600/30 text-green-400'
+                        : valueResult.isValue
+                          ? 'bg-yellow-600/30 text-yellow-400'
+                          : 'bg-red-600/30 text-red-400'
+                    }`}
+                  >
+                    Value: {valueResult.value > 0 ? '+' : ''}
+                    {valueResult.value}%
+                    {valueResult.isSuper
+                      ? ' 🔥 СУПЕР-ВАЛУЙ!'
+                      : valueResult.isValue
+                        ? ' ✅ ВАЛУЙ!'
+                        : ' ❌ МИМО'}
+                  </div>
+                )}
+              </div>
+              {valueResult && (
+                <p className="text-xs text-gray-500">
+                  Безубыточный кэф:{' '}
+                  <span className="text-white font-bold">{(100 / valueResult.accuracy).toFixed(2)}</span>
+                </p>
+              )}
+              {valueResult && (
+                <div className="mt-2 pt-2 border-t border-gray-700">
+                  <p className="text-xs text-gray-400 mb-1">
+                    💰 Келли (1/4):
+                    <span className="text-white font-bold ml-1">
+                      {(() => {
+                        const accuracy = parseFloat(valueResult.accuracy) / 100;
+                        const kef = parseFloat(manualKef);
+                        const kelly = (accuracy * kef - 1) / (kef - 1);
+                        const fractionalKelly = kelly * 0.25;
+                        const percent = (fractionalKelly * 100).toFixed(1);
+                        return percent > 0 ? `${percent}% от банка` : 'Не ставить';
+                      })()}
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {(() => {
+                      const accuracy = parseFloat(valueResult.accuracy) / 100;
+                      const kef = parseFloat(manualKef);
+                      const kelly = (accuracy * kef - 1) / (kef - 1);
+                      const fractionalKelly = kelly * 0.25;
+                      const amount = (fractionalKelly * 10000).toFixed(0);
+                      return amount > 0 ? `При банке 10,000₽ → ставка ${amount}₽` : '';
+                    })()}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowBetModal(true)}
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
+            >
+              <Wallet size={18} /> 💰 Поставить
+            </button>
           </div>
         )}
       </div>
+      <BetModal
+        isOpen={showBetModal}
+        onClose={() => setShowBetModal(false)}
+        matchData={{
+          homeTeam: data.teams?.find((t) => t.id === predictHomeTeam)?.name || '',
+          awayTeam: data.teams?.find((t) => t.id === predictAwayTeam)?.name || '',
+          leagueId: predictLeague,
+        }}
+        total={selectedTotal}
+        recommendation={results?.tf ? `TF: ${results.tf.expectedTotal}` : ''}
+        overProb={50}
+      />
     </div>
   );
 };
