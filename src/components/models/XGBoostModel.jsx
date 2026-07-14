@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, Calculator, Play, RefreshCw, Zap, Save } from 'lucide-react';
+import { Activity, Calculator, Play, RefreshCw, Zap, Save, Database, Target } from 'lucide-react';
 import { getData } from '../../data/store';
 import {
   buildChronologicalTrainingExamples,
@@ -350,6 +350,12 @@ const XGBoostModel = () => {
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <SCard icon={Database} label="Матчей" v={totalMatches} c="blue" />
+        <SCard icon={Zap} label="Статус" v={modelReady ? 'Готова' : '—'} c="emerald" />
+        <SCard icon={Target} label="Тестов" v={testResults ? testResults.total : '—'} c="green" />
+        <SCard icon={Activity} label="MAE" v={testResults ? `±${testResults.mae}` : '—'} c="yellow" />
+      </div>
       <div className="bg-gray-800/50 rounded-xl p-6 border border-emerald-700/50 text-center">
         <Zap size={48} className="mx-auto mb-4 text-emerald-400" />
         <h3 className="text-xl font-bold mb-2">XGBoost (браузер)</h3>
@@ -577,6 +583,23 @@ const XGBoostModel = () => {
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+const SCard = ({ icon: I, label, v, c }) => {
+  const cc = {
+    blue: 'text-blue-400',
+    green: 'text-green-400',
+    yellow: 'text-yellow-400',
+    emerald: 'text-emerald-400',
+    purple: 'text-purple-400',
+  };
+  return (
+    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+      <I className={`${cc[c]} mb-2`} size={20} />
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-xl font-bold">{v}</p>
     </div>
   );
 };
