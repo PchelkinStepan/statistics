@@ -41,6 +41,7 @@ const BetTracker = () => {
     betType: 'total',
     selection: 'over',
     total: 9.5,
+    handicap: 0,
     odds: 1.85,
     stake: 1000,
     status: 'pending',
@@ -118,6 +119,7 @@ const BetTracker = () => {
       betType: 'total',
       selection: 'over',
       total: 9.5,
+      handicap: 0,
       odds: 1.85,
       stake: 1000,
       status: 'pending',
@@ -419,10 +421,16 @@ const BetTracker = () => {
                           bet.selection === 'over' ? 'bg-green-600/30 text-green-400' :
                           bet.selection === 'under' ? 'bg-red-600/30 text-red-400' : 'bg-blue-600/30 text-blue-400'
                         }`}>
-                          {bet.selection === 'over' && `ТБ ${bet.total}`}
-                          {bet.selection === 'under' && `ТМ ${bet.total}`}
-                          {bet.selection === 'home' && 'П1'}
-                          {bet.selection === 'away' && 'П2'}
+                          {bet.betType === 'total' && (bet.selection === 'over' ? `ТБ ${bet.total}` : `ТМ ${bet.total}`)}
+                          {bet.betType === 'total_1h' && (bet.selection === 'over' ? `ТБ 1Т ${bet.total}` : `ТМ 1Т ${bet.total}`)}
+                          {bet.betType === 'total_2h' && (bet.selection === 'over' ? `ТБ 2Т ${bet.total}` : `ТМ 2Т ${bet.total}`)}
+                          {bet.betType === 'handicap' && (bet.selection === 'home' ? `Ф1 (${bet.handicap})` : `Ф2 (${bet.handicap})`)}
+                          {bet.betType === 'handicap_1h' && (bet.selection === 'home' ? `Ф1 1Т (${bet.handicap})` : `Ф2 1Т (${bet.handicap})`)}
+                          {bet.betType === 'handicap_2h' && (bet.selection === 'home' ? `Ф1 2Т (${bet.handicap})` : `Ф2 2Т (${bet.handicap})`)}
+                          {bet.betType === 'corners_total' && (bet.selection === 'over' ? `Угл ТБ ${bet.total}` : `Угл ТМ ${bet.total}`)}
+                          {bet.betType === 'corners_total_1h' && (bet.selection === 'over' ? `Угл 1Т ТБ ${bet.total}` : `Угл 1Т ТМ ${bet.total}`)}
+                          {bet.betType === 'corners_total_2h' && (bet.selection === 'over' ? `Угл 2Т ТБ ${bet.total}` : `Угл 2Т ТМ ${bet.total}`)}
+                          {bet.betType === 'corners_handicap' && (bet.selection === 'home' ? `Угл Ф1 (${bet.handicap})` : `Угл Ф2 (${bet.handicap})`)}
                         </span>
                       </td>
                       <td className="py-3 px-3 md:px-4 font-medium">{bet.odds}</td>
@@ -471,8 +479,38 @@ const BetTracker = () => {
               </div>
               <div><label className="block text-sm text-gray-400 mb-1">Матч</label><input type="text" value={betForm.match} onChange={(e) => setBetForm({...betForm, match: e.target.value})} placeholder="Например: Зенит - Спартак" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" required /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm text-gray-400 mb-1">Тип</label><select value={betForm.selection} onChange={(e) => setBetForm({...betForm, selection: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5"><option value="over">Тотал больше</option><option value="under">Тотал меньше</option><option value="home">П1</option><option value="away">П2</option></select></div>
-                {(betForm.selection === 'over' || betForm.selection === 'under') && <div><label className="block text-sm text-gray-400 mb-1">Тотал</label><input type="number" step="0.5" value={betForm.total} onChange={(e) => setBetForm({...betForm, total: parseFloat(e.target.value)})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" /></div>}
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Тип ставки</label>
+                  <select value={betForm.betType} onChange={(e) => setBetForm({...betForm, betType: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5">
+                    <option value="total">Тотал матча</option>
+                    <option value="total_1h">Тотал 1-го тайма</option>
+                    <option value="total_2h">Тотал 2-го тайма</option>
+                    <option value="handicap">Фора матча</option>
+                    <option value="handicap_1h">Фора 1-го тайма</option>
+                    <option value="handicap_2h">Фора 2-го тайма</option>
+                    <option value="corners_total">Тотал угловых</option>
+                    <option value="corners_total_1h">Угловые 1-й тайм</option>
+                    <option value="corners_total_2h">Угловые 2-й тайм</option>
+                    <option value="corners_handicap">Фора по угловым</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Выбор</label>
+                  <select value={betForm.selection} onChange={(e) => setBetForm({...betForm, selection: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5">
+                    <option value="over">Больше</option>
+                    <option value="under">Меньше</option>
+                    <option value="home">Хозяева</option>
+                    <option value="away">Гости</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {(betForm.betType === 'total' || betForm.betType === 'total_1h' || betForm.betType === 'total_2h' || betForm.betType === 'corners_total' || betForm.betType === 'corners_total_1h' || betForm.betType === 'corners_total_2h') && (
+                  <div><label className="block text-sm text-gray-400 mb-1">Тотал</label><input type="number" step="0.5" value={betForm.total} onChange={(e) => setBetForm({...betForm, total: parseFloat(e.target.value)})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" /></div>
+                )}
+                {(betForm.betType === 'handicap' || betForm.betType === 'handicap_1h' || betForm.betType === 'handicap_2h' || betForm.betType === 'corners_handicap') && (
+                  <div><label className="block text-sm text-gray-400 mb-1">Фора</label><input type="number" step="0.5" value={betForm.handicap || 0} onChange={(e) => setBetForm({...betForm, handicap: parseFloat(e.target.value)})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" /></div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm text-gray-400 mb-1">Кэф</label><input type="number" step="0.01" value={betForm.odds} onChange={(e) => setBetForm({...betForm, odds: parseFloat(e.target.value)})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" required /></div>
