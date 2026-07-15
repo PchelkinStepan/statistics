@@ -509,7 +509,7 @@ const BetTracker = () => {
                   <div><label className="block text-sm text-gray-400 mb-1">Тотал</label><input type="number" step="0.5" value={betForm.total} onChange={(e) => setBetForm({...betForm, total: parseFloat(e.target.value)})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" /></div>
                 )}
                 {(betForm.betType === 'handicap' || betForm.betType === 'handicap_1h' || betForm.betType === 'handicap_2h' || betForm.betType === 'corners_handicap') && (
-                  <div><label className="block text-sm text-gray-400 mb-1">Фора</label><input type="number" step="0.5" value={betForm.handicap || 0} onChange={(e) => setBetForm({...betForm, handicap: parseFloat(e.target.value)})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" /></div>
+                  <div><label className="block text-sm text-gray-400 mb-1">Фора</label><input type="number" step="0.5" value={betForm.total} onChange={(e) => setBetForm({...betForm, total: parseFloat(e.target.value)})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" /></div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">
