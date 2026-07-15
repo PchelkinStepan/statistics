@@ -254,12 +254,12 @@ const Statistics = () => {
                       {trend > 0 ? (
                         <div className="flex items-center justify-center gap-1">
                           <ArrowUp size={16} className="text-green-400" />
-                          <span className="text-xs text-green-400">+{trend}</span>
+                          <span className="text-xs text-green-400">+{trend.toFixed(1)}</span>
                         </div>
                       ) : trend < 0 ? (
                         <div className="flex items-center justify-center gap-1">
                           <ArrowDown size={16} className="text-red-400" />
-                          <span className="text-xs text-red-400">{trend}</span>
+                          <span className="text-xs text-red-400">{trend.toFixed(1)}</span>
                         </div>
                       ) : (
                         <span className="text-gray-400">—</span>
