@@ -257,10 +257,10 @@ const XGBoostModel = () => {
       const testLeagues = leagueIds.slice(trainSize);
 
       const xgb = new SimpleXGBoost({ 
-        nEstimators: 50, 
-        maxDepth: 4, 
-        learningRate: 0.1, 
-        minSamplesSplit: 10,
+        nEstimators: 100, 
+        maxDepth: 5, 
+        learningRate: 0.05, 
+        minSamplesSplit: 8,
         seed: Math.floor(Math.random() * 10000),
       });
 

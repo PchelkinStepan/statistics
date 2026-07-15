@@ -259,10 +259,10 @@ const RandomForestModel = () => {
       const testLeagues = leagueIds.slice(trainSize);
 
       const rf = new SimpleRandomForest({
-        nEstimators: 22,
-        maxDepth: 7,
-        minSamplesSplit: 6,
-        maxFeatures: 8,
+        nEstimators: 50,
+        maxDepth: 10,
+        minSamplesSplit: 5,
+        maxFeatures: 10,
         seed: Math.floor(Math.random() * 10000),
       });
 

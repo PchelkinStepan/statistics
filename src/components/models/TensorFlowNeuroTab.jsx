@@ -85,7 +85,7 @@ const TensorFlowNeuroTab = () => {
     const model = tf.sequential();
     model.add(
       tf.layers.dense({
-        units: 64,
+        units: 128,
         activation: 'relu',
         inputShape: [NEURO_FEATURE_DIM],
         kernelRegularizer: tf.regularizers.l2({ l2: 0.001 }),
@@ -94,15 +94,23 @@ const TensorFlowNeuroTab = () => {
     model.add(tf.layers.dropout({ rate: 0.3 }));
     model.add(
       tf.layers.dense({
-        units: 32,
+        units: 64,
         activation: 'relu',
         kernelRegularizer: tf.regularizers.l2({ l2: 0.001 }),
       }),
     );
     model.add(tf.layers.dropout({ rate: 0.2 }));
+    model.add(
+      tf.layers.dense({
+        units: 32,
+        activation: 'relu',
+        kernelRegularizer: tf.regularizers.l2({ l2: 0.001 }),
+      }),
+    );
+    model.add(tf.layers.dropout({ rate: 0.1 }));
     model.add(tf.layers.dense({ units: 16, activation: 'relu' }));
     model.add(tf.layers.dense({ units: 1, activation: 'linear' }));
-    model.compile({ optimizer: tf.train.adam(0.0005), loss: 'meanSquaredError', metrics: ['mae'] });
+    model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError', metrics: ['mae'] });
     return model;
   };
 
@@ -205,7 +213,7 @@ const TensorFlowNeuroTab = () => {
 
       let bestValMae = Infinity;
       let bestWeights = null;
-      let patience = 10;
+      let patience = 7;
       let wait = 0;
 
       const history = await model.fit(xsN, ysT, {
