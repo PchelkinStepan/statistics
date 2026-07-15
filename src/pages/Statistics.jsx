@@ -202,31 +202,60 @@ const Statistics = () => {
               <tr className="text-left text-gray-300">
                 <th className="py-2 px-3">Команда</th>
                 <th className="py-2 px-3 text-center">Среднее</th>
-                <th className="py-2 px-3 text-center" colSpan={5}>Последние 5 матчей</th>
+                <th className="py-2 px-3 text-center">1-й тайм</th>
+                <th className="py-2 px-3 text-center">2-й тайм</th>
+                <th className="py-2 px-3 text-center" colSpan={5}>Последние 5 матчей (← старый → новый)</th>
                 <th className="py-2 px-3 text-center">Тренд</th>
+                <th className="py-2 px-3 text-center">Выше среднего</th>
               </tr>
             </thead>
             <tbody>
               {teamStats.sort((a, b) => parseFloat(b.avgCornersFor) - parseFloat(a.avgCornersFor)).slice(0, 10).map(team => {
                 const form = team.form;
                 const trend = form.length >= 2 ? (form[form.length - 1] - form[0]) : 0;
+                const aboveAvg = form.filter(v => v >= parseFloat(team.avgCornersFor)).length;
+                const totalForm = form.filter(v => v !== undefined && v !== null).length;
+                
                 return (
-                  <tr key={team.teamId} className="border-t border-gray-700">
+                  <tr key={team.teamId} className="border-t border-gray-700 hover:bg-gray-700/30">
                     <td className="py-2 px-3 font-medium">{team.teamName}</td>
                     <td className="py-2 px-3 text-center font-bold">{team.avgCornersFor}</td>
+                    <td className="py-2 px-3 text-center text-xs text-gray-400">{team.avgCorners1H}</td>
+                    <td className="py-2 px-3 text-center text-xs text-gray-400">{team.avgCorners2H}</td>
                     {[0,1,2,3,4].map(i => (
                       <td key={i} className="py-2 px-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          form[i] >= parseFloat(team.avgCornersFor) ? 'bg-green-600/30 text-green-400' : 'bg-red-600/30 text-red-400'
-                        }`}>
-                          {form[i] || '—'}
-                        </span>
+                        <div className="flex flex-col items-center">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            form[i] >= parseFloat(team.avgCornersFor) ? 'bg-green-600/30 text-green-400' : 'bg-red-600/30 text-red-400'
+                          }`}>
+                            {form[i] || '—'}
+                          </span>
+                          {i === 0 && <span className="text-[8px] text-gray-500 mt-0.5">старый</span>}
+                          {i === 4 && <span className="text-[8px] text-gray-500 mt-0.5">новый</span>}
+                        </div>
                       </td>
                     ))}
                     <td className="py-2 px-3 text-center">
-                      {trend > 0 ? <ArrowUp size={16} className="text-green-400 inline" /> : 
-                       trend < 0 ? <ArrowDown size={16} className="text-red-400 inline" /> : 
-                       <span className="text-gray-400">—</span>}
+                      {trend > 0 ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <ArrowUp size={16} className="text-green-400" />
+                          <span className="text-xs text-green-400">+{trend}</span>
+                        </div>
+                      ) : trend < 0 ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <ArrowDown size={16} className="text-red-400" />
+                          <span className="text-xs text-red-400">{trend}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-2 px-3 text-center">
+                      <span className={`text-xs font-medium ${
+                        aboveAvg >= 3 ? 'text-green-400' : aboveAvg >= 2 ? 'text-yellow-400' : 'text-red-400'
+                      }`}>
+                        {aboveAvg}/{totalForm}
+                      </span>
                     </td>
                   </tr>
                 );
