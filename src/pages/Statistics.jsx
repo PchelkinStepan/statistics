@@ -24,7 +24,11 @@ const Statistics = () => {
 
   // Вычисляем статистику по командам
   const teamStats = teams.map(team => {
-    const teamMatches = matches.filter(m => m.homeTeamId === team.id || m.awayTeamId === team.id);
+    const teamMatches = matches.filter(m => {
+      if (trendTab === 'home') return m.homeTeamId === team.id;
+      if (trendTab === 'away') return m.awayTeamId === team.id;
+      return m.homeTeamId === team.id || m.awayTeamId === team.id;
+    });
     if (teamMatches.length === 0) return null;
 
     let stats = {
