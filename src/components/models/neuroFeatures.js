@@ -180,12 +180,48 @@ export function buildFeatures(homeStats, awayStats, round, leagueAvgTotal) {
  * Фильтруем только матчи с расширенными данными (hasExtendedData).
  * @returns {{ features: number[], label: number, leagueId: string }[]}
  */
+/** Проверка наличия новых расширенных полей у матча */
+function hasExtendedData(match) {
+  return (
+    match.homeXGOT !== undefined ||
+    match.awayXGOT !== undefined ||
+    match.homeBlockedShots !== undefined ||
+    match.awayBlockedShots !== undefined ||
+    match.homeShotsOutsideBox !== undefined ||
+    match.awayShotsOutsideBox !== undefined ||
+    match.homeTouchesBox !== undefined ||
+    match.awayTouchesBox !== undefined ||
+    match.homeLongPassesAcc !== undefined ||
+    match.awayLongPassesAcc !== undefined ||
+    match.homeLongPasses !== undefined ||
+    match.awayLongPasses !== undefined ||
+    match.homeFinalThirdAcc !== undefined ||
+    match.awayFinalThirdAcc !== undefined ||
+    match.homeFinalThirdPasses !== undefined ||
+    match.awayFinalThirdPasses !== undefined ||
+    match.homeCrossesAcc !== undefined ||
+    match.awayCrossesAcc !== undefined ||
+    match.homeCrosses !== undefined ||
+    match.awayCrosses !== undefined ||
+    match.homeXA !== undefined ||
+    match.awayXA !== undefined ||
+    match.homeFouls !== undefined ||
+    match.awayFouls !== undefined ||
+    match.homeDuelsWon !== undefined ||
+    match.awayDuelsWon !== undefined ||
+    match.homeSaves !== undefined ||
+    match.awaySaves !== undefined
+  );
+}
+
 export function buildChronologicalTrainingExamples(matches, seasons) {
   const sortedMatches = [...(matches || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
   const examples = [];
   for (let i = 20; i < sortedMatches.length; i++) {
     const match = sortedMatches[i];
     
+    // Пропускаем матчи без расширенных данных
+    if (!hasExtendedData(match)) continue;
 
     const homePast = getLastMatches(sortedMatches, match.homeTeamId, match.date, 12);
     const awayPast = getLastMatches(sortedMatches, match.awayTeamId, match.date, 12);
