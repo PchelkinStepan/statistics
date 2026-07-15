@@ -41,7 +41,6 @@ const BetTracker = () => {
     betType: 'total',
     selection: 'over',
     total: 9.5,
-    handicap: 0,
     odds: 1.85,
     stake: 1000,
     status: 'pending',
@@ -119,7 +118,6 @@ const BetTracker = () => {
       betType: 'total',
       selection: 'over',
       total: 9.5,
-      handicap: 0,
       odds: 1.85,
       stake: 1000,
       status: 'pending',
@@ -184,7 +182,6 @@ const BetTracker = () => {
       console.log('✅ Ставка удалена:', betId);
     } catch (error) {
       console.error('❌ Ошибка удаления ставки:', error);
-      // Откатываем локальное состояние
       setBets(bets);
       setBankroll(bankroll);
     }
@@ -424,13 +421,13 @@ const BetTracker = () => {
                           {bet.betType === 'total' && (bet.selection === 'over' ? `ТБ ${bet.total}` : `ТМ ${bet.total}`)}
                           {bet.betType === 'total_1h' && (bet.selection === 'over' ? `ТБ 1Т ${bet.total}` : `ТМ 1Т ${bet.total}`)}
                           {bet.betType === 'total_2h' && (bet.selection === 'over' ? `ТБ 2Т ${bet.total}` : `ТМ 2Т ${bet.total}`)}
-                          {bet.betType === 'handicap' && (bet.selection === 'home' ? `Ф1 (${bet.handicap})` : `Ф2 (${bet.handicap})`)}
-                          {bet.betType === 'handicap_1h' && (bet.selection === 'home' ? `Ф1 1Т (${bet.handicap})` : `Ф2 1Т (${bet.handicap})`)}
-                          {bet.betType === 'handicap_2h' && (bet.selection === 'home' ? `Ф1 2Т (${bet.handicap})` : `Ф2 2Т (${bet.handicap})`)}
+                          {bet.betType === 'handicap' && (bet.selection === 'home' ? `Ф1 (${bet.total})` : `Ф2 (${bet.total})`)}
+                          {bet.betType === 'handicap_1h' && (bet.selection === 'home' ? `Ф1 1Т (${bet.total})` : `Ф2 1Т (${bet.total})`)}
+                          {bet.betType === 'handicap_2h' && (bet.selection === 'home' ? `Ф1 2Т (${bet.total})` : `Ф2 2Т (${bet.total})`)}
                           {bet.betType === 'corners_total' && (bet.selection === 'over' ? `Угл ТБ ${bet.total}` : `Угл ТМ ${bet.total}`)}
                           {bet.betType === 'corners_total_1h' && (bet.selection === 'over' ? `Угл 1Т ТБ ${bet.total}` : `Угл 1Т ТМ ${bet.total}`)}
                           {bet.betType === 'corners_total_2h' && (bet.selection === 'over' ? `Угл 2Т ТБ ${bet.total}` : `Угл 2Т ТМ ${bet.total}`)}
-                          {bet.betType === 'corners_handicap' && (bet.selection === 'home' ? `Угл Ф1 (${bet.handicap})` : `Угл Ф2 (${bet.handicap})`)}
+                          {bet.betType === 'corners_handicap' && (bet.selection === 'home' ? `Угл Ф1 (${bet.total})` : `Угл Ф2 (${bet.total})`)}
                         </span>
                       </td>
                       <td className="py-3 px-3 md:px-4 font-medium">{bet.odds}</td>
