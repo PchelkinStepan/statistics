@@ -6,6 +6,7 @@ const Statistics = () => {
   const [data, setData] = useState(getData());
   const [selectedLeague, setSelectedLeague] = useState(data.leagues?.[0]?.id || 'rpl');
   const [selectedSeason, setSelectedSeason] = useState('');
+  const [trendTab, setTrendTab] = useState('all');
 
   useEffect(() => {
     const unsubscribe = subscribe((newData) => setData(newData));
@@ -200,6 +201,13 @@ const Statistics = () => {
         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <TrendingUp size={16} className="text-green-400" /> Тренды угловых (последние 5 матчей)
         </h4>
+        
+        <div className="flex gap-1 bg-gray-700/30 rounded-lg p-1 mb-3">
+          <button onClick={() => setTrendTab('all')} className={`flex-1 py-1.5 rounded text-xs font-medium transition ${trendTab === 'all' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>📊 Общие</button>
+          <button onClick={() => setTrendTab('home')} className={`flex-1 py-1.5 rounded text-xs font-medium transition ${trendTab === 'home' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>🏠 Дома</button>
+          <button onClick={() => setTrendTab('away')} className={`flex-1 py-1.5 rounded text-xs font-medium transition ${trendTab === 'away' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>✈️ В гостях</button>
+        </div>
+        
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-700">
