@@ -131,10 +131,12 @@ const TensorFlowNeuroTab = () => {
       if (normParams) {
         features = features.map((val, idx) => {
           const mean = normParams.mean[idx] || 0;
-          const std = normParams.std[idx] || 1;
+          const std = normParams.std[idx] !== 0 ? normParams.std[idx] : 1;
           return (val - mean) / std;
         });
       }
+
+      if (features.some((f) => isNaN(f) || !isFinite(f))) continue;
 
       const inputTensor = tf.tensor2d([features]);
       const predictionTensor = model.predict(inputTensor);
@@ -171,9 +173,10 @@ const TensorFlowNeuroTab = () => {
         return;
       }
 
-      const trainSize = Math.floor(trainingExamples.length * 0.8);
-      const trainEx = trainingExamples.slice(0, trainSize);
-      const valEx = trainingExamples.slice(trainSize);
+      const shuffled = [...trainingExamples].sort(() => Math.random() - 0.5);
+      const trainSize = Math.floor(shuffled.length * 0.8);
+      const trainEx = shuffled.slice(0, trainSize);
+      const valEx = shuffled.slice(trainSize);
 
       const xsTensor = tf.tensor2d(trainEx.map((e) => e.features));
       const moments = tf.moments(xsTensor, 0);
@@ -197,7 +200,12 @@ const TensorFlowNeuroTab = () => {
       addLog('📊 Данные нормализованы');
       const model = createModel();
       addLog('✅ Модель создана');
-      addLog('🎓 Обучение 120 эпох...');
+      const trainStartTime = Date.now();
+      addLog('🎓 Обучение до 120 эпох с early stopping...');
+
+      let bestValMae = Infinity;
+      let patience = 10;
+      let wait = 0;
 
       const history = await model.fit(xsN, ysT, {
         epochs: 120,
@@ -205,18 +213,31 @@ const TensorFlowNeuroTab = () => {
         validationData: [valXsN, valYsT],
         callbacks: {
           onEpochEnd: (epoch, logs) => {
-            if (epoch % 20 === 0 || epoch === 119) {
+            if (epoch % 20 === 0 || epoch === 119 || epoch === 0) {
               addLog(
                 ` Эпоха ${epoch + 1}: loss=${logs.loss.toFixed(4)}, mae=${logs.mae.toFixed(2)}, val_mae=${logs.val_mae.toFixed(2)}`,
               );
+            }
+            
+            // Early stopping
+            if (logs.val_mae < bestValMae) {
+              bestValMae = logs.val_mae;
+              wait = 0;
+            } else {
+              wait++;
+              if (wait >= patience) {
+                model.stopTraining = true;
+                addLog(`⏹️ Early stopping на эпохе ${epoch + 1} (val_mae не улучшалось ${patience} эпох)`);
+              }
             }
           },
         },
       });
 
+      const trainDuration = ((Date.now() - trainStartTime) / 1000).toFixed(1);
       const finalTrainMae = history.history.mae[history.history.mae.length - 1];
       const finalValMae = history.history.val_mae[history.history.val_mae.length - 1];
-      addLog(`✅ Train MAE: ±${finalTrainMae.toFixed(2)}, Val MAE: ±${finalValMae.toFixed(2)}`);
+      addLog(`✅ Обучено за ${trainDuration}с. Train MAE: ±${finalTrainMae.toFixed(2)}, Val MAE: ±${finalValMae.toFixed(2)}`);
 
       xsTensor.dispose();
       xsN.dispose();
@@ -262,13 +283,19 @@ const TensorFlowNeuroTab = () => {
       const xs = recent.map((e) => e.features);
       const ys = recent.map((e) => e.label);
 
-      const normParams = JSON.parse(localStorage.getItem('neuro_norm_params') || 'null');
       const xsT = tf.tensor2d(xs);
-      const mean = tf.tensor1d(normParams.mean);
-      const std = tf.tensor1d(normParams.std);
-      const xsN = xsT.sub(mean).div(std);
+      const moments = tf.moments(xsT, 0);
+      const mean = moments.mean;
+      const std = moments.variance.sqrt().add(1e-7);
+      const normParams = { mean: await mean.array(), std: await std.array() };
+      localStorage.setItem('neuro_norm_params', JSON.stringify(normParams));
+      
+      const meanTensor = tf.tensor1d(normParams.mean);
+      const stdTensor = tf.tensor1d(normParams.std);
+      const xsN = xsT.sub(meanTensor).div(stdTensor);
       const ysT = tf.tensor2d(ys, [ys.length, 1]);
 
+      const retrainStartTime = Date.now();
       addLog('🎓 Дообучение (8 эпох, lr=0.00005)...');
       loadedModel.compile({ optimizer: tf.train.adam(0.00005), loss: 'meanSquaredError', metrics: ['mae'] });
       await loadedModel.fit(xsN, ysT, {
@@ -283,12 +310,13 @@ const TensorFlowNeuroTab = () => {
         },
       });
 
+      const retrainDuration = ((Date.now() - retrainStartTime) / 1000).toFixed(1);
       xsT.dispose();
       xsN.dispose();
       ysT.dispose();
 
       const results = runHonestTest(loadedModel, data.matches, data.seasons, normParams);
-      addLog(`📊 MAE: ±${results.avgError} угловых`);
+      addLog(`📊 Дообучено за ${retrainDuration}с. MAE: ±${results.avgError} угловых`);
 
       setTestResults(results);
       localStorage.setItem('neuro_test_results', JSON.stringify(results));
@@ -329,9 +357,14 @@ const TensorFlowNeuroTab = () => {
       if (normParams) {
         features = features.map((val, idx) => {
           const mn = normParams.mean[idx] || 0;
-          const sd = normParams.std[idx] || 1;
+          const sd = normParams.std[idx] !== 0 ? normParams.std[idx] : 1;
           return (val - mn) / sd;
         });
+      }
+
+      if (features.some((f) => isNaN(f) || !isFinite(f))) {
+        setIsPredicting(false);
+        return;
       }
 
       const inputTensor = tf.tensor2d([features]);
