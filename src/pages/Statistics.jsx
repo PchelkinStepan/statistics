@@ -214,7 +214,7 @@ const Statistics = () => {
               </tr>
             </thead>
             <tbody>
-              {teamStats.sort((a, b) => parseFloat(b.avgCornersFor) - parseFloat(a.avgCornersFor)).slice(0, 10).map(team => {
+              {teamStats.sort((a, b) => parseFloat(b.avgCornersFor) - parseFloat(a.avgCornersFor)).map(team => {
                 const form = team.form;
                 const trend = form.length >= 2 ? (form[form.length - 1] - form[0]) : 0;
                 const aboveAvg = form.filter(v => v >= parseFloat(team.avgCornersFor)).length;
