@@ -215,6 +215,7 @@ const ModelsComparison = () => {
         ensembleRecommendation = '❌ ПРОПУСКАЮ! Модели не согласны';
       }
 
+      console.log('📊 Ансамбль:', { overVotes, underVotes, totalVotes, ensembleVote, ensembleRecommendation });
       setResults({ tf: tfResult, rf: rfResult, xgb: xgbResult, ensemble: { vote: ensembleVote, recommendation: ensembleRecommendation } });
     } catch (error) {
       console.error('Comparison error:', error);
