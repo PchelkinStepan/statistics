@@ -30,8 +30,6 @@ class SimpleRandomForest {
     this.nEstimators = params.nEstimators ?? 22;
     this.maxDepth = params.maxDepth ?? 7;
     this.minSamplesSplit = params.minSamplesSplit ?? 6;
-    this.minSamplesLeaf = params.minSamplesLeaf ?? 3;
-    this.minImpurityDecrease = params.minImpurityDecrease ?? 0.001;
     this.maxFeatures = params.maxFeatures ?? 8;
     this.seed = params.seed ?? 42;
   }
@@ -51,7 +49,7 @@ class SimpleRandomForest {
   }
 
   trainTree(X, y, depth, rng) {
-    if (depth >= this.maxDepth || y.length < this.minSamplesSplit || y.length < this.minSamplesLeaf * 2) {
+    if (depth >= this.maxDepth || y.length < this.minSamplesSplit) {
       return { type: 'leaf', value: y.reduce((a, b) => a + b, 0) / y.length };
     }
 
@@ -88,7 +86,7 @@ class SimpleRandomForest {
       }
     }
 
-    if (bestGain === -Infinity || bestGain < this.minImpurityDecrease) {
+    if (bestGain === -Infinity) {
       return { type: 'leaf', value: y.reduce((a, b) => a + b, 0) / y.length };
     }
 
@@ -264,8 +262,6 @@ const RandomForestModel = () => {
         nEstimators: 50,
         maxDepth: 10,
         minSamplesSplit: 5,
-        minSamplesLeaf: 3,
-        minImpurityDecrease: 0.001,
         maxFeatures: 10,
         seed: Math.floor(Math.random() * 10000),
       });
