@@ -163,59 +163,56 @@ const ModelsComparison = () => {
       }
 
       // === Ансамбль ===
+      let overVotes = 0;
+      let underVotes = 0;
+      
+      if (tfResult) {
+        const tfExpected = parseFloat(tfResult.expectedTotal);
+        if (tfExpected > selectedTotal) overVotes++;
+        else if (tfExpected < selectedTotal) underVotes++;
+      }
+      if (rfResult) {
+        const rfExpected = parseFloat(rfResult.expectedTotal);
+        if (rfExpected > selectedTotal) overVotes++;
+        else if (rfExpected < selectedTotal) underVotes++;
+      }
+      if (xgbResult) {
+        const xgbExpected = parseFloat(xgbResult.expectedTotal);
+        if (xgbExpected > selectedTotal) overVotes++;
+        else if (xgbExpected < selectedTotal) underVotes++;
+      }
+      
+      const totalVotes = overVotes + underVotes;
       let ensembleVote = '⚖️ Нет данных';
       let ensembleRecommendation = '❌ ПРОПУСКАЮ';
       
-      if (tfResult || rfResult || xgbResult) {
-        let overVotes = 0;
-        let underVotes = 0;
-        
-        if (tfResult) {
-          const tfExpected = parseFloat(tfResult.expectedTotal);
-          if (tfExpected > selectedTotal) overVotes++;
-          else if (tfExpected < selectedTotal) underVotes++;
+      if (totalVotes === 3) {
+        if (overVotes === 3) {
+          ensembleVote = '🔥 СТАВЛЮ ТБ!';
+          ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТБ';
+        } else if (underVotes === 3) {
+          ensembleVote = '🔥 СТАВЛЮ ТМ!';
+          ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТМ';
         }
-        if (rfResult) {
-          const rfExpected = parseFloat(rfResult.expectedTotal);
-          if (rfExpected > selectedTotal) overVotes++;
-          else if (rfExpected < selectedTotal) underVotes++;
+      } else if (totalVotes === 2) {
+        if (overVotes === 2) {
+          ensembleVote = '✅ ТБ (2 из 3)';
+          ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТБ';
+        } else if (underVotes === 2) {
+          ensembleVote = '✅ ТМ (2 из 3)';
+          ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТМ';
         }
-        if (xgbResult) {
-          const xgbExpected = parseFloat(xgbResult.expectedTotal);
-          if (xgbExpected > selectedTotal) overVotes++;
-          else if (xgbExpected < selectedTotal) underVotes++;
+      } else if (totalVotes === 1) {
+        if (overVotes === 1) {
+          ensembleVote = '⚠️ ТБ (1 из 3)';
+          ensembleRecommendation = '❌ ПРОПУСКАЮ! Только 1 модель за ТБ';
+        } else if (underVotes === 1) {
+          ensembleVote = '⚠️ ТМ (1 из 3)';
+          ensembleRecommendation = '❌ ПРОПУСКАЮ! Только 1 модель за ТМ';
         }
-        
-        const totalVotes = overVotes + underVotes;
-        
-        if (totalVotes === 3) {
-          if (overVotes === 3) {
-            ensembleVote = '🔥 СТАВЛЮ ТБ!';
-            ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТБ';
-          } else if (underVotes === 3) {
-            ensembleVote = '🔥 СТАВЛЮ ТМ!';
-            ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТМ';
-          }
-        } else if (totalVotes === 2) {
-          if (overVotes === 2) {
-            ensembleVote = '✅ ТБ (2 из 3)';
-            ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТБ';
-          } else if (underVotes === 2) {
-            ensembleVote = '✅ ТМ (2 из 3)';
-            ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТМ';
-          }
-        } else if (totalVotes === 1) {
-          if (overVotes === 1) {
-            ensembleVote = '⚠️ ТБ (1 из 3)';
-            ensembleRecommendation = '❌ ПРОПУСКАЮ! Только 1 модель за ТБ';
-          } else if (underVotes === 1) {
-            ensembleVote = '⚠️ ТМ (1 из 3)';
-            ensembleRecommendation = '❌ ПРОПУСКАЮ! Только 1 модель за ТМ';
-          }
-        } else {
-          ensembleVote = '⚖️ Разногласие';
-          ensembleRecommendation = '❌ ПРОПУСКАЮ! Модели не согласны';
-        }
+      } else {
+        ensembleVote = '⚖️ Разногласие';
+        ensembleRecommendation = '❌ ПРОПУСКАЮ! Модели не согласны';
       }
 
       setResults({ tf: tfResult, rf: rfResult, xgb: xgbResult, ensemble: { vote: ensembleVote, recommendation: ensembleRecommendation } });
