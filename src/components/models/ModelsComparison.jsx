@@ -193,6 +193,15 @@ const ModelsComparison = () => {
         } else if (underVotes === 3) {
           ensembleVote = '🔥 СТАВЛЮ ТМ!';
           ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТМ';
+        } else {
+          // 2 против 1
+          if (overVotes === 2) {
+            ensembleVote = '✅ ТБ (2 из 3)';
+            ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТБ';
+          } else if (underVotes === 2) {
+            ensembleVote = '✅ ТМ (2 из 3)';
+            ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТМ';
+          }
         }
       } else if (totalVotes === 2) {
         if (overVotes === 2) {
