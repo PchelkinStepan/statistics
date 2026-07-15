@@ -162,7 +162,63 @@ const ModelsComparison = () => {
         };
       }
 
-      setResults({ tf: tfResult, rf: rfResult, xgb: xgbResult });
+      // === Ансамбль ===
+      let ensembleVote = '⚖️ Нет данных';
+      let ensembleRecommendation = '❌ ПРОПУСКАЮ';
+      
+      if (tfResult || rfResult || xgbResult) {
+        let overVotes = 0;
+        let underVotes = 0;
+        
+        if (tfResult) {
+          const tfExpected = parseFloat(tfResult.expectedTotal);
+          if (tfExpected > selectedTotal) overVotes++;
+          else if (tfExpected < selectedTotal) underVotes++;
+        }
+        if (rfResult) {
+          const rfExpected = parseFloat(rfResult.expectedTotal);
+          if (rfExpected > selectedTotal) overVotes++;
+          else if (rfExpected < selectedTotal) underVotes++;
+        }
+        if (xgbResult) {
+          const xgbExpected = parseFloat(xgbResult.expectedTotal);
+          if (xgbExpected > selectedTotal) overVotes++;
+          else if (xgbExpected < selectedTotal) underVotes++;
+        }
+        
+        const totalVotes = overVotes + underVotes;
+        
+        if (totalVotes === 3) {
+          if (overVotes === 3) {
+            ensembleVote = '🔥 СТАВЛЮ ТБ!';
+            ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТБ';
+          } else if (underVotes === 3) {
+            ensembleVote = '🔥 СТАВЛЮ ТМ!';
+            ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТМ';
+          }
+        } else if (totalVotes === 2) {
+          if (overVotes === 2) {
+            ensembleVote = '✅ ТБ (2 из 3)';
+            ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТБ';
+          } else if (underVotes === 2) {
+            ensembleVote = '✅ ТМ (2 из 3)';
+            ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТМ';
+          }
+        } else if (totalVotes === 1) {
+          if (overVotes === 1) {
+            ensembleVote = '⚠️ ТБ (1 из 3)';
+            ensembleRecommendation = '❌ ПРОПУСКАЮ! Только 1 модель за ТБ';
+          } else if (underVotes === 1) {
+            ensembleVote = '⚠️ ТМ (1 из 3)';
+            ensembleRecommendation = '❌ ПРОПУСКАЮ! Только 1 модель за ТМ';
+          }
+        } else {
+          ensembleVote = '⚖️ Разногласие';
+          ensembleRecommendation = '❌ ПРОПУСКАЮ! Модели не согласны';
+        }
+      }
+
+      setResults({ tf: tfResult, rf: rfResult, xgb: xgbResult, ensemble: { vote: ensembleVote, recommendation: ensembleRecommendation } });
     } catch (error) {
       console.error('Comparison error:', error);
     }
@@ -293,12 +349,22 @@ const ModelsComparison = () => {
 
         {results && (
           <div className="space-y-4">
+            {/* 🧠 АНСАМБЛЬ */}
+            <div className={`p-4 rounded-xl text-center ${
+              results.ensemble?.recommendation?.includes('СТАВЛЮ') ? 'bg-green-600/20 border border-green-600' :
+              results.ensemble?.recommendation?.includes('ДУМАЮ') ? 'bg-yellow-600/20 border border-yellow-600' :
+              'bg-gray-600/20 border border-gray-600'
+            }`}>
+              <h4 className="text-lg font-bold mb-1">🧠 Ансамбль</h4>
+              <p className="text-2xl font-bold">{results.ensemble?.vote || '⚖️ Нет данных'}</p>
+              <p className="text-sm mt-1">{results.ensemble?.recommendation || ''}</p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <ModelCard icon={Brain} title="TensorFlow" result={results.tf} color="text-purple-400" gradient="border-purple-700/50" />
               <ModelCard icon={TreePine} title="Random Forest" result={results.rf} color="text-lime-400" gradient="border-lime-700/50" />
               <ModelCard icon={Zap} title="XGBoost" result={results.xgb} color="text-emerald-400" gradient="border-emerald-700/50" />
             </div>
-
 
             <button
               type="button"
