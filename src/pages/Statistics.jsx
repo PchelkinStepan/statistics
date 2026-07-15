@@ -44,6 +44,7 @@ const Statistics = () => {
       totalYellowCards: 0,
       totalRedCards: 0,
       totalCorners1H: 0,
+      totalCorners2H: 0,
       totalCornersAgainst1H: 0,
       wins: 0,
       draws: 0,
@@ -68,6 +69,7 @@ const Statistics = () => {
       const yellowCards = isHome ? (m.homeYellowCards || 0) : (m.awayYellowCards || 0);
       const redCards = isHome ? (m.homeRedCards || 0) : (m.awayRedCards || 0);
       const corners1H = isHome ? (m.homeCorners1H || 0) : (m.awayCorners1H || 0);
+      const corners2H = isHome ? (m.homeCorners2H || 0) : (m.awayCorners2H || 0);
       const cornersAgainst1H = isHome ? (m.awayCorners1H || 0) : (m.homeCorners1H || 0);
 
       stats.totalCornersFor += cornersFor;
@@ -84,6 +86,7 @@ const Statistics = () => {
       stats.totalYellowCards += yellowCards;
       stats.totalRedCards += redCards;
       stats.totalCorners1H += corners1H;
+      stats.totalCorners2H += corners2H;
       stats.totalCornersAgainst1H += cornersAgainst1H;
 
       if (goalsFor > goalsAgainst) stats.wins++;
@@ -111,6 +114,7 @@ const Statistics = () => {
       avgYellowCards: (stats.totalYellowCards / n).toFixed(1),
       avgRedCards: (stats.totalRedCards / n).toFixed(1),
       avgCorners1H: (stats.totalCorners1H / n).toFixed(2),
+      avgCorners2H: (stats.totalCorners2H / n).toFixed(2),
       avgCornersAgainst1H: (stats.totalCornersAgainst1H / n).toFixed(2),
       points: stats.wins * 3 + stats.draws,
       form: stats.recentCorners.slice(-5),
