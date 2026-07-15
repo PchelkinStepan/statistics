@@ -18,6 +18,10 @@ class SimpleXGBoost {
     this.learningRate = params.learningRate ?? 0.1;
     this.maxDepth = params.maxDepth ?? 3;
     this.minSamplesSplit = params.minSamplesSplit ?? 10;
+    this.minSamplesLeaf = params.minSamplesLeaf ?? 3;
+    this.gamma = params.gamma ?? 0.1;
+    this.lambda = params.lambda ?? 1.0;
+    this.subsample = params.subsample ?? 0.8;
     this.nEstimators = params.nEstimators ?? 50;
     this.seed = params.seed ?? 42;
   }
@@ -34,7 +38,7 @@ class SimpleXGBoost {
   }
 
   trainTree(X, y, depth = 0, rng = Math.random) {
-    if (depth >= this.maxDepth || y.length < this.minSamplesSplit) {
+    if (depth >= this.maxDepth || y.length < this.minSamplesSplit || y.length < this.minSamplesLeaf * 2) {
       return { type: 'leaf', value: y.reduce((a, b) => a + b, 0) / y.length };
     }
 
@@ -74,7 +78,7 @@ class SimpleXGBoost {
       }
     }
 
-    if (bestGain === -Infinity) {
+    if (bestGain === -Infinity || bestGain < this.gamma) {
       return { type: 'leaf', value: y.reduce((a, b) => a + b, 0) / y.length };
     }
 
@@ -126,14 +130,24 @@ class SimpleXGBoost {
     this.trees = [];
     let residuals = [...y];
     const rng = this.mulberry32(this.seed);
+    const n = X.length;
+    const subsampleSize = Math.floor(n * this.subsample);
 
     for (let i = 0; i < this.nEstimators; i++) {
       const bootRng = this.mulberry32(this.seed + i * 2654435761);
-      const n = X.length;
       const Xb = [];
       const yb = [];
-      for (let j = 0; j < n; j++) {
-        const idx = Math.floor(bootRng() * n);
+      
+      // Subsample (случайная выборка без возвращения)
+      const indices = [];
+      for (let j = 0; j < n; j++) indices.push(j);
+      for (let j = n - 1; j > 0; j--) {
+        const k = Math.floor(bootRng() * (j + 1));
+        [indices[j], indices[k]] = [indices[k], indices[j]];
+      }
+      const selectedIndices = indices.slice(0, subsampleSize);
+      
+      for (const idx of selectedIndices) {
         Xb.push(X[idx]);
         yb.push(residuals[idx]);
       }
@@ -141,7 +155,14 @@ class SimpleXGBoost {
       const treeRng = this.mulberry32(this.seed + i * 1597334677 + 9);
       const tree = this.trainTree(Xb, yb, 0, treeRng);
       this.trees.push(tree);
-      residuals = residuals.map((yi, idx) => yi - this.learningRate * this.predictTree(tree, X[idx]));
+      
+      // Обновляем residuals с L2-регуляризацией
+      residuals = residuals.map((yi, idx) => {
+        const pred = this.learningRate * this.predictTree(tree, X[idx]);
+        // L2 shrinkage: умножаем предсказание на 1/(1+lambda)
+        const shrunkPred = pred / (1 + this.lambda);
+        return yi - shrunkPred;
+      });
     }
   }
 
@@ -261,6 +282,10 @@ const XGBoostModel = () => {
         maxDepth: 5, 
         learningRate: 0.05, 
         minSamplesSplit: 8,
+        minSamplesLeaf: 3,
+        gamma: 0.1,
+        lambda: 1.0,
+        subsample: 0.8,
         seed: Math.floor(Math.random() * 10000),
       });
 
