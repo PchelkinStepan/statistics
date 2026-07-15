@@ -216,7 +216,18 @@ const Statistics = () => {
             <tbody>
               {teamStats.sort((a, b) => parseFloat(b.avgCornersFor) - parseFloat(a.avgCornersFor)).map(team => {
                 const form = team.form;
-                const trend = form.length >= 2 ? (form[form.length - 1] - form[0]) : 0;
+                const trend = (() => {
+                  const n = form.length;
+                  if (n < 2) return 0;
+                  const xMean = (n - 1) / 2;
+                  const yMean = form.reduce((a, b) => a + b, 0) / n;
+                  let num = 0, den = 0;
+                  for (let i = 0; i < n; i++) {
+                    num += (i - xMean) * (form[i] - yMean);
+                    den += (i - xMean) ** 2;
+                  }
+                  return den !== 0 ? num / den : 0;
+                })();
                 const aboveAvg = form.filter(v => v >= parseFloat(team.avgCornersFor)).length;
                 const totalForm = form.filter(v => v !== undefined && v !== null).length;
                 
