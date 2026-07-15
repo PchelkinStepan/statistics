@@ -4,7 +4,7 @@
  * Фильтрация матчей без новых полей при обучении.
  */
 
-export const NEURO_FEATURE_DIM = 84;
+export const NEURO_FEATURE_DIM = 148;
 
 export function safe(val, fallback = 0) {
   return val != null && isFinite(val) && !isNaN(val) ? val : fallback;
@@ -31,39 +31,6 @@ export function getLastMatches(allMatches, teamId, beforeDate, count) {
     .slice(0, count);
 }
 
-/** Проверка наличия новых расширенных полей у матча */
-export function hasExtendedData(match) {
-  return (
-    match.homeXGOT !== undefined ||
-    match.awayXGOT !== undefined ||
-    match.homeBlockedShots !== undefined ||
-    match.awayBlockedShots !== undefined ||
-    match.homeShotsOutsideBox !== undefined ||
-    match.awayShotsOutsideBox !== undefined ||
-    match.homeTouchesBox !== undefined ||
-    match.awayTouchesBox !== undefined ||
-    match.homeLongPassesAcc !== undefined ||
-    match.awayLongPassesAcc !== undefined ||
-    match.homeLongPasses !== undefined ||
-    match.awayLongPasses !== undefined ||
-    match.homeFinalThirdAcc !== undefined ||
-    match.awayFinalThirdAcc !== undefined ||
-    match.homeFinalThirdPasses !== undefined ||
-    match.awayFinalThirdPasses !== undefined ||
-    match.homeCrossesAcc !== undefined ||
-    match.awayCrossesAcc !== undefined ||
-    match.homeCrosses !== undefined ||
-    match.awayCrosses !== undefined ||
-    match.homeXA !== undefined ||
-    match.awayXA !== undefined ||
-    match.homeFouls !== undefined ||
-    match.awayFouls !== undefined ||
-    match.homeDuelsWon !== undefined ||
-    match.awayDuelsWon !== undefined ||
-    match.homeSaves !== undefined ||
-    match.awaySaves !== undefined
-  );
-}
 
 /** Вспомогательная функция для получения значения поля матча с учётом стороны */
 function getMatchValue(match, field, isHome, fallback = 0) {
@@ -175,38 +142,36 @@ export function buildFeatures(homeStats, awayStats, round, leagueAvgTotal) {
     'CrossesAcc', 'Crosses', 'XA', 'Fouls', 'DuelsWon', 'Saves'
   ];
 
-  // Ключевые поля для 1-го тайма (13 из 23)
-  const keyFields1H = ['Score', 'XG', 'Possession', 'TotalShots', 'ShotsOnTarget', 'Corners', 'YellowCards', 'RedCards', 'XGOT', 'BlockedShots', 'ShotsInsideBox', 'ShotsOutsideBox', 'TouchesBox'];
-
   // 1. Основные поля хозяев (23)
   fields.forEach(f => features.push(safe(homeStats[`avg${f}`], 0)));
   // 2. Основные поля гостей (23)
   fields.forEach(f => features.push(safe(awayStats[`avg${f}`], 0)));
-  // 3. 1H ключевые поля хозяев (13)
-  keyFields1H.forEach(f => features.push(safe(homeStats[`avg${f}1H`], 0)));
-  // 4. 1H ключевые поля гостей (13)
-  keyFields1H.forEach(f => features.push(safe(awayStats[`avg${f}1H`], 0)));
-  // 5. 2H угловые хозяев и гостей (2)
-  features.push(safe(homeStats['avgCorners2H'], 0));
-  features.push(safe(awayStats['avgCorners2H'], 0));
-  // 6. matchesPlayed (2)
+  // 3. 1H все поля хозяев (23)
+  fields.forEach(f => features.push(safe(homeStats[`avg${f}1H`], 0)));
+  // 4. 1H все поля гостей (23)
+  fields.forEach(f => features.push(safe(awayStats[`avg${f}1H`], 0)));
+  // 5. 2H все поля хозяев (23)
+  fields.forEach(f => features.push(safe(homeStats[`avg${f}2H`], 0)));
+  // 6. 2H все поля гостей (23)
+  fields.forEach(f => features.push(safe(awayStats[`avg${f}2H`], 0)));
+  // 7. matchesPlayed (2)
   features.push(safe(homeStats.matchesPlayed, 10));
   features.push(safe(awayStats.matchesPlayed, 10));
-  // 7. formPoints (2)
+  // 8. formPoints (2)
   features.push(safe(homeStats.formPoints / 3, 0));
   features.push(safe(awayStats.formPoints / 3, 0));
-  // 8. cornersTrend (2)
+  // 9. cornersTrend (2)
   features.push(safe(homeStats.cornersTrend, 0));
   features.push(safe(awayStats.cornersTrend, 0));
-  // 9. ratio1H (2)
+  // 10. ratio1H (2)
   features.push(safe(homeStats.ratio1H, 0.5));
   features.push(safe(awayStats.ratio1H, 0.5));
-  // 10. round (1)
+  // 11. round (1)
   features.push(safe(round, 0));
-  // 11. leagueAvgTotal (1)
+  // 12. leagueAvgTotal (1)
   features.push(safe(leagueAvgTotal, 9.5));
 
-  // Итого: 23+23+13+13+2+2+2+2+2+2+1+1 = 84
+  // Итого: 23+23+23+23+23+23+2+2+2+2+2+1+1 = 148
   return features;
 }
 
@@ -221,8 +186,6 @@ export function buildChronologicalTrainingExamples(matches, seasons) {
   for (let i = 20; i < sortedMatches.length; i++) {
     const match = sortedMatches[i];
     
-    // Пропускаем матчи без расширенных данных
-    if (!hasExtendedData(match)) continue;
 
     const homePast = getLastMatches(sortedMatches, match.homeTeamId, match.date, 12);
     const awayPast = getLastMatches(sortedMatches, match.awayTeamId, match.date, 12);
