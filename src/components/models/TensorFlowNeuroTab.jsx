@@ -204,6 +204,7 @@ const TensorFlowNeuroTab = () => {
       addLog('🎓 Обучение до 120 эпох с early stopping...');
 
       let bestValMae = Infinity;
+      let bestWeights = null;
       let patience = 10;
       let wait = 0;
 
@@ -219,9 +220,10 @@ const TensorFlowNeuroTab = () => {
               );
             }
             
-            // Early stopping
+            // Сохраняем лучшие веса
             if (logs.val_mae < bestValMae) {
               bestValMae = logs.val_mae;
+              bestWeights = model.getWeights();
               wait = 0;
             } else {
               wait++;
@@ -233,6 +235,12 @@ const TensorFlowNeuroTab = () => {
           },
         },
       });
+
+      // Восстанавливаем лучшие веса
+      if (bestWeights) {
+        model.setWeights(bestWeights);
+        addLog(`✅ Восстановлены лучшие веса (val_mae=${bestValMae.toFixed(2)})`);
+      }
 
       const trainDuration = ((Date.now() - trainStartTime) / 1000).toFixed(1);
       const finalTrainMae = history.history.mae[history.history.mae.length - 1];
