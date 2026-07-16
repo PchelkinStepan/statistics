@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Scale, Brain, TreePine, Zap, Save, Wallet, TrendingUp } from 'lucide-react';
+import { Scale, Brain, TreePine, Zap, Save, Wallet } from 'lucide-react';
 import { getData } from '../../data/store';
 import BetModal from '../BetModal';
 import {
@@ -21,8 +21,6 @@ const ModelsComparison = () => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showBetModal, setShowBetModal] = useState(false);
-  const [manualKef, setManualKef] = useState('1.85');
-  const [valueResults, setValueResults] = useState(null);
 
   const teamsInLeague = data.teams?.filter((t) => t.leagueId === predictLeague) || [];
 
@@ -32,66 +30,6 @@ const ModelsComparison = () => {
     setSelectedTotal(getLineTotalForLeague(predictLeague, data.seasons, data.leagues));
   }, [predictLeague, data.seasons, data.leagues]);
 
-  // Пересчёт Value при изменении результатов или коэффициента
-  useEffect(() => {
-    if (!results) {
-      setValueResults(null);
-      return;
-    }
-    
-    const kef = parseFloat(manualKef);
-    if (!kef || kef <= 0) {
-      setValueResults(null);
-      return;
-    }
-    
-    const newValueResults = {};
-    
-    // Используем consensusProb если есть, иначе отдельные вероятности
-    if (results.ensemble?.consensusProb !== null && results.ensemble?.consensusProb !== undefined) {
-      const prob = results.ensemble.consensusProb / 100;
-      const value = prob * kef - 1;
-      newValueResults.ensemble = {
-        value: (value * 100).toFixed(1),
-        isValue: value > 0.05,
-        isSuper: value > 0.10,
-        prob: results.ensemble.consensusProb,
-      };
-    }
-    
-    if (results.tf) {
-      const prob = results.tf.overProbability / 100;
-      const value = prob * kef - 1;
-      newValueResults.tf = {
-        value: (value * 100).toFixed(1),
-        isValue: value > 0.05,
-        isSuper: value > 0.10,
-        prob: results.tf.overProbability,
-      };
-    }
-    if (results.rf) {
-      const prob = results.rf.overProbability / 100;
-      const value = prob * kef - 1;
-      newValueResults.rf = {
-        value: (value * 100).toFixed(1),
-        isValue: value > 0.05,
-        isSuper: value > 0.10,
-        prob: results.rf.overProbability,
-      };
-    }
-    if (results.xgb) {
-      const prob = results.xgb.overProbability / 100;
-      const value = prob * kef - 1;
-      newValueResults.xgb = {
-        value: (value * 100).toFixed(1),
-        isValue: value > 0.05,
-        isSuper: value > 0.10,
-        prob: results.xgb.overProbability,
-      };
-    }
-    
-    setValueResults(newValueResults);
-  }, [results, manualKef]);
 
   const predictRF = (features) => {
     try {
@@ -480,79 +418,6 @@ const ModelsComparison = () => {
               <ModelCard icon={Zap} title="XGBoost" result={results.xgb} color="text-emerald-400" gradient="border-emerald-700/50" />
             </div>
 
-            {/* 💰 VALUE КАЛЬКУЛЯТОР */}
-            <div className="bg-gray-800/80 rounded-xl p-5 border border-gray-600">
-              <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
-                <TrendingUp size={18} className="text-green-400" />
-                Value Betting
-              </h4>
-              <div className="flex items-center gap-4 mb-3 flex-wrap">
-                <label className="text-sm text-gray-400 whitespace-nowrap">Введите кэф:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={manualKef}
-                  onChange={(e) => setManualKef(e.target.value)}
-                  className="w-24 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white text-center font-bold text-lg"
-                />
-              </div>
-              
-              {valueResults && (
-                <div className="space-y-2">
-                  {valueResults.ensemble && (
-                    <div className={`p-4 rounded-lg text-center font-bold text-lg ${
-                      valueResults.ensemble.isSuper ? 'bg-green-600/30 text-green-400 border border-green-600' :
-                      valueResults.ensemble.isValue ? 'bg-yellow-600/30 text-yellow-400 border border-yellow-600' :
-                      'bg-red-600/30 text-red-400 border border-red-600'
-                    }`}>
-                      🧠 АНСАМБЛЬ: Value {valueResults.ensemble.value > 0 ? '+' : ''}{valueResults.ensemble.value}%
-                      {valueResults.ensemble.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
-                       valueResults.ensemble.isValue ? ' ✅ ВАЛУЙ!' :
-                       ' ❌ МИМО'}
-                      <div className="text-xs mt-1 opacity-80">
-                        Вероятность: {valueResults.ensemble.prob}%
-                      </div>
-                    </div>
-                  )}
-                  {valueResults.tf && (
-                    <div className={`p-3 rounded-lg text-center font-bold text-lg ${
-                      valueResults.tf.isSuper ? 'bg-green-600/30 text-green-400' :
-                      valueResults.tf.isValue ? 'bg-yellow-600/30 text-yellow-400' :
-                      'bg-red-600/30 text-red-400'
-                    }`}>
-                      🧠 TF: Value {valueResults.tf.value > 0 ? '+' : ''}{valueResults.tf.value}%
-                      {valueResults.tf.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
-                       valueResults.tf.isValue ? ' ✅ ВАЛУЙ!' :
-                       ' ❌ МИМО'}
-                    </div>
-                  )}
-                  {valueResults.rf && (
-                    <div className={`p-3 rounded-lg text-center font-bold text-lg ${
-                      valueResults.rf.isSuper ? 'bg-green-600/30 text-green-400' :
-                      valueResults.rf.isValue ? 'bg-yellow-600/30 text-yellow-400' :
-                      'bg-red-600/30 text-red-400'
-                    }`}>
-                      🌲 RF: Value {valueResults.rf.value > 0 ? '+' : ''}{valueResults.rf.value}%
-                      {valueResults.rf.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
-                       valueResults.rf.isValue ? ' ✅ ВАЛУЙ!' :
-                       ' ❌ МИМО'}
-                    </div>
-                  )}
-                  {valueResults.xgb && (
-                    <div className={`p-3 rounded-lg text-center font-bold text-lg ${
-                      valueResults.xgb.isSuper ? 'bg-green-600/30 text-green-400' :
-                      valueResults.xgb.isValue ? 'bg-yellow-600/30 text-yellow-400' :
-                      'bg-red-600/30 text-red-400'
-                    }`}>
-                      ⚡ XGB: Value {valueResults.xgb.value > 0 ? '+' : ''}{valueResults.xgb.value}%
-                      {valueResults.xgb.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
-                       valueResults.xgb.isValue ? ' ✅ ВАЛУЙ!' :
-                       ' ❌ МИМО'}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
 
             <button
               type="button"
