@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Scale, Brain, TreePine, Zap, Save, Wallet } from 'lucide-react';
+import { Scale, Brain, TreePine, Zap, Save, Wallet, TrendingUp } from 'lucide-react';
 import { getData } from '../../data/store';
 import BetModal from '../BetModal';
 import {
@@ -8,6 +8,7 @@ import {
   buildFeatures,
   getLeagueAvgTotal,
   getLineTotalForLeague,
+  calculateProbabilitySimple,
 } from './neuroFeatures';
 
 const ModelsComparison = () => {
@@ -20,6 +21,8 @@ const ModelsComparison = () => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showBetModal, setShowBetModal] = useState(false);
+  const [manualKef, setManualKef] = useState('1.85');
+  const [valueResults, setValueResults] = useState(null);
 
   const teamsInLeague = data.teams?.filter((t) => t.leagueId === predictLeague) || [];
 
@@ -126,9 +129,12 @@ const ModelsComparison = () => {
           expectedTotal = Math.max(2, Math.min(18, expectedTotal));
 
           const testResults = JSON.parse(localStorage.getItem('neuro_test_results') || 'null');
+          const overProb = calculateProbabilitySimple(expectedTotal, selectedTotal);
           
           tfResult = {
             expectedTotal: expectedTotal.toFixed(2),
+            overProbability: overProb,
+            underProbability: 100 - overProb,
             mae: testResults?.avgError || '—',
           };
         }
@@ -142,9 +148,12 @@ const ModelsComparison = () => {
       if (rfPred !== null) {
         const rfExpected = Math.max(2, Math.min(18, rfPred));
         const rfMeta = JSON.parse(localStorage.getItem('neuro_rf_meta') || 'null');
+        const rfOverProb = calculateProbabilitySimple(rfExpected, selectedTotal);
         
         rfResult = {
           expectedTotal: rfExpected.toFixed(2),
+          overProbability: rfOverProb,
+          underProbability: 100 - rfOverProb,
           mae: rfMeta?.mae || '—',
         };
       }
@@ -155,9 +164,12 @@ const ModelsComparison = () => {
       if (xgbPred !== null) {
         const xgbExpected = Math.max(2, Math.min(18, xgbPred));
         const xgbMeta = JSON.parse(localStorage.getItem('neuro_xgb_meta') || 'null');
+        const xgbOverProb = calculateProbabilitySimple(xgbExpected, selectedTotal);
         
         xgbResult = {
           expectedTotal: xgbExpected.toFixed(2),
+          overProbability: xgbOverProb,
+          underProbability: 100 - xgbOverProb,
           mae: xgbMeta?.mae || '—',
         };
       }
@@ -225,6 +237,43 @@ const ModelsComparison = () => {
       }
 
       console.log('📊 Ансамбль:', { overVotes, underVotes, totalVotes, ensembleVote, ensembleRecommendation });
+      
+      // Расчёт Value для каждой модели
+      const kef = parseFloat(manualKef);
+      const newValueResults = {};
+      
+      if (tfResult && kef > 0) {
+        const prob = tfResult.overProbability / 100;
+        const value = prob * kef - 1;
+        newValueResults.tf = {
+          value: (value * 100).toFixed(1),
+          isValue: value > 0.05,
+          isSuper: value > 0.10,
+          prob: tfResult.overProbability,
+        };
+      }
+      if (rfResult && kef > 0) {
+        const prob = rfResult.overProbability / 100;
+        const value = prob * kef - 1;
+        newValueResults.rf = {
+          value: (value * 100).toFixed(1),
+          isValue: value > 0.05,
+          isSuper: value > 0.10,
+          prob: rfResult.overProbability,
+        };
+      }
+      if (xgbResult && kef > 0) {
+        const prob = xgbResult.overProbability / 100;
+        const value = prob * kef - 1;
+        newValueResults.xgb = {
+          value: (value * 100).toFixed(1),
+          isValue: value > 0.05,
+          isSuper: value > 0.10,
+          prob: xgbResult.overProbability,
+        };
+      }
+      
+      setValueResults(newValueResults);
       setResults({ tf: tfResult, rf: rfResult, xgb: xgbResult, ensemble: { vote: ensembleVote, recommendation: ensembleRecommendation } });
     } catch (error) {
       console.error('Comparison error:', error);
@@ -371,6 +420,65 @@ const ModelsComparison = () => {
               <ModelCard icon={Brain} title="TensorFlow" result={results.tf} color="text-purple-400" gradient="border-purple-700/50" />
               <ModelCard icon={TreePine} title="Random Forest" result={results.rf} color="text-lime-400" gradient="border-lime-700/50" />
               <ModelCard icon={Zap} title="XGBoost" result={results.xgb} color="text-emerald-400" gradient="border-emerald-700/50" />
+            </div>
+
+            {/* 💰 VALUE КАЛЬКУЛЯТОР */}
+            <div className="bg-gray-800/80 rounded-xl p-5 border border-gray-600">
+              <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
+                <TrendingUp size={18} className="text-green-400" />
+                Value Betting
+              </h4>
+              <div className="flex items-center gap-4 mb-3 flex-wrap">
+                <label className="text-sm text-gray-400 whitespace-nowrap">Введите кэф:</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={manualKef}
+                  onChange={(e) => setManualKef(e.target.value)}
+                  className="w-24 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white text-center font-bold text-lg"
+                />
+              </div>
+              
+              {valueResults && (
+                <div className="space-y-2">
+                  {valueResults.tf && (
+                    <div className={`p-3 rounded-lg text-center font-bold text-lg ${
+                      valueResults.tf.isSuper ? 'bg-green-600/30 text-green-400' :
+                      valueResults.tf.isValue ? 'bg-yellow-600/30 text-yellow-400' :
+                      'bg-red-600/30 text-red-400'
+                    }`}>
+                      🧠 TF: Value {valueResults.tf.value > 0 ? '+' : ''}{valueResults.tf.value}%
+                      {valueResults.tf.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
+                       valueResults.tf.isValue ? ' ✅ ВАЛУЙ!' :
+                       ' ❌ МИМО'}
+                    </div>
+                  )}
+                  {valueResults.rf && (
+                    <div className={`p-3 rounded-lg text-center font-bold text-lg ${
+                      valueResults.rf.isSuper ? 'bg-green-600/30 text-green-400' :
+                      valueResults.rf.isValue ? 'bg-yellow-600/30 text-yellow-400' :
+                      'bg-red-600/30 text-red-400'
+                    }`}>
+                      🌲 RF: Value {valueResults.rf.value > 0 ? '+' : ''}{valueResults.rf.value}%
+                      {valueResults.rf.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
+                       valueResults.rf.isValue ? ' ✅ ВАЛУЙ!' :
+                       ' ❌ МИМО'}
+                    </div>
+                  )}
+                  {valueResults.xgb && (
+                    <div className={`p-3 rounded-lg text-center font-bold text-lg ${
+                      valueResults.xgb.isSuper ? 'bg-green-600/30 text-green-400' :
+                      valueResults.xgb.isValue ? 'bg-yellow-600/30 text-yellow-400' :
+                      'bg-red-600/30 text-red-400'
+                    }`}>
+                      ⚡ XGB: Value {valueResults.xgb.value > 0 ? '+' : ''}{valueResults.xgb.value}%
+                      {valueResults.xgb.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
+                       valueResults.xgb.isValue ? ' ✅ ВАЛУЙ!' :
+                       ' ❌ МИМО'}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <button
