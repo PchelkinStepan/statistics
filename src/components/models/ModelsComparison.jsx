@@ -32,6 +32,55 @@ const ModelsComparison = () => {
     setSelectedTotal(getLineTotalForLeague(predictLeague, data.seasons, data.leagues));
   }, [predictLeague, data.seasons, data.leagues]);
 
+  // Пересчёт Value при изменении результатов или коэффициента
+  useEffect(() => {
+    if (!results) {
+      setValueResults(null);
+      return;
+    }
+    
+    const kef = parseFloat(manualKef);
+    if (!kef || kef <= 0) {
+      setValueResults(null);
+      return;
+    }
+    
+    const newValueResults = {};
+    
+    if (results.tf) {
+      const prob = results.tf.overProbability / 100;
+      const value = prob * kef - 1;
+      newValueResults.tf = {
+        value: (value * 100).toFixed(1),
+        isValue: value > 0.05,
+        isSuper: value > 0.10,
+        prob: results.tf.overProbability,
+      };
+    }
+    if (results.rf) {
+      const prob = results.rf.overProbability / 100;
+      const value = prob * kef - 1;
+      newValueResults.rf = {
+        value: (value * 100).toFixed(1),
+        isValue: value > 0.05,
+        isSuper: value > 0.10,
+        prob: results.rf.overProbability,
+      };
+    }
+    if (results.xgb) {
+      const prob = results.xgb.overProbability / 100;
+      const value = prob * kef - 1;
+      newValueResults.xgb = {
+        value: (value * 100).toFixed(1),
+        isValue: value > 0.05,
+        isSuper: value > 0.10,
+        prob: results.xgb.overProbability,
+      };
+    }
+    
+    setValueResults(newValueResults);
+  }, [results, manualKef]);
+
   const predictRF = (features) => {
     try {
       const raw = localStorage.getItem('neuro_rf_model_json');
@@ -238,42 +287,6 @@ const ModelsComparison = () => {
 
       console.log('📊 Ансамбль:', { overVotes, underVotes, totalVotes, ensembleVote, ensembleRecommendation });
       
-      // Расчёт Value для каждой модели
-      const kef = parseFloat(manualKef);
-      const newValueResults = {};
-      
-      if (tfResult && kef > 0) {
-        const prob = tfResult.overProbability / 100;
-        const value = prob * kef - 1;
-        newValueResults.tf = {
-          value: (value * 100).toFixed(1),
-          isValue: value > 0.05,
-          isSuper: value > 0.10,
-          prob: tfResult.overProbability,
-        };
-      }
-      if (rfResult && kef > 0) {
-        const prob = rfResult.overProbability / 100;
-        const value = prob * kef - 1;
-        newValueResults.rf = {
-          value: (value * 100).toFixed(1),
-          isValue: value > 0.05,
-          isSuper: value > 0.10,
-          prob: rfResult.overProbability,
-        };
-      }
-      if (xgbResult && kef > 0) {
-        const prob = xgbResult.overProbability / 100;
-        const value = prob * kef - 1;
-        newValueResults.xgb = {
-          value: (value * 100).toFixed(1),
-          isValue: value > 0.05,
-          isSuper: value > 0.10,
-          prob: xgbResult.overProbability,
-        };
-      }
-      
-      setValueResults(newValueResults);
       setResults({ tf: tfResult, rf: rfResult, xgb: xgbResult, ensemble: { vote: ensembleVote, recommendation: ensembleRecommendation } });
     } catch (error) {
       console.error('Comparison error:', error);
