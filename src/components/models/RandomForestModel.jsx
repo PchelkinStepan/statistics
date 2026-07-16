@@ -361,9 +361,6 @@ const RandomForestModel = () => {
       <div className="bg-gray-800/50 rounded-xl p-6 border border-lime-700/50 text-center">
         <TreePine size={48} className="mx-auto mb-4 text-lime-400" />
         <h3 className="text-xl font-bold mb-2">Random Forest (браузер)</h3>
-        <p className="text-gray-400 mb-4">
-          Ансамбль деревьев • бутстрап • до 8 случайных признаков на узле • те же 32 входа, что у Neuro
-        </p>
         {!isTraining && (
           <button
             type="button"

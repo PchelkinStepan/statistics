@@ -359,9 +359,6 @@ const XGBoostModel = () => {
       <div className="bg-gray-800/50 rounded-xl p-6 border border-emerald-700/50 text-center">
         <Zap size={48} className="mx-auto mb-4 text-emerald-400" />
         <h3 className="text-xl font-bold mb-2">XGBoost (браузер)</h3>
-        <p className="text-gray-400 mb-4">
-          Градиентный бустинг деревьев • бутстрап • случайные признаки • 32 входа как у Neuro
-        </p>
         {!isTraining && (
           <button
             type="button"

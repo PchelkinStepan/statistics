@@ -454,7 +454,6 @@ const TensorFlowNeuroTab = () => {
         <div className="bg-gray-800/50 rounded-xl p-6 border border-purple-700/50 text-center">
           <Brain size={48} className="mx-auto mb-4 text-purple-400" />
           <h3 className="text-xl font-bold mb-2">TensorFlow.js v5.2</h3>
-          <p className="text-gray-400 mb-4">Value-калькулятор • Тренд ±3 • АПЛ 10.5</p>
           {!isTraining && !isRetraining && (
             <div className="flex gap-3 justify-center flex-wrap">
               <button
