@@ -51,6 +51,7 @@ const Statistics = () => {
       totalCorners1H: 0,
       totalCorners2H: 0,
       totalCornersAgainst1H: 0,
+      totalCrosses: 0,
       wins: 0,
       draws: 0,
       losses: 0,
@@ -76,6 +77,7 @@ const Statistics = () => {
       const corners1H = isHome ? (m.homeCorners1H || 0) : (m.awayCorners1H || 0);
       const corners2H = isHome ? (m.homeCorners2H || 0) : (m.awayCorners2H || 0);
       const cornersAgainst1H = isHome ? (m.awayCorners1H || 0) : (m.homeCorners1H || 0);
+      const crosses = isHome ? (m.homeCrosses || 0) : (m.awayCrosses || 0);
 
       stats.totalCornersFor += cornersFor;
       stats.totalCornersAgainst += cornersAgainst;
@@ -93,6 +95,7 @@ const Statistics = () => {
       stats.totalCorners1H += corners1H;
       stats.totalCorners2H += corners2H;
       stats.totalCornersAgainst1H += cornersAgainst1H;
+      stats.totalCrosses += crosses;
 
       if (goalsFor > goalsAgainst) stats.wins++;
       else if (goalsFor === goalsAgainst) stats.draws++;
@@ -121,6 +124,7 @@ const Statistics = () => {
       avgCorners1H: (stats.totalCorners1H / n).toFixed(2),
       avgCorners2H: (stats.totalCorners2H / n).toFixed(2),
       avgCornersAgainst1H: (stats.totalCornersAgainst1H / n).toFixed(2),
+      avgCrosses: (stats.totalCrosses / n).toFixed(2),
       points: stats.wins * 3 + stats.draws,
       form: stats.recentCorners.slice(-5),
       goalsForm: stats.recentGoals.slice(-5),
