@@ -47,6 +47,18 @@ const ModelsComparison = () => {
     
     const newValueResults = {};
     
+    // Используем consensusProb если есть, иначе отдельные вероятности
+    if (results.ensemble?.consensusProb !== null && results.ensemble?.consensusProb !== undefined) {
+      const prob = results.ensemble.consensusProb / 100;
+      const value = prob * kef - 1;
+      newValueResults.ensemble = {
+        value: (value * 100).toFixed(1),
+        isValue: value > 0.05,
+        isSuper: value > 0.10,
+        prob: results.ensemble.consensusProb,
+      };
+    }
+    
     if (results.tf) {
       const prob = results.tf.overProbability / 100;
       const value = prob * kef - 1;
@@ -226,51 +238,75 @@ const ModelsComparison = () => {
       // === Ансамбль ===
       let overVotes = 0;
       let underVotes = 0;
+      let totalExpectedSum = 0;
+      let totalModels = 0;
       
       if (tfResult) {
         const tfExpected = parseFloat(tfResult.expectedTotal);
         if (tfExpected > selectedTotal) overVotes++;
         else if (tfExpected < selectedTotal) underVotes++;
+        totalExpectedSum += tfExpected;
+        totalModels++;
       }
       if (rfResult) {
         const rfExpected = parseFloat(rfResult.expectedTotal);
         if (rfExpected > selectedTotal) overVotes++;
         else if (rfExpected < selectedTotal) underVotes++;
+        totalExpectedSum += rfExpected;
+        totalModels++;
       }
       if (xgbResult) {
         const xgbExpected = parseFloat(xgbResult.expectedTotal);
         if (xgbExpected > selectedTotal) overVotes++;
         else if (xgbExpected < selectedTotal) underVotes++;
+        totalExpectedSum += xgbExpected;
+        totalModels++;
       }
       
       const totalVotes = overVotes + underVotes;
       let ensembleVote = '⚖️ Нет данных';
       let ensembleRecommendation = '❌ ПРОПУСКАЮ';
+      let consensusProb = null;
       
       if (totalVotes === 3) {
+        // Все 3 модели согласны — используем средний expectedTotal
+        const avgExpected = totalExpectedSum / totalModels;
+        consensusProb = calculateProbabilitySimple(avgExpected, selectedTotal);
+        
         if (overVotes === 3) {
-          ensembleVote = '🔥 СТАВЛЮ ТБ!';
-          ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТБ';
+          ensembleVote = `🔥 СТАВЛЮ ТБ! (${consensusProb}%)`;
+          ensembleRecommendation = `🔥 СТАВЛЮ! Все модели за ТБ (вероятность ${consensusProb}%)`;
         } else if (underVotes === 3) {
-          ensembleVote = '🔥 СТАВЛЮ ТМ!';
-          ensembleRecommendation = '🔥 СТАВЛЮ! Все модели за ТМ';
+          ensembleVote = `🔥 СТАВЛЮ ТМ! (${consensusProb}%)`;
+          ensembleRecommendation = `🔥 СТАВЛЮ! Все модели за ТМ (вероятность ${consensusProb}%)`;
         } else {
-          // 2 против 1
+          // 2 против 1 — используем среднее арифметическое вероятностей
+          const tfProb = tfResult ? tfResult.overProbability : 50;
+          const rfProb = rfResult ? rfResult.overProbability : 50;
+          const xgbProb = xgbResult ? xgbResult.overProbability : 50;
+          consensusProb = Math.round((tfProb + rfProb + xgbProb) / 3);
+          
           if (overVotes === 2) {
-            ensembleVote = '✅ ТБ (2 из 3)';
-            ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТБ';
+            ensembleVote = `✅ ТБ (2 из 3) — ${consensusProb}%`;
+            ensembleRecommendation = `🤔 ДУМАЮ! 2 модели за ТБ (средняя вероятность ${consensusProb}%)`;
           } else if (underVotes === 2) {
-            ensembleVote = '✅ ТМ (2 из 3)';
-            ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТМ';
+            ensembleVote = `✅ ТМ (2 из 3) — ${consensusProb}%`;
+            ensembleRecommendation = `🤔 ДУМАЮ! 2 модели за ТМ (средняя вероятность ${consensusProb}%)`;
           }
         }
       } else if (totalVotes === 2) {
+        // 2 модели согласны, третья не дала прогноз
+        const tfProb = tfResult ? tfResult.overProbability : 50;
+        const rfProb = rfResult ? rfResult.overProbability : 50;
+        const xgbProb = xgbResult ? xgbResult.overProbability : 50;
+        consensusProb = Math.round((tfProb + rfProb + xgbProb) / 3);
+        
         if (overVotes === 2) {
-          ensembleVote = '✅ ТБ (2 из 3)';
-          ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТБ';
+          ensembleVote = `✅ ТБ (2 из 3) — ${consensusProb}%`;
+          ensembleRecommendation = `🤔 ДУМАЮ! 2 модели за ТБ (средняя вероятность ${consensusProb}%)`;
         } else if (underVotes === 2) {
-          ensembleVote = '✅ ТМ (2 из 3)';
-          ensembleRecommendation = '🤔 ДУМАЮ! 2 модели за ТМ';
+          ensembleVote = `✅ ТМ (2 из 3) — ${consensusProb}%`;
+          ensembleRecommendation = `🤔 ДУМАЮ! 2 модели за ТМ (средняя вероятность ${consensusProb}%)`;
         }
       } else if (totalVotes === 1) {
         if (overVotes === 1) {
@@ -285,9 +321,18 @@ const ModelsComparison = () => {
         ensembleRecommendation = '❌ ПРОПУСКАЮ! Модели не согласны';
       }
 
-      console.log('📊 Ансамбль:', { overVotes, underVotes, totalVotes, ensembleVote, ensembleRecommendation });
+      console.log('📊 Ансамбль:', { overVotes, underVotes, totalVotes, ensembleVote, ensembleRecommendation, consensusProb });
       
-      setResults({ tf: tfResult, rf: rfResult, xgb: xgbResult, ensemble: { vote: ensembleVote, recommendation: ensembleRecommendation } });
+      setResults({ 
+        tf: tfResult, 
+        rf: rfResult, 
+        xgb: xgbResult, 
+        ensemble: { 
+          vote: ensembleVote, 
+          recommendation: ensembleRecommendation,
+          consensusProb 
+        } 
+      });
     } catch (error) {
       console.error('Comparison error:', error);
     }
@@ -454,6 +499,21 @@ const ModelsComparison = () => {
               
               {valueResults && (
                 <div className="space-y-2">
+                  {valueResults.ensemble && (
+                    <div className={`p-4 rounded-lg text-center font-bold text-lg ${
+                      valueResults.ensemble.isSuper ? 'bg-green-600/30 text-green-400 border border-green-600' :
+                      valueResults.ensemble.isValue ? 'bg-yellow-600/30 text-yellow-400 border border-yellow-600' :
+                      'bg-red-600/30 text-red-400 border border-red-600'
+                    }`}>
+                      🧠 АНСАМБЛЬ: Value {valueResults.ensemble.value > 0 ? '+' : ''}{valueResults.ensemble.value}%
+                      {valueResults.ensemble.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
+                       valueResults.ensemble.isValue ? ' ✅ ВАЛУЙ!' :
+                       ' ❌ МИМО'}
+                      <div className="text-xs mt-1 opacity-80">
+                        Вероятность: {valueResults.ensemble.prob}%
+                      </div>
+                    </div>
+                  )}
                   {valueResults.tf && (
                     <div className={`p-3 rounded-lg text-center font-bold text-lg ${
                       valueResults.tf.isSuper ? 'bg-green-600/30 text-green-400' :
