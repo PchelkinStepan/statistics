@@ -443,7 +443,7 @@ const RandomForestModel = () => {
 
       {testResults && (
         <div className="bg-gray-800/50 rounded-xl p-4 border border-lime-700/50 text-center">
-          <h4 className="font-semibold text-lime-400 mb-2">Отложенная выборка (20%)</h4>
+          <h4 className="font-semibold text-lime-400 mb-2">Результаты на отложенной выборке</h4>
           <p className="text-2xl font-bold text-lime-400">MAE ±{testResults.mae}</p>
           <p className="text-xs text-gray-400">
             {testResults.total} тестовых матчей
