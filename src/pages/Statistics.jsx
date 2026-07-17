@@ -198,7 +198,7 @@ const Statistics = () => {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Target} title="Самая подающая (угловые)" data={topCornersFor} color="text-blue-400" dataKey="avgCornersFor" />
         <StatCard icon={Shield} title="Больше всего даёт угловых" data={topCornersAgainst} color="text-red-400" dataKey="avgCornersAgainst" />
         <StatCard icon={Trophy} title="Самая результативная (голы)" data={topGoalsFor} color="text-green-400" dataKey="avgGoalsFor" />
