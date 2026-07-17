@@ -407,7 +407,7 @@ const BetTracker = () => {
             setBets([]);
             setBankroll({ initial: 10000, current: 10000 });
             try {
-              await saveData(updatedData);
+              await saveData(updatedData, null, true);
               setData(updatedData);
               console.log('✅ Все ставки удалены');
             } catch (error) {
