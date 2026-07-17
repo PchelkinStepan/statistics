@@ -16,6 +16,7 @@ const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb 
     stake: 1000,
     status: 'pending',
     profit: 0,
+    value: null,
     notes: ''
   });
 
@@ -44,7 +45,8 @@ const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb 
         ? Math.round(betForm.stake * (betForm.odds - 1) * 100) / 100
         : betForm.status === 'lost' 
         ? -betForm.stake 
-        : 0
+        : 0,
+      value: betForm.value || null,
     };
     
     const updatedData = { ...data, bets: [...(data.bets || []), newBet] };

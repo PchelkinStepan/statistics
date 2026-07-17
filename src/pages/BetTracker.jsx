@@ -5,6 +5,7 @@ import {
   Check, X, Target, ChevronDown,
   BarChart3, Trophy, Clock, Edit, Save
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const BetTracker = () => {
   const [data, setData] = useState(() => {
@@ -45,6 +46,7 @@ const BetTracker = () => {
     stake: 1000,
     status: 'pending',
     profit: 0,
+    value: null,
     notes: ''
   });
 
@@ -122,6 +124,7 @@ const BetTracker = () => {
       stake: 1000,
       status: 'pending',
       profit: 0,
+      value: null,
       notes: ''
     });
     setShowAddForm(false);
@@ -270,6 +273,36 @@ const BetTracker = () => {
         <StatCard icon={Clock} label="Ожидает" value={stats.pending} color="yellow" />
       </div>
 
+      {/* 📊 ГРАФИК БАНКРОЛЛА */}
+      {bets.filter(b => b.status !== 'pending').length > 3 && (
+        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+          <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <TrendingUp size={16} className="text-green-400" /> Динамика банкролла
+          </h4>
+          <div style={{ height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={(() => {
+                const finished = bets.filter(b => b.status !== 'pending').sort((a, b) => new Date(a.date) - new Date(b.date));
+                let current = bankroll.initial;
+                return finished.map(b => {
+                  current += b.profit || 0;
+                  return {
+                    date: new Date(b.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+                    bankroll: current,
+                  };
+                });
+              })()}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="date" stroke="#9CA3AF" fontSize={10} />
+                <YAxis stroke="#9CA3AF" fontSize={10} label={{ value: 'Банкролл (₽)', angle: -90, position: 'insideLeft', fill: '#9CA3AF', fontSize: 10 }} />
+                <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }} />
+                <Line type="monotone" dataKey="bankroll" stroke="#3B82F6" name="Банкролл" dot={false} strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
         <StatCard icon={BarChart3} label="Win Rate" value={`${stats.winRate}%`} color="purple" />
         <StatCard icon={TrendingUp} label="ROI" value={`${stats.roi}%`} color={parseFloat(stats.roi) >= 0 ? 'green' : 'red'} />
@@ -278,6 +311,81 @@ const BetTracker = () => {
         <StatCard icon={Target} label="Ср. кэф" value={stats.avgOdds} color="blue" />
       </div>
 
+
+      {/* 🔥 СЕРИЯ ПОБЕД */}
+      {(() => {
+        const finished = bets.filter(b => b.status !== 'pending').sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (finished.length === 0) return null;
+        
+        let currentStreak = 0;
+        let currentType = null;
+        for (const bet of finished) {
+          if (currentType === null) {
+            currentType = bet.status;
+            currentStreak = 1;
+          } else if (bet.status === currentType) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+        
+        let bestWinStreak = 0;
+        let bestLoseStreak = 0;
+        let tempWin = 0;
+        let tempLose = 0;
+        for (const bet of [...finished].reverse()) {
+          if (bet.status === 'won') {
+            tempWin++;
+            tempLose = 0;
+            bestWinStreak = Math.max(bestWinStreak, tempWin);
+          } else {
+            tempLose++;
+            tempWin = 0;
+            bestLoseStreak = Math.max(bestLoseStreak, tempLose);
+          }
+        }
+        
+        const last10 = finished.slice(0, 10).reverse();
+        
+        return (
+          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-gray-400">Текущая серия:</p>
+                <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
+                  currentType === 'won' ? 'bg-green-600/30 text-green-400' : 'bg-red-600/30 text-red-400'
+                }`}>
+                  {currentType === 'won' ? '🔥' : '❄️'} {currentStreak} {currentType === 'won' ? 'побед' : 'поражений'}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-xs text-gray-400">
+                <span>🏆 Лучшая серия побед: <span className="text-green-400 font-bold">{bestWinStreak}</span></span>
+                <span>💀 Худшая серия: <span className="text-red-400 font-bold">{bestLoseStreak}</span></span>
+              </div>
+            </div>
+            
+            {last10.length > 0 && (
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-xs text-gray-500">Последние {last10.length}:</span>
+                <div className="flex gap-1">
+                  {last10.map((bet, i) => (
+                    <div
+                      key={i}
+                      className={`w-7 h-7 rounded flex items-center justify-center text-xs font-bold ${
+                        bet.status === 'won' ? 'bg-green-600/40 text-green-400' : 'bg-red-600/40 text-red-400'
+                      }`}
+                      title={`${bet.match}: ${bet.status === 'won' ? 'Выигрыш' : 'Проигрыш'} ${bet.profit > 0 ? '+' : ''}${bet.profit}₽`}
+                    >
+                      {bet.status === 'won' ? 'W' : 'L'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex flex-wrap gap-2">
@@ -325,6 +433,7 @@ const BetTracker = () => {
                 <th className="py-3 px-3 md:px-4">Кэф</th>
                 <th className="py-3 px-3 md:px-4">Сумма</th>
                 <th className="py-3 px-3 md:px-4">Результат</th>
+                <th className="py-3 px-3 md:px-4">Value</th>
                 <th className="py-3 px-3 md:px-4">Прибыль</th>
                 <th className="py-3 px-3 md:px-4">Действия</th>
               </tr>
@@ -362,6 +471,17 @@ const BetTracker = () => {
                           <span className={`px-2 py-1 rounded text-xs font-medium ${bet.status === 'won' ? 'bg-green-600/30 text-green-400' : 'bg-red-600/30 text-red-400'}`}>
                             {bet.status === 'won' ? 'Выигрыш' : 'Проигрыш'}
                           </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 md:px-4">
+                        {bet.value !== null && bet.value !== undefined ? (
+                          <span className={`text-xs font-medium ${
+                            bet.value > 10 ? 'text-green-400' : bet.value > 5 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>
+                            {bet.value > 0 ? '+' : ''}{bet.value}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-500">—</span>
                         )}
                       </td>
                       <td className={`py-3 px-3 md:px-4 font-medium ${
