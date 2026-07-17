@@ -22,6 +22,7 @@ const ModelsComparison = () => {
   const [saveMessage, setSaveMessage] = useState('');
   const [showBetModal, setShowBetModal] = useState(false);
   const [manualKef, setManualKef] = useState('1.85');
+  const [valueDirection, setValueDirection] = useState('over');
   const [valueResults, setValueResults] = useState(null);
 
   const teamsInLeague = data.teams?.filter((t) => t.leagueId === predictLeague) || [];
@@ -32,7 +33,7 @@ const ModelsComparison = () => {
     setSelectedTotal(getLineTotalForLeague(predictLeague, data.seasons, data.leagues));
   }, [predictLeague, data.seasons, data.leagues]);
 
-  // Пересчёт Value при изменении результатов или коэффициента
+  // Пересчёт Value при изменении результатов, коэффициента или направления
   useEffect(() => {
     if (!results || !results.ensemble?.consensusProb) {
       setValueResults(null);
@@ -45,17 +46,22 @@ const ModelsComparison = () => {
       return;
     }
     
-    const prob = results.ensemble.consensusProb / 100;
+    // Используем вероятность ТБ или ТМ в зависимости от выбранного направления
+    const prob = valueDirection === 'over' 
+      ? results.ensemble.consensusProb / 100 
+      : (100 - results.ensemble.consensusProb) / 100;
+    
     const value = prob * kef - 1;
     
     setValueResults({
       value: (value * 100).toFixed(1),
       isValue: value > 0.05,
       isSuper: value > 0.10,
-      prob: results.ensemble.consensusProb,
+      prob: valueDirection === 'over' ? results.ensemble.consensusProb : 100 - results.ensemble.consensusProb,
       kef,
+      direction: valueDirection,
     });
-  }, [results, manualKef]);
+  }, [results, manualKef, valueDirection]);
 
 
   const predictRF = (features) => {
@@ -451,6 +457,28 @@ const ModelsComparison = () => {
                 <TrendingUp size={18} className="text-green-400" />
                 Value Betting
               </h4>
+              
+              <div className="flex gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setValueDirection('over')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+                    valueDirection === 'over' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                  }`}
+                >
+                  ТБ {selectedTotal}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValueDirection('under')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+                    valueDirection === 'under' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                  }`}
+                >
+                  ТМ {selectedTotal}
+                </button>
+              </div>
+              
               <div className="flex items-center gap-4 mb-3 flex-wrap">
                 <label className="text-sm text-gray-400 whitespace-nowrap">Введите кэф:</label>
                 <input
@@ -468,7 +496,7 @@ const ModelsComparison = () => {
                   valueResults.isValue ? 'bg-yellow-600/30 text-yellow-400 border border-yellow-600' :
                   'bg-red-600/30 text-red-400 border border-red-600'
                 }`}>
-                  Value: {valueResults.value > 0 ? '+' : ''}{valueResults.value}%
+                  {valueResults.direction === 'over' ? 'ТБ' : 'ТМ'} {selectedTotal}: Value {valueResults.value > 0 ? '+' : ''}{valueResults.value}%
                   {valueResults.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
                    valueResults.isValue ? ' ✅ ВАЛУЙ!' :
                    ' ❌ МИМО'}
