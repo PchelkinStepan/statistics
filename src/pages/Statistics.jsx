@@ -155,6 +155,8 @@ const Statistics = () => {
   const topCorners2H = getTop5('avgCorners2H');
   const topCornersAgainst2H = getTop5('avgCornersAgainst2H');
   const topCrosses = getTop5('avgCrosses');
+  const topYellowCards = getTop5('avgYellowCards');
+  const topRedCards = getTop5('avgRedCards');
 
   const StatCard = ({ icon: Icon, title, data, color, suffix = '', dataKey }) => (
     <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
@@ -212,6 +214,8 @@ const Statistics = () => {
         <StatCard icon={Target} title="Угловые во 2-м тайме" data={topCorners2H} color="text-blue-400" dataKey="avgCorners2H" />
         <StatCard icon={Shield} title="Угловые соперника во 2-м тайме" data={topCornersAgainst2H} color="text-red-400" dataKey="avgCornersAgainst2H" />
         <StatCard icon={Target} title="Больше всех навешивает" data={topCrosses} color="text-cyan-400" dataKey="avgCrosses" />
+        <StatCard icon={Swords} title="Больше всех жёлтых карточек" data={topYellowCards} color="text-yellow-400" dataKey="avgYellowCards" />
+        <StatCard icon={Swords} title="Больше всех красных карточек" data={topRedCards} color="text-red-400" dataKey="avgRedCards" />
       </div>
 
       {/* Тренды последних 5 матчей */}
