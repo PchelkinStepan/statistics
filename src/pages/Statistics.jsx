@@ -51,6 +51,7 @@ const Statistics = () => {
       totalCorners1H: 0,
       totalCorners2H: 0,
       totalCornersAgainst1H: 0,
+      totalCornersAgainst2H: 0,
       totalCrosses: 0,
       wins: 0,
       draws: 0,
@@ -77,6 +78,7 @@ const Statistics = () => {
       const corners1H = isHome ? (m.homeCorners1H || 0) : (m.awayCorners1H || 0);
       const corners2H = isHome ? (m.homeCorners2H || 0) : (m.awayCorners2H || 0);
       const cornersAgainst1H = isHome ? (m.awayCorners1H || 0) : (m.homeCorners1H || 0);
+      const cornersAgainst2H = isHome ? (m.awayCorners2H || 0) : (m.homeCorners2H || 0);
       const crosses = isHome ? (m.homeCrosses || 0) : (m.awayCrosses || 0);
 
       stats.totalCornersFor += cornersFor;
@@ -95,6 +97,7 @@ const Statistics = () => {
       stats.totalCorners1H += corners1H;
       stats.totalCorners2H += corners2H;
       stats.totalCornersAgainst1H += cornersAgainst1H;
+      stats.totalCornersAgainst2H += cornersAgainst2H;
       stats.totalCrosses += crosses;
 
       if (goalsFor > goalsAgainst) stats.wins++;
@@ -124,6 +127,7 @@ const Statistics = () => {
       avgCorners1H: (stats.totalCorners1H / n).toFixed(2),
       avgCorners2H: (stats.totalCorners2H / n).toFixed(2),
       avgCornersAgainst1H: (stats.totalCornersAgainst1H / n).toFixed(2),
+      avgCornersAgainst2H: (stats.totalCornersAgainst2H / n).toFixed(2),
       avgCrosses: (stats.totalCrosses / n).toFixed(2),
       points: stats.wins * 3 + stats.draws,
       form: stats.recentCorners.slice(-5),
@@ -148,6 +152,8 @@ const Statistics = () => {
   const topSaves = getTop5('avgSaves');
   const topCorners1H = getTop5('avgCorners1H');
   const topCornersAgainst1H = getTop5('avgCornersAgainst1H');
+  const topCorners2H = getTop5('avgCorners2H');
+  const topCornersAgainst2H = getTop5('avgCornersAgainst2H');
   const topCrosses = getTop5('avgCrosses');
 
   const StatCard = ({ icon: Icon, title, data, color, suffix = '', dataKey }) => (
@@ -203,6 +209,8 @@ const Statistics = () => {
         <StatCard icon={Shield} title="Больше всего сейвов" data={topSaves} color="text-indigo-400" dataKey="avgSaves" />
         <StatCard icon={Target} title="Угловые в 1-м тайме" data={topCorners1H} color="text-blue-400" dataKey="avgCorners1H" />
         <StatCard icon={Shield} title="Угловые соперника в 1-м тайме" data={topCornersAgainst1H} color="text-red-400" dataKey="avgCornersAgainst1H" />
+        <StatCard icon={Target} title="Угловые во 2-м тайме" data={topCorners2H} color="text-blue-400" dataKey="avgCorners2H" />
+        <StatCard icon={Shield} title="Угловые соперника во 2-м тайме" data={topCornersAgainst2H} color="text-red-400" dataKey="avgCornersAgainst2H" />
         <StatCard icon={Target} title="Больше всех навешивает" data={topCrosses} color="text-cyan-400" dataKey="avgCrosses" />
       </div>
 
