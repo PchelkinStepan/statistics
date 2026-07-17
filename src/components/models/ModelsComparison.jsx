@@ -528,6 +528,7 @@ const ModelsComparison = () => {
         total={selectedTotal}
         recommendation={results?.tf ? `TF: ${results.tf.expectedTotal}` : ''}
         overProb={50}
+        value={valueResults?.value || null}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getData, saveData } from '../data/store';
 import { X, Save, Wallet } from 'lucide-react';
 
-const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb }) => {
+const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb, value }) => {
   const data = getData();
   
   const [betForm, setBetForm] = useState({
@@ -16,7 +16,7 @@ const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb 
     stake: 1000,
     status: 'pending',
     profit: 0,
-    value: null,
+    value: value || null,
     notes: ''
   });
 
