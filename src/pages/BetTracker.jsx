@@ -78,10 +78,25 @@ const BetTracker = () => {
   };
 
   const recalcBankroll = (updatedBets) => {
-    const totalProfit = updatedBets.reduce((sum, bet) => sum + (bet.profit || 0), 0);
+    // Считаем реальный баланс: начальный банк - все поставленные суммы + все выигрыши
+    let totalStaked = 0;
+    let totalWon = 0;
+    
+    updatedBets.forEach(bet => {
+      totalStaked += bet.stake || 0;
+      if (bet.status === 'won') {
+        totalWon += bet.stake + (bet.profit || 0);
+      } else if (bet.status === 'lost') {
+        // Ставка уже вычтена, ничего не добавляем
+      } else {
+        // pending — ставка вычтена, но ещё не сыграла
+      }
+    });
+    
+    const current = bankroll.initial - totalStaked + totalWon;
     const updated = {
       ...bankroll,
-      current: bankroll.initial + totalProfit
+      current: Math.max(0, current)
     };
     setBankroll(updated);
     return updated;
@@ -90,23 +105,38 @@ const BetTracker = () => {
   const handleAddBet = async (e) => {
     e.preventDefault();
     
+    // При добавлении ставки сразу вычитаем сумму из банкролла
+    const stake = betForm.stake;
     const profit = betForm.status === 'won' 
-      ? Math.round(betForm.stake * (betForm.odds - 1) * 100) / 100
+      ? Math.round(stake * (betForm.odds - 1) * 100) / 100
       : betForm.status === 'lost' 
-      ? -betForm.stake 
+      ? -stake 
       : 0;
     
     let updatedBets;
     if (editingBet) {
+      // При редактировании нужно вернуть старую сумму и вычесть новую
+      const oldBet = bets.find(b => b.id === editingBet.id);
+      const oldStake = oldBet?.stake || 0;
+      const oldProfit = oldBet?.profit || 0;
+      
       updatedBets = bets.map(b => 
         b.id === editingBet.id 
           ? { ...betForm, id: editingBet.id, profit } 
           : b
       );
+      
+      // Возвращаем старую сумму и вычитаем новую
+      const tempBankroll = { ...bankroll, current: bankroll.current + oldStake - stake };
+      setBankroll(tempBankroll);
       setEditingBet(null);
     } else {
       const newBet = { ...betForm, id: Date.now().toString(), profit };
       updatedBets = [...bets, newBet];
+      
+      // Вычитаем сумму ставки из банкролла
+      const tempBankroll = { ...bankroll, current: bankroll.current - stake };
+      setBankroll(tempBankroll);
     }
     
     setBets(updatedBets);
@@ -151,11 +181,20 @@ const BetTracker = () => {
   const updateBetStatus = async (betId, newStatus) => {
     const updatedBets = bets.map(bet => {
       if (bet.id === betId) {
-        const profit = newStatus === 'won' 
-          ? Math.round(bet.stake * (bet.odds - 1) * 100) / 100
-          : newStatus === 'lost' 
-          ? -bet.stake 
-          : 0;
+        const stake = bet.stake;
+        let profit = 0;
+        
+        if (newStatus === 'won') {
+          // Возвращаем ставку + выигрыш
+          profit = Math.round(stake * (bet.odds - 1) * 100) / 100;
+        } else if (newStatus === 'lost') {
+          // Ставка уже вычтена, ничего не возвращаем
+          profit = 0;
+        } else {
+          // pending — возвращаем ставку
+          profit = 0;
+        }
+        
         return { ...bet, status: newStatus, profit };
       }
       return bet;
@@ -282,15 +321,26 @@ const BetTracker = () => {
           <div style={{ height: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={(() => {
-                const finished = bets.filter(b => b.status !== 'pending').sort((a, b) => new Date(a.date) - new Date(b.date));
+                const allBets = [...bets].sort((a, b) => new Date(a.date) - new Date(b.date));
                 let current = bankroll.initial;
-                return finished.map(b => {
-                  current += b.profit || 0;
-                  return {
+                const dataPoints = [];
+                
+                allBets.forEach(b => {
+                  // Вычитаем ставку
+                  current -= b.stake || 0;
+                  // Если выиграла — добавляем выигрыш
+                  if (b.status === 'won') {
+                    current += b.stake + (b.profit || 0);
+                  }
+                  // Если проиграла — ничего не добавляем (сумма уже вычтена)
+                  
+                  dataPoints.push({
                     date: new Date(b.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
                     bankroll: current,
-                  };
+                  });
                 });
+                
+                return dataPoints;
               })()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="date" stroke="#9CA3AF" fontSize={10} />
