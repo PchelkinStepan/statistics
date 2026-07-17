@@ -63,7 +63,7 @@ const BetTracker = () => {
     setBankroll(newBankroll);
     
     try {
-      await saveData(updatedData);
+      await saveData(updatedData, null, true);
       console.log('✅ Ставки сохранены');
     } catch (error) {
       console.error('❌ Ошибка сохранения ставок:', error);
@@ -178,7 +178,7 @@ const BetTracker = () => {
     };
     
     try {
-      await saveData(updatedData);
+      await saveData(updatedData, null, true);
       setData(updatedData);
       setBets(updatedBets);
       setBankroll(newBankroll);

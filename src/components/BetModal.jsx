@@ -50,7 +50,7 @@ const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb,
     };
     
     const updatedData = { ...data, bets: [...(data.bets || []), newBet] };
-    saveData(updatedData);
+    saveData(updatedData, null, true);
     
     setMessage('✅ Ставка добавлена!');
     setTimeout(() => {
