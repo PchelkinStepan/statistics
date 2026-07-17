@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Scale, Brain, TreePine, Zap, Save, Wallet } from 'lucide-react';
+import { Scale, Brain, TreePine, Zap, Save, Wallet, TrendingUp } from 'lucide-react';
 import { getData } from '../../data/store';
 import BetModal from '../BetModal';
 import {
@@ -21,6 +21,8 @@ const ModelsComparison = () => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showBetModal, setShowBetModal] = useState(false);
+  const [manualKef, setManualKef] = useState('1.85');
+  const [valueResults, setValueResults] = useState(null);
 
   const teamsInLeague = data.teams?.filter((t) => t.leagueId === predictLeague) || [];
 
@@ -29,6 +31,31 @@ const ModelsComparison = () => {
   useEffect(() => {
     setSelectedTotal(getLineTotalForLeague(predictLeague, data.seasons, data.leagues));
   }, [predictLeague, data.seasons, data.leagues]);
+
+  // Пересчёт Value при изменении результатов или коэффициента
+  useEffect(() => {
+    if (!results || !results.ensemble?.consensusProb) {
+      setValueResults(null);
+      return;
+    }
+    
+    const kef = parseFloat(manualKef);
+    if (!kef || kef <= 0) {
+      setValueResults(null);
+      return;
+    }
+    
+    const prob = results.ensemble.consensusProb / 100;
+    const value = prob * kef - 1;
+    
+    setValueResults({
+      value: (value * 100).toFixed(1),
+      isValue: value > 0.05,
+      isSuper: value > 0.10,
+      prob: results.ensemble.consensusProb,
+      kef,
+    });
+  }, [results, manualKef]);
 
 
   const predictRF = (features) => {
@@ -418,6 +445,39 @@ const ModelsComparison = () => {
               <ModelCard icon={Zap} title="XGBoost" result={results.xgb} color="text-emerald-400" gradient="border-emerald-700/50" />
             </div>
 
+            {/* 💰 VALUE КАЛЬКУЛЯТОР */}
+            <div className="bg-gray-800/80 rounded-xl p-5 border border-gray-600">
+              <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
+                <TrendingUp size={18} className="text-green-400" />
+                Value Betting
+              </h4>
+              <div className="flex items-center gap-4 mb-3 flex-wrap">
+                <label className="text-sm text-gray-400 whitespace-nowrap">Введите кэф:</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={manualKef}
+                  onChange={(e) => setManualKef(e.target.value)}
+                  className="w-24 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white text-center font-bold text-lg"
+                />
+              </div>
+              
+              {valueResults && (
+                <div className={`p-4 rounded-lg text-center font-bold text-lg ${
+                  valueResults.isSuper ? 'bg-green-600/30 text-green-400 border border-green-600' :
+                  valueResults.isValue ? 'bg-yellow-600/30 text-yellow-400 border border-yellow-600' :
+                  'bg-red-600/30 text-red-400 border border-red-600'
+                }`}>
+                  Value: {valueResults.value > 0 ? '+' : ''}{valueResults.value}%
+                  {valueResults.isSuper ? ' 🔥 СУПЕР-ВАЛУЙ!' :
+                   valueResults.isValue ? ' ✅ ВАЛУЙ!' :
+                   ' ❌ МИМО'}
+                  <div className="text-xs mt-1 opacity-80">
+                    Вероятность: {valueResults.prob}% • Кэф: {valueResults.kef}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
               type="button"
