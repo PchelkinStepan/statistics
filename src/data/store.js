@@ -152,6 +152,9 @@ export const subscribe = (callback) => {
 export const saveData = async (data, changedMatchId = null, skipMatches = false) => {
   isSavingFromLocal = true;
   
+  // Отправляем событие начала сохранения
+  window.dispatchEvent(new CustomEvent('football-save-start'));
+  
   const dataWithTimestamp = { 
     ...data, 
     lastUpdated: new Date().toISOString(),
@@ -194,12 +197,18 @@ export const saveData = async (data, changedMatchId = null, skipMatches = false)
     }
     
     console.log('☁️ Сохранено:', dataWithTimestamp.matchesCount, 'матчей,', dataWithTimestamp.bets?.length || 0, 'ставок', skipMatches ? '(только метаданные)' : '');
+    
+    // Отправляем событие окончания сохранения
+    window.dispatchEvent(new CustomEvent('football-save-end'));
     return true;
   } catch (error) {
     console.error('❌ Ошибка сохранения:', error);
     const { matches: m2, ...lightData2 } = dataWithTimestamp;
     localStorage.setItem('football_offline_save', JSON.stringify(lightData2));
     console.log('💾 Сохранено локально (оффлайн)');
+    
+    // Отправляем событие окончания сохранения (даже при ошибке)
+    window.dispatchEvent(new CustomEvent('football-save-end'));
     return false;
   } finally {
     setTimeout(() => { isSavingFromLocal = false; }, 2000);

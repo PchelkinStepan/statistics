@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Calendar, Settings, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain, Scale, BarChart3, Activity } from 'lucide-react';
+import { LayoutDashboard, Trophy, Calendar, Settings, Menu, X, ChevronRight, Wifi, WifiOff, Wallet, Brain, Scale, BarChart3, Activity, RefreshCw } from 'lucide-react';
+import { getData, subscribe } from '../data/store';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -8,6 +9,39 @@ const Layout = ({ children }) => {
   const [syncStatus, setSyncStatus] = useState('synced');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [touchStart, setTouchStart] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribe((newData) => {
+      if (newData?.lastUpdated) {
+        setLastSaved(new Date(newData.lastUpdated).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+        setIsSaving(false);
+        setSyncStatus('synced');
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Слушаем события сохранения
+  useEffect(() => {
+    const handleSaveStart = () => {
+      setIsSaving(true);
+      setSyncStatus('saving');
+    };
+    const handleSaveEnd = () => {
+      setIsSaving(false);
+      setSyncStatus('synced');
+    };
+    
+    window.addEventListener('football-save-start', handleSaveStart);
+    window.addEventListener('football-save-end', handleSaveEnd);
+    
+    return () => {
+      window.removeEventListener('football-save-start', handleSaveStart);
+      window.removeEventListener('football-save-end', handleSaveEnd);
+    };
+  }, []);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -136,10 +170,15 @@ const Layout = ({ children }) => {
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-400">Статус</span>
             <div className="flex items-center space-x-2">
-              {syncStatus === 'synced' ? (
+              {isSaving ? (
+                <>
+                  <RefreshCw size={16} className="text-blue-400 animate-spin" />
+                  <span className="text-xs text-blue-400">Сохранение...</span>
+                </>
+              ) : syncStatus === 'synced' ? (
                 <>
                   <Wifi size={16} className="text-green-400" />
-                  <span className="text-xs text-green-400">Онлайн</span>
+                  <span className="text-xs text-green-400">Синхронизировано</span>
                 </>
               ) : (
                 <>
@@ -149,6 +188,11 @@ const Layout = ({ children }) => {
               )}
             </div>
           </div>
+          {lastSaved && !isSaving && (
+            <div className="text-[10px] text-gray-500 mt-1 text-right">
+              Последнее обновление: {lastSaved}
+            </div>
+          )}
         </div>
       </div>
 
