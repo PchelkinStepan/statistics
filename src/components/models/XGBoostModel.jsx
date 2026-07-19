@@ -229,10 +229,81 @@ const XGBoostModel = () => {
       leagueId: e.leagueId,
     }));
 
+  // Автоматический бэкап перед обучением
+  const backupModel = () => {
+    try {
+      const model = localStorage.getItem(STORAGE_MODEL);
+      if (model) {
+        localStorage.setItem(`${STORAGE_MODEL}_backup`, model);
+        const meta = localStorage.getItem(STORAGE_META);
+        if (meta) localStorage.setItem(`${STORAGE_META}_backup`, meta);
+        addLog('📥 Автоматический бэкап сохранён');
+      }
+    } catch (e) {
+      console.error('Backup error:', e);
+    }
+  };
+
+  // Сравнение новой модели со старой
+  const compareWithBackup = (newMae) => {
+    try {
+      const oldMeta = localStorage.getItem(`${STORAGE_META}_backup`);
+      if (!oldMeta) {
+        addLog('⚠️ Нет бэкапа для сравнения');
+        return null;
+      }
+      
+      const oldMae = parseFloat(JSON.parse(oldMeta).mae);
+      const newMaeNum = parseFloat(newMae);
+      const diff = oldMae - newMaeNum;
+      const percent = ((diff / oldMae) * 100).toFixed(1);
+      
+      if (diff > 0) {
+        addLog(`✅ Новая модель лучше на ${percent}% (MAE: ${oldMae.toFixed(2)} → ${newMaeNum.toFixed(2)})`);
+        return { better: true, diff: percent };
+      } else if (diff < 0) {
+        addLog(`⚠️ Старая модель лучше на ${Math.abs(percent)}% (MAE: ${oldMae.toFixed(2)} → ${newMaeNum.toFixed(2)})`);
+        return { better: false, diff: Math.abs(percent) };
+      } else {
+        addLog(`⚖️ Модели одинаковы (MAE: ${oldMae.toFixed(2)})`);
+        return { better: null, diff: 0 };
+      }
+    } catch (e) {
+      console.error('Compare error:', e);
+      return null;
+    }
+  };
+
+  // Восстановление предыдущей версии
+  const restoreBackup = () => {
+    try {
+      const backup = localStorage.getItem(`${STORAGE_MODEL}_backup`);
+      if (!backup) {
+        addLog('❌ Нет бэкапа для восстановления');
+        return;
+      }
+      
+      localStorage.setItem(STORAGE_MODEL, backup);
+      const backupMeta = localStorage.getItem(`${STORAGE_META}_backup`);
+      if (backupMeta) {
+        localStorage.setItem(STORAGE_META, backupMeta);
+        setTestResults(JSON.parse(backupMeta));
+      }
+      
+      setModel(SimpleXGBoost.fromJSON(backup));
+      addLog('✅ Предыдущая версия восстановлена!');
+    } catch (e) {
+      addLog(`❌ Ошибка восстановления: ${e.message}`);
+    }
+  };
+
   const trainModel = async () => {
     setIsTraining(true);
     setTrainingLog([]);
     try {
+      // Автоматический бэкап перед обучением
+      backupModel();
+      
       addLog('🚀 ОБУЧЕНИЕ XGBoost (JS)');
       addLog(`📊 ${totalMatches} матчей в базе`);
 
@@ -286,6 +357,12 @@ const XGBoostModel = () => {
 
       localStorage.setItem(STORAGE_MODEL, JSON.stringify(xgb.toJSON()));
       localStorage.setItem(STORAGE_META, JSON.stringify(meta));
+      
+      // Сравнение с предыдущей версией
+      const comparison = compareWithBackup(mae);
+      if (comparison && !comparison.better) {
+        addLog('💡 Совет: нажмите "Восстановить предыдущую версию", если новая модель хуже');
+      }
     } catch (error) {
       addLog(`❌ ${error.message}`);
       console.error(error);
@@ -394,6 +471,13 @@ const XGBoostModel = () => {
               className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
             >
               <Save size={16} /> 💾 Бэкап
+            </button>
+            <button
+              type="button"
+              onClick={restoreBackup}
+              className="bg-yellow-700 hover:bg-yellow-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
+            >
+              <Save size={16} /> 🔄 Восстановить
             </button>
             <button
               type="button"

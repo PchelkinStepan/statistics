@@ -165,10 +165,90 @@ const TensorFlowNeuroTab = () => {
     return { avgError, totalTested, errors };
   };
 
+  // Автоматический бэкап перед обучением
+  const backupModel = async () => {
+    try {
+      const models = await tf.io.listModels();
+      if (models['localstorage://football-neuro-model']) {
+        const model = await tf.loadLayersModel('localstorage://football-neuro-model');
+        await model.save('localstorage://football-neuro-model-backup');
+        addLog('📥 Автоматический бэкап сохранён');
+      }
+    } catch (e) {
+      console.error('Backup error:', e);
+    }
+  };
+
+  // Сравнение новой модели со старой
+  const compareWithBackup = async (newModel, newMae) => {
+    try {
+      const models = await tf.io.listModels();
+      if (!models['localstorage://football-neuro-model-backup']) {
+        addLog('⚠️ Нет бэкапа для сравнения');
+        return null;
+      }
+      
+      const oldModel = await tf.loadLayersModel('localstorage://football-neuro-model-backup');
+      oldModel.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError', metrics: ['mae'] });
+      
+      const oldResults = runHonestTest(oldModel, data.matches, data.seasons, JSON.parse(localStorage.getItem('neuro_norm_params') || 'null'));
+      const oldMae = parseFloat(oldResults.avgError);
+      const newMaeNum = parseFloat(newMae);
+      
+      const diff = oldMae - newMaeNum;
+      const percent = ((diff / oldMae) * 100).toFixed(1);
+      
+      if (diff > 0) {
+        addLog(`✅ Новая модель лучше на ${percent}% (MAE: ${oldMae.toFixed(2)} → ${newMaeNum.toFixed(2)})`);
+        return { better: true, diff: percent, oldMae, newMae: newMaeNum };
+      } else if (diff < 0) {
+        addLog(`⚠️ Старая модель лучше на ${Math.abs(percent)}% (MAE: ${oldMae.toFixed(2)} → ${newMaeNum.toFixed(2)})`);
+        return { better: false, diff: Math.abs(percent), oldMae, newMae: newMaeNum };
+      } else {
+        addLog(`⚖️ Модели одинаковы (MAE: ${oldMae.toFixed(2)})`);
+        return { better: null, diff: 0, oldMae, newMae: newMaeNum };
+      }
+    } catch (e) {
+      console.error('Compare error:', e);
+      return null;
+    }
+  };
+
+  // Восстановление предыдущей версии
+  const restoreBackup = async () => {
+    try {
+      const models = await tf.io.listModels();
+      if (!models['localstorage://football-neuro-model-backup']) {
+        addLog('❌ Нет бэкапа для восстановления');
+        return;
+      }
+      
+      const backupModel = await tf.loadLayersModel('localstorage://football-neuro-model-backup');
+      await backupModel.save('localstorage://football-neuro-model');
+      
+      const backupMeta = localStorage.getItem('neuro_test_results_backup');
+      if (backupMeta) {
+        localStorage.setItem('neuro_test_results', backupMeta);
+        setTestResults(JSON.parse(backupMeta));
+      }
+      
+      setLoadedModel(backupModel);
+      addLog('✅ Предыдущая версия восстановлена!');
+    } catch (e) {
+      addLog(`❌ Ошибка восстановления: ${e.message}`);
+    }
+  };
+
   const trainModel = async () => {
     setIsTraining(true);
     setTrainingLog([]);
     try {
+      // Автоматический бэкап перед обучением
+      await backupModel();
+      // Сохраняем метаданные
+      const oldMeta = localStorage.getItem('neuro_test_results');
+      if (oldMeta) localStorage.setItem('neuro_test_results_backup', oldMeta);
+      
       addLog('🚀 ОБУЧЕНИЕ Neuro AI');
       addLog(`📊 ${totalMatches} матчей`);
 
@@ -275,6 +355,12 @@ const TensorFlowNeuroTab = () => {
       addLog('💾 Модель сохранена');
       localStorage.setItem('neuro_last_trained', new Date().toISOString());
       localStorage.setItem('neuro_matches_count', String(totalMatches));
+      
+      // Сравнение с предыдущей версией
+      const comparison = await compareWithBackup(model, results.avgError);
+      if (comparison && !comparison.better) {
+        addLog('💡 Совет: нажмите "Восстановить предыдущую версию", если новая модель хуже');
+      }
     } catch (error) {
       addLog(`❌ ${error.message}`);
       console.error(error);
@@ -490,6 +576,13 @@ const TensorFlowNeuroTab = () => {
                 className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
               >
                 <Save size={16} /> 💾 Бэкап
+              </button>
+              <button
+                type="button"
+                onClick={restoreBackup}
+                className="bg-yellow-700 hover:bg-yellow-600 text-white text-sm py-2 px-4 rounded-lg flex items-center gap-2"
+              >
+                <Save size={16} /> 🔄 Восстановить
               </button>
               <button
                 type="button"
