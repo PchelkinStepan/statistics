@@ -189,15 +189,17 @@ const Statistics = () => {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <select value={selectedLeague} onChange={(e) => setSelectedLeague(e.target.value)}
+        <select value={selectedLeague} onChange={(e) => { setSelectedLeague(e.target.value); setSelectedSeason(''); }}
           className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm">
           {data.leagues?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
-        <select value={selectedSeason} onChange={(e) => setSelectedSeason(e.target.value)}
-          className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm">
-          <option value="">Все сезоны</option>
-          {seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        {seasons.length > 0 && (
+          <select value={selectedSeason} onChange={(e) => setSelectedSeason(e.target.value)}
+            className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm">
+            <option value="">Все сезоны</option>
+            {seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
