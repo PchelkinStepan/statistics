@@ -519,7 +519,27 @@ const Admin = () => {
               <div><label className="block text-xs text-gray-400 mb-2">Участвует в сезонах</label><div className="space-y-1 max-h-40 overflow-auto">{getSeasons(teamForm.leagueId).map(season => (<label key={season.id} className="flex items-center gap-2 p-2 bg-gray-700/30 rounded"><input type="checkbox" checked={teamForm.seasonIds?.includes(season.id)} onChange={(e) => { const newIds = e.target.checked ? [...(teamForm.seasonIds || []), season.id] : (teamForm.seasonIds || []).filter(id => id !== season.id); setTeamForm({...teamForm, seasonIds: newIds}); }} className="rounded bg-gray-900 border-gray-700" /><span className="text-sm">{season.name}</span></label>))}</div></div>
               <div className="flex gap-2"><button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">{editingTeam ? 'Сохранить' : 'Добавить'}</button>{editingTeam && <button type="button" onClick={() => { setEditingTeam(null); setTeamForm({ name: '', leagueId: defaultLeagueId, seasonIds: [] }); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">Отмена</button>}</div>
             </form>
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700"><h3 className="text-lg font-bold mb-3">Все команды</h3>{data.leagues?.map(league => (<div key={league.id} className="mb-4"><h4 className="text-sm font-semibold text-gray-400 mb-2">{league.name}</h4>{data.teams?.filter(t => t.leagueId === league.id).map(team => (<div key={team.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg mb-2"><div><span className="text-sm">{team.name}</span><div className="text-[10px] text-gray-400">{team.seasonIds?.join(', ')}</div></div><div className="flex gap-1"><button onClick={() => { setEditingTeam(team); setTeamForm({ name: team.name, leagueId: team.leagueId, seasonIds: team.seasonIds || [] }); }} className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"><Edit size={16} /></button><button onClick={() => handleDeleteTeam(team.id)} className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"><Trash2 size={16} /></button></div></div>))}</div>))}</div>
+            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <h3 className="text-lg font-bold mb-3">Все команды</h3>
+              <div className="mb-3">
+                <label className="block text-xs text-gray-400 mb-1">Фильтр по лиге</label>
+                <select value={teamForm.leagueId} onChange={(e) => setTeamForm({...teamForm, leagueId: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                  {data.leagues?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </div>
+              {data.teams?.filter(t => t.leagueId === teamForm.leagueId).map(team => (
+                <div key={team.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg mb-2">
+                  <div>
+                    <span className="text-sm">{team.name}</span>
+                    <div className="text-[10px] text-gray-400">{team.seasonIds?.join(', ')}</div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => { setEditingTeam(team); setTeamForm({ name: team.name, leagueId: team.leagueId, seasonIds: team.seasonIds || [] }); }} className="p-2 text-blue-400 hover:bg-blue-600/20 rounded-lg"><Edit size={16} /></button>
+                    <button onClick={() => handleDeleteTeam(team.id)} className="p-2 text-red-400 hover:bg-red-600/20 rounded-lg"><Trash2 size={16} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
