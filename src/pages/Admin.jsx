@@ -521,12 +521,6 @@ const Admin = () => {
             </form>
             <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
               <h3 className="text-lg font-bold mb-3">Все команды</h3>
-              <div className="mb-3">
-                <label className="block text-xs text-gray-400 mb-1">Фильтр по лиге</label>
-                <select value={teamForm.leagueId} onChange={(e) => setTeamForm({...teamForm, leagueId: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm">
-                  {data.leagues?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </div>
               {data.teams?.filter(t => t.leagueId === teamForm.leagueId).map(team => (
                 <div key={team.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg mb-2">
                   <div>
