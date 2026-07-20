@@ -325,7 +325,7 @@ const Statistics = () => {
           rounds[r].total++;
           const actualTotal = (m.homeCorners || 0) + (m.awayCorners || 0);
           // Используем средний тотал по лиге как тотал букмекера
-          const lineTotal = getLeagueAvgTotal(selectedLeague, data.seasons);
+          const lineTotal = 9.5;
           if (actualTotal > lineTotal) rounds[r].over++;
           else if (actualTotal < lineTotal) rounds[r].under++;
         });
