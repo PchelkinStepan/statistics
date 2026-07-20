@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { getData, addMatch, updateMatch, addLeague, addTeam, updateTeam, deleteMatch, deleteLeague, deleteTeam, subscribe, saveData, getSeasons, addSeason, updateSeason, deleteSeason, setActiveSeason, getTeamsForSeason, updateSeasonAverages, getActiveSeason } from '../data/store';
+import { getData, addMatch, updateMatch, addLeague, addTeam, updateTeam, deleteMatch, deleteLeague, deleteTeam, subscribe, saveData, getSeasons, addSeason, updateSeason, deleteSeason, setActiveSeason, getTeamsForSeason, updateSeasonAverages, getActiveSeason, resolveBetByMatch } from '../data/store';
 import { Save, Trash2, ChevronDown, ChevronUp, Plus, X, Edit, Search, RefreshCw, CheckCircle, Calendar, Download } from 'lucide-react';
 
 const useIsMobile = () => {
@@ -309,8 +309,18 @@ const Admin = () => {
         formData.homeCorners1H = Math.round(formData.homeCorners * 0.5); formData.awayCorners1H = Math.round(formData.awayCorners * 0.5);
         formData.homeCorners2H = formData.homeCorners - formData.homeCorners1H; formData.awayCorners2H = formData.awayCorners - formData.awayCorners1H;
       }
-      if (editingMatch) { await updateMatch(editingMatch.id, formData); setMessage('✅ Матч обновлен!'); }
-      else { await addMatch(formData); setMessage('✅ Матч добавлен!'); }
+      if (editingMatch) { 
+        await updateMatch(editingMatch.id, formData); 
+        setMessage('✅ Матч обновлен!'); 
+        // Автоматически разрешаем ставки для этого матча
+        await resolveBetByMatch(formData);
+      }
+      else { 
+        await addMatch(formData); 
+        setMessage('✅ Матч добавлен!'); 
+        // Автоматически разрешаем ставки для этого матча
+        await resolveBetByMatch(formData);
+      }
       setShowMobileForm(false); setEditingMatch(null); setMatchForm(getInitialMatchForm()); setTimeout(() => setMessage(''), 3000);
     } finally {
       setTimeout(() => setIsSaving(false), 2000);

@@ -402,6 +402,104 @@ export const getLeagueTable = (leagueId, seasonId) => {
   return table.sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff);
 };
 
+/**
+ * Автоматически разрешает ставки для матча.
+ * Ищет среди ставок (data.bets) те, которые соответствуют homeTeamId, awayTeamId и дате.
+ * Если находит — обновляет статус на 'won' или 'lost' и пересчитывает profit.
+ */
+export const resolveBetByMatch = async (matchData) => {
+  const data = getData();
+  const bets = data.bets || [];
+  
+  // Ищем ставки, которые соответствуют этому матчу
+  const matchBets = bets.filter(bet => {
+    // Проверяем по homeTeamId и awayTeamId
+    const betHomeTeamId = bet.homeTeamId;
+    const betAwayTeamId = bet.awayTeamId;
+    
+    // Если в ставке нет homeTeamId/awayTeamId — пропускаем
+    if (!betHomeTeamId || !betAwayTeamId) return false;
+    
+    // Проверяем совпадение команд
+    if (betHomeTeamId !== matchData.homeTeamId) return false;
+    if (betAwayTeamId !== matchData.awayTeamId) return false;
+    
+    // Проверяем дату (в пределах 7 дней)
+    const betDate = new Date(bet.date);
+    const matchDate = new Date(matchData.date);
+    const diffDays = Math.abs((betDate - matchDate) / (1000 * 60 * 60 * 24));
+    if (diffDays > 7) return false;
+    
+    return true;
+  });
+  
+  if (matchBets.length === 0) {
+    console.log('📭 Нет ставок для матча:', matchData.homeTeamId, '-', matchData.awayTeamId);
+    return;
+  }
+  
+  // Вычисляем фактический тотал
+  const actualTotal = (matchData.homeCorners || 0) + (matchData.awayCorners || 0);
+  
+  // Обновляем каждую ставку
+  const updatedBets = bets.map(bet => {
+    const isMatch = matchBets.some(mb => mb.id === bet.id);
+    if (!isMatch) return bet;
+    
+    // Определяем результат
+    let newStatus = 'lost';
+    let newProfit = -bet.stake;
+    
+    if (bet.selection === 'over') {
+      if (actualTotal > bet.total) {
+        newStatus = 'won';
+        newProfit = Math.round(bet.stake * (bet.odds - 1) * 100) / 100;
+      }
+    } else if (bet.selection === 'under') {
+      if (actualTotal < bet.total) {
+        newStatus = 'won';
+        newProfit = Math.round(bet.stake * (bet.odds - 1) * 100) / 100;
+      }
+    } else if (bet.selection === 'home') {
+      if ((matchData.homeScore || 0) > (matchData.awayScore || 0)) {
+        newStatus = 'won';
+        newProfit = Math.round(bet.stake * (bet.odds - 1) * 100) / 100;
+      }
+    } else if (bet.selection === 'away') {
+      if ((matchData.awayScore || 0) > (matchData.homeScore || 0)) {
+        newStatus = 'won';
+        newProfit = Math.round(bet.stake * (bet.odds - 1) * 100) / 100;
+      }
+    }
+    
+    console.log(`✅ Ставка ${bet.id} разрешена: ${newStatus} (profit: ${newProfit})`);
+    
+    return { ...bet, status: newStatus, profit: newProfit };
+  });
+  
+  // Пересчитываем банкролл
+  let totalStaked = 0;
+  let totalWon = 0;
+  
+  updatedBets.forEach(bet => {
+    totalStaked += bet.stake || 0;
+    if (bet.status === 'won') {
+      totalWon += bet.stake + (bet.profit || 0);
+    }
+  });
+  
+  const newBankroll = {
+    ...data.bankroll,
+    current: Math.max(0, data.bankroll.initial - totalStaked + totalWon)
+  };
+  
+  // Сохраняем обновлённые данные
+  const updatedData = { ...data, bets: updatedBets, bankroll: newBankroll };
+  await saveData(updatedData, null, true);
+  
+  console.log(`✅ Разрешено ${matchBets.length} ставок для матча ${matchData.homeTeamId} - ${matchData.awayTeamId}`);
+};
+
 export const updateSeasonAverages = async (seasonId) => {
   const data = getData();
   const season = data.seasons?.find(s => s.id === seasonId);
