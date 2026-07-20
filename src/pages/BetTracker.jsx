@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getData, saveData, subscribe } from '../data/store';
+import { getLineTotalForLeague } from '../components/models/neuroFeatures';
 import { 
   TrendingUp, Wallet, Plus, Trash2, 
   Check, X, Target, ChevronDown,
@@ -38,10 +39,12 @@ const BetTracker = () => {
   const [betForm, setBetForm] = useState({
     date: new Date().toISOString().split('T')[0],
     leagueId: data.leagues?.[0]?.id || '',
+    homeTeamId: '',
+    awayTeamId: '',
     match: '',
     betType: 'total',
     selection: 'over',
-    total: 9.5,
+    total: getLineTotalForLeague(data.leagues?.[0]?.id || 'rpl', data.seasons, data.leagues),
     odds: 1.85,
     stake: 1000,
     status: 'pending',
@@ -51,6 +54,14 @@ const BetTracker = () => {
   });
 
   const leagues = data.leagues || [];
+  
+  // Автоматически подбираем тотал при смене лиги
+  useEffect(() => {
+    if (betForm.leagueId) {
+      const lineTotal = getLineTotalForLeague(betForm.leagueId, data.seasons, data.leagues);
+      setBetForm(prev => ({ ...prev, total: lineTotal }));
+    }
+  }, [betForm.leagueId, data.seasons, data.leagues]);
 
   const saveBets = async (newBets, newBankroll) => {
     const updatedData = { 
@@ -105,6 +116,11 @@ const BetTracker = () => {
   const handleAddBet = async (e) => {
     e.preventDefault();
     
+    // Формируем название матча из выбранных команд
+    const homeTeamName = data.teams?.find(t => t.id === betForm.homeTeamId)?.name || '';
+    const awayTeamName = data.teams?.find(t => t.id === betForm.awayTeamId)?.name || '';
+    const matchStr = `${homeTeamName} - ${awayTeamName}`;
+    
     // При добавлении ставки сразу вычитаем сумму из банкролла
     const stake = betForm.stake;
     const profit = betForm.status === 'won' 
@@ -122,7 +138,7 @@ const BetTracker = () => {
       
       updatedBets = bets.map(b => 
         b.id === editingBet.id 
-          ? { ...betForm, id: editingBet.id, profit } 
+          ? { ...betForm, id: editingBet.id, profit, match: matchStr } 
           : b
       );
       
@@ -131,7 +147,7 @@ const BetTracker = () => {
       setBankroll(tempBankroll);
       setEditingBet(null);
     } else {
-      const newBet = { ...betForm, id: Date.now().toString(), profit };
+      const newBet = { ...betForm, id: Date.now().toString(), profit, match: matchStr };
       updatedBets = [...bets, newBet];
       
       // Вычитаем сумму ставки из банкролла
@@ -146,10 +162,12 @@ const BetTracker = () => {
     setBetForm({
       date: new Date().toISOString().split('T')[0],
       leagueId: data.leagues?.[0]?.id || '',
+      homeTeamId: '',
+      awayTeamId: '',
       match: '',
       betType: 'total',
       selection: 'over',
-      total: 9.5,
+      total: getLineTotalForLeague(data.leagues?.[0]?.id || 'rpl', data.seasons, data.leagues),
       odds: 1.85,
       stake: 1000,
       status: 'pending',
@@ -161,14 +179,21 @@ const BetTracker = () => {
   };
 
   const handleEditBet = (bet) => {
+    // Пытаемся найти ID команд по названию матча
+    const matchParts = bet.match?.split(' - ') || [];
+    const homeTeam = data.teams?.find(t => t.name === matchParts[0]);
+    const awayTeam = data.teams?.find(t => t.name === matchParts[1]);
+    
     setEditingBet(bet);
     setBetForm({
       date: bet.date,
       leagueId: bet.leagueId,
+      homeTeamId: homeTeam?.id || '',
+      awayTeamId: awayTeam?.id || '',
       match: bet.match,
       betType: bet.betType || 'total',
       selection: bet.selection,
-      total: bet.total || 9.5,
+      total: bet.total || getLineTotalForLeague(bet.leagueId, data.seasons, data.leagues),
       odds: bet.odds,
       stake: bet.stake,
       status: bet.status,
@@ -564,7 +589,26 @@ const BetTracker = () => {
                 <div><label className="block text-sm text-gray-400 mb-1">Дата</label><input type="date" value={betForm.date} onChange={(e) => setBetForm({...betForm, date: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" required /></div>
                 <div><label className="block text-sm text-gray-400 mb-1">Лига</label><select value={betForm.leagueId} onChange={(e) => setBetForm({...betForm, leagueId: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5">{leagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
               </div>
-              <div><label className="block text-sm text-gray-400 mb-1">Матч</label><input type="text" value={betForm.match} onChange={(e) => setBetForm({...betForm, match: e.target.value})} placeholder="Например: Зенит - Спартак" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" required /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Хозяева</label>
+                  <select value={betForm.homeTeamId} onChange={(e) => setBetForm({...betForm, homeTeamId: e.target.value, awayTeamId: ''})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" required>
+                    <option value="">Выберите</option>
+                    {data.teams?.filter(t => t.leagueId === betForm.leagueId).map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Гости</label>
+                  <select value={betForm.awayTeamId} onChange={(e) => setBetForm({...betForm, awayTeamId: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" required>
+                    <option value="">Выберите</option>
+                    {data.teams?.filter(t => t.leagueId === betForm.leagueId && t.id !== betForm.homeTeamId).map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm text-gray-400 mb-1">Тип</label><select value={betForm.selection} onChange={(e) => setBetForm({...betForm, selection: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5"><option value="over">Тотал больше</option><option value="under">Тотал меньше</option><option value="home">П1</option><option value="away">П2</option></select></div>
                 {(betForm.selection === 'over' || betForm.selection === 'under') && <div><label className="block text-sm text-gray-400 mb-1">Тотал</label><input type="number" step="0.5" value={betForm.total} onChange={(e) => setBetForm({...betForm, total: parseFloat(e.target.value)})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5" /></div>}
@@ -579,7 +623,26 @@ const BetTracker = () => {
                 <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2">
                   <Save size={18} /> {editingBet ? 'Сохранить' : 'Добавить ставку'}
                 </button>
-                <button type="button" onClick={() => { setShowAddForm(false); setEditingBet(null); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">Отмена</button>
+                <button type="button" onClick={() => { 
+                  setShowAddForm(false); 
+                  setEditingBet(null); 
+                  setBetForm({
+                    date: new Date().toISOString().split('T')[0],
+                    leagueId: data.leagues?.[0]?.id || '',
+                    homeTeamId: '',
+                    awayTeamId: '',
+                    match: '',
+                    betType: 'total',
+                    selection: 'over',
+                    total: getLineTotalForLeague(data.leagues?.[0]?.id || 'rpl', data.seasons, data.leagues),
+                    odds: 1.85,
+                    stake: 1000,
+                    status: 'pending',
+                    profit: 0,
+                    value: null,
+                    notes: ''
+                  });
+                }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg">Отмена</button>
               </div>
             </form>
           </div>
