@@ -523,6 +523,8 @@ const ModelsComparison = () => {
         matchData={{
           homeTeam: data.teams?.find((t) => t.id === predictHomeTeam)?.name || '',
           awayTeam: data.teams?.find((t) => t.id === predictAwayTeam)?.name || '',
+          homeTeamId: predictHomeTeam,
+          awayTeamId: predictAwayTeam,
           leagueId: predictLeague,
         }}
         total={selectedTotal}

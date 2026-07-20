@@ -8,6 +8,8 @@ const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb,
   const [betForm, setBetForm] = useState({
     date: new Date().toISOString().split('T')[0],
     leagueId: matchData?.leagueId || data.leagues?.[0]?.id || '',
+    homeTeamId: matchData?.homeTeamId || '',
+    awayTeamId: matchData?.awayTeamId || '',
     match: matchData?.homeTeam && matchData?.awayTeam ? `${matchData.homeTeam} - ${matchData.awayTeam}` : '',
     betType: 'total',
     selection: overProb > 50 ? 'over' : 'under',
@@ -28,7 +30,9 @@ const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb,
       setBetForm(prev => ({
         ...prev,
         match: `${matchData.homeTeam} - ${matchData.awayTeam}`,
-        leagueId: matchData.leagueId || prev.leagueId
+        leagueId: matchData.leagueId || prev.leagueId,
+        homeTeamId: matchData.homeTeamId || prev.homeTeamId,
+        awayTeamId: matchData.awayTeamId || prev.awayTeamId,
       }));
     }
   }, [matchData]);
