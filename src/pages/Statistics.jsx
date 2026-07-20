@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getData, subscribe } from '../data/store';
+import { getLeagueAvgTotal } from '../components/models/neuroFeatures';
 import { Activity, TrendingUp, Target, Trophy, Zap, Shield, Swords, Eye, BarChart3, ArrowUp, ArrowDown } from 'lucide-react';
 
 const Statistics = () => {
