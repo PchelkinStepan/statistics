@@ -9,11 +9,29 @@ const Statistics = () => {
   const [selectedLeague, setSelectedLeague] = useState(data.leagues?.[0]?.id || 'rpl');
   const [selectedSeason, setSelectedSeason] = useState('');
   const [trendTab, setTrendTab] = useState('all');
+  const [predictionLog, setPredictionLog] = useState([]);
 
   useEffect(() => {
     const unsubscribe = subscribe((newData) => setData(newData));
     return () => unsubscribe();
   }, []);
+
+  // Загружаем прогнозы из Firebase
+  useEffect(() => {
+    const loadPredictions = async () => {
+      try {
+        const { getDocs, collection } = await import('firebase/firestore');
+        const { db } = await import('../firebase');
+        const snap = await getDocs(collection(db, 'football', 'stats', 'predictions'));
+        const logs = [];
+        snap.forEach(d => logs.push(d.data()));
+        setPredictionLog(logs);
+      } catch (e) {
+        console.log('📭 Нет прогнозов');
+      }
+    };
+    loadPredictions();
+  }, [data.lastUpdated]);
 
   useEffect(() => {
     const activeSeason = data.seasons?.find(s => s.leagueId === selectedLeague && s.isActive);
@@ -319,14 +337,27 @@ const Statistics = () => {
         const leagueMatches = matches.filter(m => m.round && m.homeCorners !== undefined && m.awayCorners !== undefined);
         if (leagueMatches.length === 0) return null;
         
+        // Создаём карту прогнозов по матчам
+        const predictionMap = {};
+        predictionLog.forEach(p => {
+          const key = `${p.homeTeamId}_${p.awayTeamId}_${p.date?.split('T')[0]}`;
+          predictionMap[key] = p.selectedTotal;
+        });
+        
         const rounds = {};
         leagueMatches.forEach(m => {
           const r = m.round || '?';
           if (!rounds[r]) rounds[r] = { total: 0, over: 0, under: 0 };
+          
+          // Ищем прогноз для этого матча
+          const key = `${m.homeTeamId}_${m.awayTeamId}_${m.date?.split('T')[0]}`;
+          const lineTotal = predictionMap[key];
+          
+          // Если прогноза нет — пропускаем матч
+          if (lineTotal === undefined) return;
+          
           rounds[r].total++;
           const actualTotal = (m.homeCorners || 0) + (m.awayCorners || 0);
-          // Используем средний тотал по лиге как тотал букмекера
-          const lineTotal = 9.5;
           if (actualTotal > lineTotal) rounds[r].over++;
           else if (actualTotal < lineTotal) rounds[r].under++;
         });
