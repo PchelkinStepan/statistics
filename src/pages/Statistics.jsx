@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getData, subscribe } from '../data/store';
 import { getLeagueAvgTotal } from '../components/models/neuroFeatures';
 import { Activity, TrendingUp, Target, Trophy, Zap, Shield, Swords, Eye, BarChart3, ArrowUp, ArrowDown } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Statistics = () => {
   const [data, setData] = useState(getData());
