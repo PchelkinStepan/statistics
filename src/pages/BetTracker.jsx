@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getData, saveData, subscribe } from '../data/store';
+import { getData, saveData, subscribe, resolveBetByMatch } from '../data/store';
 import { getLineTotalForLeague } from '../components/models/neuroFeatures';
 import { 
   TrendingUp, Wallet, Plus, Trash2, 
   Check, X, Target, ChevronDown,
-  BarChart3, Trophy, Clock, Edit, Save
+  BarChart3, Trophy, Clock, Edit, Save, RefreshCw
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -35,6 +35,7 @@ const BetTracker = () => {
   const [editingBankroll, setEditingBankroll] = useState(false);
   const [newBankroll, setNewBankroll] = useState(bankroll.current);
   const [editingBet, setEditingBet] = useState(null);
+  const [isResolving, setIsResolving] = useState(false);
   
   const [betForm, setBetForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -228,6 +229,33 @@ const BetTracker = () => {
     setBets(updatedBets);
     const newBankroll = recalcBankroll(updatedBets);
     await saveBets(updatedBets, newBankroll);
+  };
+
+  const resolveAllPendingBets = async () => {
+    setIsResolving(true);
+    const pendingBets = bets.filter(b => b.status === 'pending' && b.homeTeamId && b.awayTeamId);
+    let resolved = 0;
+    
+    for (const bet of pendingBets) {
+      // Ищем матч в data.matches по homeTeamId, awayTeamId и дате
+      const match = data.matches?.find(m => 
+        m.homeTeamId === bet.homeTeamId && 
+        m.awayTeamId === bet.awayTeamId &&
+        Math.abs(new Date(m.date) - new Date(bet.date)) < 7 * 86400000
+      );
+      
+      if (match) {
+        await resolveBetByMatch(match);
+        resolved++;
+      }
+    }
+    
+    if (resolved > 0) {
+      console.log(`✅ Разрешено ${resolved} ставок`);
+    } else {
+      console.log('📭 Нет матчей для разрешения ставок');
+    }
+    setIsResolving(false);
   };
 
   const deleteBet = async (betId) => {
@@ -490,6 +518,14 @@ const BetTracker = () => {
             }
           }} className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center gap-2">
             <Trash2 size={18} /> Очистить все
+          </button>
+          <button 
+            onClick={resolveAllPendingBets} 
+            disabled={isResolving}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCw size={18} className={isResolving ? 'animate-spin' : ''} /> 
+            {isResolving ? 'Расчёт...' : 'Рассчитать все'}
           </button>
           <button onClick={() => { setEditingBet(null); setShowAddForm(true); }} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2">
             <Plus size={20} /> Добавить ставку
