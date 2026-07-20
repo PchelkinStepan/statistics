@@ -311,6 +311,91 @@ const Statistics = () => {
           </table>
         </div>
       </div>
+
+      {/* 📊 СТАТИСТИКА ПО ТУРАМ */}
+      {(() => {
+        const leagueMatches = matches.filter(m => m.round && m.homeCorners !== undefined && m.awayCorners !== undefined);
+        if (leagueMatches.length === 0) return null;
+        
+        const rounds = {};
+        leagueMatches.forEach(m => {
+          const r = m.round || '?';
+          if (!rounds[r]) rounds[r] = { total: 0, over: 0, under: 0 };
+          rounds[r].total++;
+          const actualTotal = (m.homeCorners || 0) + (m.awayCorners || 0);
+          // Используем средний тотал по лиге как тотал букмекера
+          const lineTotal = getLeagueAvgTotal(selectedLeague, data.seasons);
+          if (actualTotal > lineTotal) rounds[r].over++;
+          else if (actualTotal < lineTotal) rounds[r].under++;
+        });
+        
+        const roundKeys = Object.keys(rounds).sort((a, b) => parseInt(a) - parseInt(b));
+        let totalOver = 0, totalUnder = 0, totalAll = 0;
+        
+        return (
+          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <BarChart3 size={16} className="text-blue-400" /> Статистика по турам
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-700">
+                  <tr className="text-left text-gray-300">
+                    <th className="py-2 px-3">Тур</th>
+                    <th className="py-2 px-3 text-center">Матчей</th>
+                    <th className="py-2 px-3 text-center">ТБ</th>
+                    <th className="py-2 px-3 text-center">ТМ</th>
+                    <th className="py-2 px-3 text-center">% ТБ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roundKeys.map(r => {
+                    const data = rounds[r];
+                    const pct = data.total > 0 ? ((data.over / data.total) * 100).toFixed(1) : '0.0';
+                    totalOver += data.over;
+                    totalUnder += data.under;
+                    totalAll += data.total;
+                    return (
+                      <tr key={r} className="border-t border-gray-700 hover:bg-gray-700/30">
+                        <td className="py-2 px-3 font-medium">{r}</td>
+                        <td className="py-2 px-3 text-center">{data.total}</td>
+                        <td className="py-2 px-3 text-center text-green-400 font-medium">{data.over}</td>
+                        <td className="py-2 px-3 text-center text-red-400 font-medium">{data.under}</td>
+                        <td className="py-2 px-3 text-center font-bold">{pct}%</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t-2 border-gray-600 bg-gray-700/30">
+                    <td className="py-2 px-3 font-bold">Всего</td>
+                    <td className="py-2 px-3 text-center font-bold">{totalAll}</td>
+                    <td className="py-2 px-3 text-center text-green-400 font-bold">{totalOver}</td>
+                    <td className="py-2 px-3 text-center text-red-400 font-bold">{totalUnder}</td>
+                    <td className="py-2 px-3 text-center font-bold">{totalAll > 0 ? ((totalOver / totalAll) * 100).toFixed(1) : '0.0'}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            {/* График % ТБ по турам */}
+            {roundKeys.length > 2 && (
+              <div className="mt-4" style={{ height: 200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={roundKeys.map(r => ({
+                    round: r,
+                    pct: rounds[r].total > 0 ? parseFloat(((rounds[r].over / rounds[r].total) * 100).toFixed(1)) : 0,
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="round" stroke="#9CA3AF" fontSize={10} label={{ value: 'Тур', position: 'insideBottom', offset: -5, fill: '#9CA3AF', fontSize: 10 }} />
+                    <YAxis stroke="#9CA3AF" fontSize={10} domain={[0, 100]} label={{ value: '% ТБ', angle: -90, position: 'insideLeft', fill: '#9CA3AF', fontSize: 10 }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }} />
+                    <Line type="monotone" dataKey="pct" stroke="#3B82F6" name="% ТБ" dot={false} strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
