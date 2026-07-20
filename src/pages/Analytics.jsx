@@ -12,6 +12,7 @@ const Analytics = () => {
   const [predictionLog, setPredictionLog] = useState([]);
   const [filterLeague, setFilterLeague] = useState('all');
   const [filterModel, setFilterModel] = useState('all');
+  const [filterRound, setFilterRound] = useState('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,6 +61,9 @@ const Analytics = () => {
 
   const totalMatches = data.matches?.length || 0;
   const leagues = data.leagues || [];
+  
+  // Получаем все туры из матчей
+  const allRounds = [...new Set((data.matches || []).map(m => m.round).filter(r => r))].sort((a, b) => parseInt(a) - parseInt(b));
 
   const enrichedPredictions = predictionLog.map(pred => {
     const homeTeamName = data.teams?.find(t => t.id === pred.homeTeamId)?.name;
@@ -134,6 +138,15 @@ const Analytics = () => {
   const filteredPredictions = enrichedPredictions.filter(p => {
     if (filterLeague !== 'all' && p.leagueId !== filterLeague) return false;
     if (filterModel === 'onlyMatched' && p.actualTotal === null) return false;
+    // Фильтр по туру: ищем матч в data.matches по homeTeamId, awayTeamId и дате
+    if (filterRound !== 'all') {
+      const match = data.matches?.find(m => 
+        m.homeTeamId === p.homeTeamId && 
+        m.awayTeamId === p.awayTeamId &&
+        Math.abs(new Date(m.date) - new Date(p.date)) < 7 * 86400000
+      );
+      if (!match || String(match.round) !== filterRound) return false;
+    }
     return true;
   });
 
@@ -289,6 +302,11 @@ const Analytics = () => {
               className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs">
               <option value="all">Все лиги</option>
               {leagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+            <select value={filterRound} onChange={(e) => setFilterRound(e.target.value)}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs">
+              <option value="all">Все туры</option>
+              {allRounds.map(r => <option key={r} value={r}>{r} тур</option>)}
             </select>
             <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)}
               className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs">

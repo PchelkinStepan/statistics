@@ -38,18 +38,32 @@ const BetModal = ({ isOpen, onClose, matchData, total, recommendation, overProb,
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    const stake = betForm.stake;
+    const profit = betForm.status === 'won' 
+      ? Math.round(stake * (betForm.odds - 1) * 100) / 100
+      : betForm.status === 'lost' 
+      ? -stake 
+      : 0;
+    
     const newBet = { 
       ...betForm, 
       id: Date.now().toString(),
-      profit: betForm.status === 'won' 
-        ? Math.round(betForm.stake * (betForm.odds - 1) * 100) / 100
-        : betForm.status === 'lost' 
-        ? -betForm.stake 
-        : 0,
+      profit,
       value: betForm.value || null,
     };
     
-    const updatedData = { ...data, bets: [...(data.bets || []), newBet] };
+    // Вычитаем сумму ставки из банкролла
+    const currentBankroll = data.bankroll?.current || 10000;
+    const updatedBankroll = { 
+      ...data.bankroll, 
+      current: currentBankroll - stake 
+    };
+    
+    const updatedData = { 
+      ...data, 
+      bets: [...(data.bets || []), newBet],
+      bankroll: updatedBankroll
+    };
     saveData(updatedData, null, true);
     
     setMessage('✅ Ставка добавлена!');
