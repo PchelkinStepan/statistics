@@ -128,38 +128,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Ссылки на инструменты */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Link
-          to="/neuro"
-          className="bg-gradient-to-br from-purple-900/50 to-purple-800/50 border border-purple-700 rounded-xl p-6 hover:scale-[1.02] transition"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="bg-purple-600 p-4 rounded-xl">
-              <TrendingUp size={32} />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold mb-1">Neuro AI Прогнозы</h3>
-              <p className="text-gray-300">ML-модели и сравнение →</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          to="/bets"
-          className="bg-gradient-to-br from-green-900/50 to-green-800/50 border border-green-700 rounded-xl p-6 hover:scale-[1.02] transition"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="bg-green-600 p-4 rounded-xl">
-              <Target size={32} />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold mb-1">Трекер ставок</h3>
-              <p className="text-gray-300">Учёт ставок и банкролла →</p>
-            </div>
-          </div>
-        </Link>
-      </div>
 
       {/* Быстрый переход к лигам */}
       <div>
