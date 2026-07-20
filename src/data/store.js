@@ -270,6 +270,8 @@ export const updateMatch = async (matchId, updates) => {
 
 export const deleteMatch = async (matchId) => {
   const data = getData();
+  
+  // Удаляем из локальных данных
   const updatedData = { ...data, matches: data.matches.filter(m => m.id !== matchId) };
   
   try {
@@ -280,7 +282,8 @@ export const deleteMatch = async (matchId) => {
     console.warn('⚠️ Не удалось удалить из коллекции:', e.message);
   }
   
-  await saveData(updatedData);
+  // Сохраняем только метаданные (без перезаписи всех матчей)
+  await saveData(updatedData, null, true);
 };
 
 export const getMatchesForSeason = (leagueId, seasonId) => { const data = getData(); let m = data.matches.filter(m => m.leagueId === leagueId); if (seasonId) m = m.filter(m => m.seasonId === seasonId); return m.sort((a, b) => new Date(b.date) - new Date(a.date)); };
