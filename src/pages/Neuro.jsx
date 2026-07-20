@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Brain } from 'lucide-react';
 import { getData } from '../data/store';
 import TensorFlowNeuroTab from '../components/models/TensorFlowNeuroTab';
@@ -9,7 +10,20 @@ import ModelsComparison from '../components/models/ModelsComparison';
 const Neuro = () => {
   const data = getData();
   const totalMatches = data.matches?.length || 0;
-  const [activeTab, setActiveTab] = useState('tensorflow');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'tensorflow');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -24,26 +38,26 @@ const Neuro = () => {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        <TabBtn a={activeTab === 'tensorflow'} onClick={() => setActiveTab('tensorflow')}>
+        <TabBtn a={activeTab === 'tensorflow'} onClick={() => handleTabChange('tensorflow')}>
           🧠 TensorFlow
         </TabBtn>
         <TabBtn
           a={activeTab === 'randomforest'}
-          onClick={() => setActiveTab('randomforest')}
+          onClick={() => handleTabChange('randomforest')}
           activeClass="bg-lime-600 text-gray-950"
         >
           🌲 RF
         </TabBtn>
         <TabBtn
           a={activeTab === 'xgboost'}
-          onClick={() => setActiveTab('xgboost')}
+          onClick={() => handleTabChange('xgboost')}
           activeClass="bg-emerald-600 text-white"
         >
           ⚡ XGB
         </TabBtn>
         <TabBtn
           a={activeTab === 'comparison'}
-          onClick={() => setActiveTab('comparison')}
+          onClick={() => handleTabChange('comparison')}
           activeClass="bg-blue-600 text-white"
         >
           ⚖️ Сравнение

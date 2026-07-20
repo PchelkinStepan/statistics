@@ -33,8 +33,8 @@ const Dashboard = () => {
   const totalTeams = data.teams.length;
   const totalBets = data.bets?.length || 0;
 
-  const ModelStatusCard = ({ icon: Icon, title, status, color, link }) => (
-    <Link to={link} className="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:bg-gray-700/50 transition">
+  const ModelStatusCard = ({ icon: Icon, title, status, color, link, tab }) => (
+    <Link to={`${link}?tab=${tab}`} className="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:bg-gray-700/50 transition">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Icon size={18} className={color} />
@@ -98,9 +98,9 @@ const Dashboard = () => {
           <Activity className="text-blue-400" size={20} /> Статус моделей
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ModelStatusCard icon={Brain} title="TensorFlow" status={modelStatus.tf} color="text-purple-400" link="/neuro" />
-          <ModelStatusCard icon={TreePine} title="Random Forest" status={modelStatus.rf} color="text-lime-400" link="/neuro" />
-          <ModelStatusCard icon={Zap} title="XGBoost" status={modelStatus.xgb} color="text-emerald-400" link="/neuro" />
+          <ModelStatusCard icon={Brain} title="TensorFlow" status={modelStatus.tf} color="text-purple-400" link="/neuro" tab="tensorflow" />
+          <ModelStatusCard icon={TreePine} title="Random Forest" status={modelStatus.rf} color="text-lime-400" link="/neuro" tab="randomforest" />
+          <ModelStatusCard icon={Zap} title="XGBoost" status={modelStatus.xgb} color="text-emerald-400" link="/neuro" tab="xgboost" />
         </div>
       </div>
 
