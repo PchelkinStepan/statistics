@@ -39,6 +39,65 @@ function getMatchValue(match, field, isHome, fallback = 0) {
   return val != null ? val : fallback;
 }
 
+/**
+ * Возвращает "среднюю" статистику для команды без истории матчей.
+ * Использует средние по лиге из сезона.
+ */
+export function getDefaultTeamStats(leagueId, seasons) {
+  const leagueAvg = getLeagueAvgTotal(leagueId, seasons);
+  const season = seasons?.find((s) => s.leagueId === leagueId && s.isActive);
+  
+  const avgCornersHome = season?.avgCornersHome || 5;
+  const avgCornersAway = season?.avgCornersAway || 4;
+  const avgXG = season?.avgXG || 1.2;
+  const avgShotsInsideBox = season?.avgShotsInsideBox || 7;
+  
+  const result = {};
+  const fields = [
+    'Score', 'XG', 'Possession', 'TotalShots', 'ShotsOnTarget',
+    'Corners', 'YellowCards', 'RedCards', 'XGOT', 'BlockedShots',
+    'ShotsInsideBox', 'ShotsOutsideBox', 'TouchesBox',
+    'LongPassesAcc', 'LongPasses', 'FinalThirdAcc', 'FinalThirdPasses',
+    'CrossesAcc', 'Crosses', 'XA', 'Fouls', 'DuelsWon', 'Saves'
+  ];
+  
+  fields.forEach(f => {
+    // Для угловых используем средние по лиге
+    if (f === 'Corners') {
+      result[`avg${f}`] = avgCornersHome;
+      result[`avg${f}1H`] = Math.round(avgCornersHome * 0.5);
+      result[`avg${f}2H`] = Math.round(avgCornersHome * 0.5);
+    } else if (f === 'XG') {
+      result[`avg${f}`] = avgXG;
+      result[`avg${f}1H`] = avgXG * 0.4;
+      result[`avg${f}2H`] = avgXG * 0.6;
+    } else if (f === 'ShotsInsideBox') {
+      result[`avg${f}`] = avgShotsInsideBox;
+      result[`avg${f}1H`] = Math.round(avgShotsInsideBox * 0.45);
+      result[`avg${f}2H`] = Math.round(avgShotsInsideBox * 0.55);
+    } else if (f === 'Possession') {
+      result[`avg${f}`] = 50;
+      result[`avg${f}1H`] = 50;
+      result[`avg${f}2H`] = 50;
+    } else if (f === 'Score') {
+      result[`avg${f}`] = 1.5;
+      result[`avg${f}1H`] = 0.7;
+      result[`avg${f}2H`] = 0.8;
+    } else {
+      result[`avg${f}`] = 0;
+      result[`avg${f}1H`] = 0;
+      result[`avg${f}2H`] = 0;
+    }
+  });
+  
+  result.formPoints = 0;
+  result.matchesPlayed = 10; // Симулируем 10 матчей для нормальной работы модели
+  result.cornersTrend = 0;
+  result.ratio1H = 0.5;
+  
+  return result;
+}
+
 /** Вычисление средних по всем 23 полям + разбивка по таймам */
 export function calculateFeatures(matches, teamId) {
   const n = matches.length;
@@ -225,10 +284,14 @@ export function buildChronologicalTrainingExamples(matches, seasons) {
 
     const homePast = getLastMatches(sortedMatches, match.homeTeamId, match.date, 12);
     const awayPast = getLastMatches(sortedMatches, match.awayTeamId, match.date, 12);
-    if (homePast.length < 5 || awayPast.length < 5) continue;
-
-    const homeStats = calculateFeatures(homePast, match.homeTeamId);
-    const awayStats = calculateFeatures(awayPast, match.awayTeamId);
+    
+    // Если у команды мало матчей — используем fallback
+    const homeStats = homePast.length >= 5 
+      ? calculateFeatures(homePast, match.homeTeamId)
+      : getDefaultTeamStats(match.leagueId, seasons);
+    const awayStats = awayPast.length >= 5
+      ? calculateFeatures(awayPast, match.awayTeamId)
+      : getDefaultTeamStats(match.leagueId, seasons);
     const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, seasons);
     const round = match.round ? parseInt(match.round, 10) || 0 : 0;
     const features = buildFeatures(homeStats, awayStats, round, leagueAvgTotal);

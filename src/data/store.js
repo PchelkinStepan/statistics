@@ -363,14 +363,31 @@ export const predictMatch = (homeTeamId, awayTeamId, leagueId, seasonId, selecte
   const la = getLeagueAverages(leagueId, seasonId);
   const hs = getTeamStats(homeTeamId, seasonId);
   const as = getTeamStats(awayTeamId, seasonId);
-  if (!hs || !as || !la) return null;
+  
+  // Если у команды нет статистики — используем средние по лиге
+  const defaultStats = {
+    avgCornersFor: la.avgCornersHome,
+    avgCornersAgainst: la.avgCornersAway,
+    avgXG: la.avgXG,
+    avgXGA: la.avgXG,
+    avgShotsInsideBox: la.avgShotsInsideBox,
+    avgShotsInsideBoxAgainst: la.avgShotsInsideBox,
+    avgPossession: 50,
+    avgSaves: 3,
+    matchesPlayed: 10,
+  };
+  
+  const homeStats = hs || defaultStats;
+  const awayStats = as || defaultStats;
+  
+  if (!la) return null;
   const sd = (a, b, f = 1) => { if (!b || b === 0 || isNaN(a) || isNaN(b)) return f; const r = a / b; return isNaN(r) || !isFinite(r) ? f : r; };
-  const hcr = Math.max(0.3, sd(hs.avgCornersFor, la.avgCornersHome, 1));
-  const adc = Math.max(0.3, sd(as.avgCornersAgainst, la.avgCornersAway, 1));
+  const hcr = Math.max(0.3, sd(homeStats.avgCornersFor, la.avgCornersHome, 1));
+  const adc = Math.max(0.3, sd(awayStats.avgCornersAgainst, la.avgCornersAway, 1));
   let he = la.avgCornersHome * hcr * adc;
   if (isNaN(he) || he < 1) he = la.avgCornersHome; if (he > 15) he = 12;
-  const acr = Math.max(0.3, sd(as.avgCornersFor, la.avgCornersAway, 1));
-  const hdc = Math.max(0.3, sd(hs.avgCornersAgainst, la.avgCornersHome, 1));
+  const acr = Math.max(0.3, sd(awayStats.avgCornersFor, la.avgCornersAway, 1));
+  const hdc = Math.max(0.3, sd(homeStats.avgCornersAgainst, la.avgCornersHome, 1));
   let ae = la.avgCornersAway * acr * hdc;
   if (isNaN(ae) || ae < 0.5) ae = la.avgCornersAway; if (ae > 12) ae = 10;
   he = Math.round(he * 100) / 100; ae = Math.round(ae * 100) / 100;
