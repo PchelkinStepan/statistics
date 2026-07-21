@@ -22,6 +22,7 @@ import {
   getLeagueAvgTotal,
   calculateProbabilitySimple,
   getDefaultTeamStats,
+  getBayesianTeamStats,
 } from './neuroFeatures';
 
 const TensorFlowNeuroTab = () => {
@@ -443,13 +444,9 @@ const TensorFlowNeuroTab = () => {
       const homePast = getLastMatches(allMatches, predictHomeTeam, new Date().toISOString(), 12);
       const awayPast = getLastMatches(allMatches, predictAwayTeam, new Date().toISOString(), 12);
       
-      // Если у команды мало матчей — используем fallback
-      const homeStats = homePast.length >= 3 
-        ? calculateFeatures(homePast, predictHomeTeam)
-        : getDefaultTeamStats(predictLeague, data.seasons);
-      const awayStats = awayPast.length >= 3
-        ? calculateFeatures(awayPast, predictAwayTeam)
-        : getDefaultTeamStats(predictLeague, data.seasons);
+      // Используем байесовскую оценку
+      const homeStats = getBayesianTeamStats(homePast, predictHomeTeam, predictLeague, data.seasons);
+      const awayStats = getBayesianTeamStats(awayPast, predictAwayTeam, predictLeague, data.seasons);
 
       homeStats.cornersTrend = Math.max(-3, Math.min(3, homeStats.cornersTrend || 0));
       awayStats.cornersTrend = Math.max(-3, Math.min(3, awayStats.cornersTrend || 0));

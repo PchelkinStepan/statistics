@@ -40,62 +40,162 @@ function getMatchValue(match, field, isHome, fallback = 0) {
 }
 
 /**
- * Возвращает "среднюю" статистику для команды без истории матчей.
- * Использует средние по лиге из сезона.
+ * Байесовская оценка статистики команды.
+ * Использует априорное среднее по лиге и обновляет его по мере поступления данных.
+ * 
+ * @param {Array} matches - матчи команды (может быть пустым)
+ * @param {string} teamId - ID команды
+ * @param {string} leagueId - ID лиги
+ * @param {Array} seasons - сезоны
+ * @param {number} priorWeight - вес априорного знания (по умолчанию 5 матчей)
+ * @returns {Object} - байесовская оценка статистики
  */
-export function getDefaultTeamStats(leagueId, seasons) {
-  const leagueAvg = getLeagueAvgTotal(leagueId, seasons);
+export function getBayesianTeamStats(matches, teamId, leagueId, seasons, priorWeight = 5) {
   const season = seasons?.find((s) => s.leagueId === leagueId && s.isActive);
   
-  const avgCornersHome = season?.avgCornersHome || 5;
-  const avgCornersAway = season?.avgCornersAway || 4;
-  const avgXG = season?.avgXG || 1.2;
-  const avgShotsInsideBox = season?.avgShotsInsideBox || 7;
+  // Априорные средние по лиге
+  const prior = {
+    Score: 1.5,
+    XG: season?.avgXG || 1.2,
+    Possession: 50,
+    TotalShots: 10,
+    ShotsOnTarget: 4,
+    Corners: season?.avgCornersHome || 5,
+    YellowCards: 2,
+    RedCards: 0.1,
+    XGOT: 0.8,
+    BlockedShots: 2,
+    ShotsInsideBox: season?.avgShotsInsideBox || 7,
+    ShotsOutsideBox: 3,
+    TouchesBox: 15,
+    LongPassesAcc: 20,
+    LongPasses: 30,
+    FinalThirdAcc: 15,
+    FinalThirdPasses: 25,
+    CrossesAcc: 5,
+    Crosses: 10,
+    XA: 0.5,
+    Fouls: 10,
+    DuelsWon: 50,
+    Saves: 3,
+  };
   
+  // Априорные средние для 1-го и 2-го таймов (пропорции)
+  const priorRatio1H = {
+    Score: 0.45,
+    XG: 0.4,
+    Possession: 0.5,
+    TotalShots: 0.45,
+    ShotsOnTarget: 0.45,
+    Corners: 0.5,
+    YellowCards: 0.4,
+    RedCards: 0.3,
+    XGOT: 0.4,
+    BlockedShots: 0.45,
+    ShotsInsideBox: 0.45,
+    ShotsOutsideBox: 0.45,
+    TouchesBox: 0.5,
+    LongPassesAcc: 0.5,
+    LongPasses: 0.5,
+    FinalThirdAcc: 0.5,
+    FinalThirdPasses: 0.5,
+    CrossesAcc: 0.5,
+    Crosses: 0.5,
+    XA: 0.4,
+    Fouls: 0.5,
+    DuelsWon: 0.5,
+    Saves: 0.5,
+  };
+  
+  const n = matches.length;
   const result = {};
-  const fields = [
-    'Score', 'XG', 'Possession', 'TotalShots', 'ShotsOnTarget',
-    'Corners', 'YellowCards', 'RedCards', 'XGOT', 'BlockedShots',
-    'ShotsInsideBox', 'ShotsOutsideBox', 'TouchesBox',
-    'LongPassesAcc', 'LongPasses', 'FinalThirdAcc', 'FinalThirdPasses',
-    'CrossesAcc', 'Crosses', 'XA', 'Fouls', 'DuelsWon', 'Saves'
-  ];
+  const fields = Object.keys(prior);
   
   fields.forEach(f => {
-    // Для угловых используем средние по лиге
-    if (f === 'Corners') {
-      result[`avg${f}`] = avgCornersHome;
-      result[`avg${f}1H`] = Math.round(avgCornersHome * 0.5);
-      result[`avg${f}2H`] = Math.round(avgCornersHome * 0.5);
-    } else if (f === 'XG') {
-      result[`avg${f}`] = avgXG;
-      result[`avg${f}1H`] = avgXG * 0.4;
-      result[`avg${f}2H`] = avgXG * 0.6;
-    } else if (f === 'ShotsInsideBox') {
-      result[`avg${f}`] = avgShotsInsideBox;
-      result[`avg${f}1H`] = Math.round(avgShotsInsideBox * 0.45);
-      result[`avg${f}2H`] = Math.round(avgShotsInsideBox * 0.55);
-    } else if (f === 'Possession') {
-      result[`avg${f}`] = 50;
-      result[`avg${f}1H`] = 50;
-      result[`avg${f}2H`] = 50;
-    } else if (f === 'Score') {
-      result[`avg${f}`] = 1.5;
-      result[`avg${f}1H`] = 0.7;
-      result[`avg${f}2H`] = 0.8;
-    } else {
-      result[`avg${f}`] = 0;
-      result[`avg${f}1H`] = 0;
-      result[`avg${f}2H`] = 0;
-    }
+    // Сумма наблюдаемых значений
+    let observedSum = 0;
+    let observedSum1H = 0;
+    let observedSum2H = 0;
+    
+    matches.forEach(m => {
+      const isHome = m.homeTeamId === teamId;
+      const val = getMatchValue(m, f, isHome, 0);
+      observedSum += val;
+      
+      const val1H = getMatchValue(m, `${f}1H`, isHome, 0);
+      observedSum1H += val1H;
+      
+      const val2H = getMatchValue(m, `${f}2H`, isHome, 0);
+      observedSum2H += val2H;
+    });
+    
+    // Байесовская оценка среднего
+    const priorMean = prior[f];
+    const bayesianMean = (priorWeight * priorMean + observedSum) / (priorWeight + n);
+    
+    // Байесовская оценка для 1-го тайма
+    const priorMean1H = priorMean * priorRatio1H[f];
+    const bayesianMean1H = (priorWeight * priorMean1H + observedSum1H) / (priorWeight + n);
+    
+    // Байесовская оценка для 2-го тайма (остаток)
+    const bayesianMean2H = bayesianMean - bayesianMean1H;
+    
+    result[`avg${f}`] = bayesianMean;
+    result[`avg${f}1H`] = bayesianMean1H;
+    result[`avg${f}2H`] = bayesianMean2H;
   });
   
-  result.formPoints = 0;
-  result.matchesPlayed = 10; // Симулируем 10 матчей для нормальной работы модели
-  result.cornersTrend = 0;
-  result.ratio1H = 0.5;
+  // Байесовская оценка formPoints
+  let observedFormPoints = 0;
+  matches.forEach(m => {
+    const isHome = m.homeTeamId === teamId;
+    const teamScore = isHome ? (m.homeScore || 0) : (m.awayScore || 0);
+    const oppScore = isHome ? (m.awayScore || 0) : (m.homeScore || 0);
+    if (teamScore > oppScore) observedFormPoints += 3;
+    else if (teamScore === oppScore) observedFormPoints += 1;
+  });
+  const priorFormPoints = 1.5; // Среднее по лиге (ничья)
+  result.formPoints = (priorWeight * priorFormPoints + observedFormPoints) / (priorWeight + n);
+  
+  // matchesPlayed — реальное количество матчей (не байесовское)
+  result.matchesPlayed = n;
+  
+  // cornersTrend — байесовская оценка тренда
+  const cornersList = matches.map(m => {
+    const isHome = m.homeTeamId === teamId;
+    return getMatchValue(m, 'Corners', isHome, 0);
+  });
+  const half = Math.max(1, Math.floor(n / 2));
+  const firstHalfAvg = cornersList.slice(0, half).reduce((a, b) => a + b, 0) / half;
+  const secondHalfAvg = cornersList.slice(half).reduce((a, b) => a + b, 0) / Math.max(1, n - half);
+  const rawTrend = firstHalfAvg - secondHalfAvg;
+  const priorTrend = 0;
+  result.cornersTrend = (priorWeight * priorTrend + rawTrend * n) / (priorWeight + n);
+  result.cornersTrend = Math.max(-3, Math.min(3, result.cornersTrend));
+  
+  // ratio1H — байесовская оценка
+  const totalCorners = matches.reduce((sum, m) => {
+    const isHome = m.homeTeamId === teamId;
+    return sum + getMatchValue(m, 'Corners', isHome, 0);
+  }, 0);
+  const corners1H = matches.reduce((sum, m) => {
+    const isHome = m.homeTeamId === teamId;
+    return sum + getMatchValue(m, 'Corners1H', isHome, 0);
+  }, 0);
+  const priorRatio = 0.5;
+  const observedRatio = totalCorners > 0 ? corners1H / totalCorners : 0.5;
+  result.ratio1H = (priorWeight * priorRatio + observedRatio * n) / (priorWeight + n);
   
   return result;
+}
+
+/**
+ * Возвращает "среднюю" статистику для команды без истории матчей.
+ * Использует средние по лиге из сезона.
+ * @deprecated Используйте getBayesianTeamStats вместо этой функции
+ */
+export function getDefaultTeamStats(leagueId, seasons) {
+  return getBayesianTeamStats([], null, leagueId, seasons);
 }
 
 /** Вычисление средних по всем 23 полям + разбивка по таймам */
@@ -285,13 +385,9 @@ export function buildChronologicalTrainingExamples(matches, seasons) {
     const homePast = getLastMatches(sortedMatches, match.homeTeamId, match.date, 12);
     const awayPast = getLastMatches(sortedMatches, match.awayTeamId, match.date, 12);
     
-    // Если у команды мало матчей — используем fallback
-    const homeStats = homePast.length >= 5 
-      ? calculateFeatures(homePast, match.homeTeamId)
-      : getDefaultTeamStats(match.leagueId, seasons);
-    const awayStats = awayPast.length >= 5
-      ? calculateFeatures(awayPast, match.awayTeamId)
-      : getDefaultTeamStats(match.leagueId, seasons);
+    // Используем байесовскую оценку для обеих команд
+    const homeStats = getBayesianTeamStats(homePast, match.homeTeamId, match.leagueId, seasons);
+    const awayStats = getBayesianTeamStats(awayPast, match.awayTeamId, match.leagueId, seasons);
     const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, seasons);
     const round = match.round ? parseInt(match.round, 10) || 0 : 0;
     const features = buildFeatures(homeStats, awayStats, round, leagueAvgTotal);
