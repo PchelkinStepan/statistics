@@ -386,10 +386,10 @@ export function buildChronologicalTrainingExamples(matches, seasons) {
     const awayPast = getLastMatches(sortedMatches, match.awayTeamId, match.date, 12);
     
     // Если у команды мало матчей — используем fallback
-    const homeStats = homePast.length >= 5 
+    const homeStats = homePast.length >= 1 
       ? calculateFeatures(homePast, match.homeTeamId)
       : getDefaultTeamStats(match.leagueId, seasons);
-    const awayStats = awayPast.length >= 5
+    const awayStats = awayPast.length >= 1
       ? calculateFeatures(awayPast, match.awayTeamId)
       : getDefaultTeamStats(match.leagueId, seasons);
     const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, seasons);

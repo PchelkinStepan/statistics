@@ -444,10 +444,10 @@ const TensorFlowNeuroTab = () => {
       const awayPast = getLastMatches(allMatches, predictAwayTeam, new Date().toISOString(), 12);
       
       // Если у команды мало матчей — используем fallback
-      const homeStats = homePast.length >= 3 
+      const homeStats = homePast.length >= 1 
         ? calculateFeatures(homePast, predictHomeTeam)
         : getDefaultTeamStats(predictLeague, data.seasons);
-      const awayStats = awayPast.length >= 3
+      const awayStats = awayPast.length >= 1
         ? calculateFeatures(awayPast, predictAwayTeam)
         : getDefaultTeamStats(predictLeague, data.seasons);
 
