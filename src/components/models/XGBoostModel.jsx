@@ -10,7 +10,6 @@ import {
   getLineTotalForLeague,
   calculateProbabilitySimple,
   getDefaultTeamStats,
-  getBayesianTeamStats,
 } from './neuroFeatures';
 
 /** Упрощённый градиентный бустинг деревьев (MSE), без внешних зависимостей */
@@ -379,9 +378,13 @@ const XGBoostModel = () => {
     const homePast = getLastMatches(allMatches, predictHomeTeam, new Date().toISOString(), 12);
     const awayPast = getLastMatches(allMatches, predictAwayTeam, new Date().toISOString(), 12);
     
-    // Используем байесовскую оценку
-    const homeStats = getBayesianTeamStats(homePast, predictHomeTeam, predictLeague, data.seasons);
-    const awayStats = getBayesianTeamStats(awayPast, predictAwayTeam, predictLeague, data.seasons);
+    // Если у команды мало матчей — используем fallback
+    const homeStats = homePast.length >= 3 
+      ? calculateFeatures(homePast, predictHomeTeam)
+      : getDefaultTeamStats(predictLeague, data.seasons);
+    const awayStats = awayPast.length >= 3
+      ? calculateFeatures(awayPast, predictAwayTeam)
+      : getDefaultTeamStats(predictLeague, data.seasons);
     const features = buildFeatures(
       homeStats,
       awayStats,

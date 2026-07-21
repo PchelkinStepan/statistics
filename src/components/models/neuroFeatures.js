@@ -385,9 +385,13 @@ export function buildChronologicalTrainingExamples(matches, seasons) {
     const homePast = getLastMatches(sortedMatches, match.homeTeamId, match.date, 12);
     const awayPast = getLastMatches(sortedMatches, match.awayTeamId, match.date, 12);
     
-    // Используем байесовскую оценку для обеих команд
-    const homeStats = getBayesianTeamStats(homePast, match.homeTeamId, match.leagueId, seasons);
-    const awayStats = getBayesianTeamStats(awayPast, match.awayTeamId, match.leagueId, seasons);
+    // Если у команды мало матчей — используем fallback
+    const homeStats = homePast.length >= 5 
+      ? calculateFeatures(homePast, match.homeTeamId)
+      : getDefaultTeamStats(match.leagueId, seasons);
+    const awayStats = awayPast.length >= 5
+      ? calculateFeatures(awayPast, match.awayTeamId)
+      : getDefaultTeamStats(match.leagueId, seasons);
     const leagueAvgTotal = getLeagueAvgTotal(match.leagueId, seasons);
     const round = match.round ? parseInt(match.round, 10) || 0 : 0;
     const features = buildFeatures(homeStats, awayStats, round, leagueAvgTotal);
